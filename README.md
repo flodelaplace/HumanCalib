@@ -94,6 +94,22 @@ This path is still fully functional and can be useful when MeTRAbs is not availa
 
 ---
 
+## Bundle Adjustment: analytic Jacobian (fast, default)
+
+Bundle Adjustment refines all camera rotations/translations and the 3D points by minimizing reprojection error (`scipy.optimize.least_squares`, TRF). The cost is dominated not by the iterations themselves (which are sequential and cannot be parallelized) but by **evaluating the Jacobian** — and by default SciPy estimates it with **finite differences**, which re-evaluates the (large) objective many times per iteration.
+
+The pipeline instead supplies an **exact analytic Jacobian** (`calibration/ba_jacobian.py`), enabled by default (`--ba_jac analytic`):
+
+- **Reprojection term** — analytic, via the projection derivative composed with the Rodrigues derivative (`cv2.Rodrigues` supplies ∂R/∂rvec).
+- **Bone-length variance term** — analytic.
+- **Cross-camera direction-variance term** — finite-differenced over the 3·C rotation-vector parameters only (negligible cost, exact to step precision).
+
+This removes the finite-difference eval explosion — **~10–100× fewer objective evaluations for identical accuracy**. On the demo, numeric vs analytic gave the same MRE (4.057 vs 4.058 px) while the objective was evaluated **~2940 vs ~22 times**. Validated against a numeric Jacobian (max relative error ~1e-9).
+
+Use `--ba_jac numeric` to fall back to the legacy finite-difference path (same result, slower). See also the optional robust-BA flags (`--ba_loss`, `--ba_obs_weight`, `--ba_f_scale`) in `argument.py`, which are **off by default** and preserve the current behavior unless explicitly enabled.
+
+---
+
 ## 1. Installation
 
 ### Prerequisites
@@ -174,11 +190,21 @@ python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU')
 # Expected: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
 ```
 
-#### 4. MeTRAbs model (automatic)
+#### 4. MeTRAbs model (automatic, persistently cached)
 
-The MeTRAbs model is downloaded automatically on first run via TensorFlow Hub (~700 MB). It is cached in `~/.cache/tfhub_modules/` — subsequent runs start instantly.
+The MeTRAbs model is downloaded automatically on first run via TensorFlow Hub (~1.1 GB on disk). No manual download is needed.
 
-No manual download is needed.
+**Persistent local cache.** By default TensorFlow Hub caches models in `/tmp/tfhub_modules`, which is **ephemeral** — on WSL (and many systems) `/tmp` is wiped on restart, so the model would be **re-downloaded every reboot** (~10 min each time). To avoid this, `pose/metrabs_inference.py` pins the cache to a **persistent** directory *in code*, before TensorFlow Hub is imported:
+
+```python
+os.environ.setdefault('TFHUB_CACHE_DIR', os.path.expanduser('~/.cache/tfhub_modules'))
+```
+
+So the model is downloaded **once** to `~/.cache/tfhub_modules/` and reused across reboots. Cold start (download) is a one-time ~10 min; every subsequent run loads from disk in ~50 s (TensorFlow/GPU init — irreducible), and re-running the **same dataset** skips MeTRAbs entirely (cached poses). To use a different location, set `TFHUB_CACHE_DIR` yourself (the code respects a pre-set value); optionally add to `~/.bashrc`:
+
+```bash
+export TFHUB_CACHE_DIR="$HOME/.cache/tfhub_modules"
+```
 
 #### Tested versions
 

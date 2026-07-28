@@ -28,6 +28,9 @@
 #   --ref_cam <id>         : 1-indexed CAM ID to force as Procrustes reference for
 #                            the linear init (default: auto-select the camera with
 #                            the lowest mean Procrustes residual).
+#   --ba_jac <mode>        : Bundle-adjustment Jacobian. 'analytic' (default) is
+#                            exact and ~10-100x fewer objective evals (much faster,
+#                            same accuracy). 'numeric' is the legacy finite-diff path.
 # =============================================================================
 
 set -e  # Stop on error
@@ -55,6 +58,7 @@ AUTO_OUTLIER_DROP="true"
 OUTLIER_ABS_PX=50
 OUTLIER_X_MEDIAN=5
 REF_CAM=""
+BA_JAC="analytic"
 
 # --- Parse arguments ---
 # Positional arguments
@@ -83,6 +87,7 @@ while [[ "$#" -gt 0 ]]; do
         --outlier_abs_px) OUTLIER_ABS_PX="$VAL"; shift ;;
         --outlier_x_median) OUTLIER_X_MEDIAN="$VAL"; shift ;;
         --ref_cam) REF_CAM="$VAL"; shift ;;
+        --ba_jac) BA_JAC="$VAL"; shift ;;
         cuda|cpu) DEVICE="$PARAM" ;;
         lightweight|balanced|performance) MODE="$PARAM" ;;
         *) echo "Unknown parameter passed: $PARAM"; exit 1 ;;
@@ -373,7 +378,7 @@ if [ "$AUTO_OUTLIER_DROP" = "true" ]; then
 fi
 
 echo "  → Bundle Adjustment (linear)..."
-python3 "${SCRIPT_DIR}/run_ba.py" "${OUTPUT_DIR}" ${AID} ${PID} ${GID} ${FRAME_SKIP} ${LAMBDA1} ${LAMBDA2} linear_1_0 ${DATASET} false true ${CONF_THRESHOLD}
+python3 "${SCRIPT_DIR}/run_ba.py" "${OUTPUT_DIR}" ${AID} ${PID} ${GID} ${FRAME_SKIP} ${LAMBDA1} ${LAMBDA2} linear_1_0 ${DATASET} false true ${CONF_THRESHOLD} ${BA_JAC}
 
 # --- Step 6: Evaluation and Visualization ---------------------------------------
 echo ""

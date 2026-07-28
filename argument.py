@@ -54,6 +54,27 @@ def parse_args(predefined_args=None):
                         help="1-indexed CAM ID to use as Procrustes reference. "
                              "If unset, auto-select the camera with the lowest mean Procrustes residual.")
 
+    # --- Robust / quality-weighted bundle adjustment (default = current behavior) ---
+    parser.add_argument("--ba_loss", type=str, default="linear",
+                        choices=["linear", "huber", "soft_l1", "cauchy", "arctan"],
+                        help="Robust loss for BA least_squares. 'linear' (default) = current L2 behavior.")
+    parser.add_argument("--ba_f_scale", type=float, default=1.0,
+                        help="Soft margin for the robust BA loss, in residual units "
+                             "(~ confidence-weighted pixel error). Ignored when ba_loss=linear.")
+    parser.add_argument("--ba_obs_weight", type=str, default="none",
+                        choices=["none", "completeness", "declip"],
+                        help="Per-observation quality weighting. 'completeness' softly down-weights "
+                             "frames with fewer confident joints; 'declip' hard-zeros joints within "
+                             "--ba_border_margin px of the image edge (truncated detections).")
+    parser.add_argument("--ba_border_margin", type=float, default=20.0,
+                        help="Border margin (px) for the 'declip' obs-weight mode.")
+    parser.add_argument("--ba_out_tag", type=str, default="",
+                        help="If set, BA result is saved as <target>_ba_<tag>.json so the baseline "
+                             "<target>_ba.json is left untouched (for A/B experiments).")
+    parser.add_argument("--ba_jac", type=str, default="analytic", choices=["numeric", "analytic"],
+                        help="BA Jacobian: 'analytic' (default, exact, ~10-100x fewer objective "
+                             "evals, same accuracy) or 'numeric' (legacy scipy finite-diff + sparsity).")
+
     # Arguments for chunking
     parser.add_argument("--frame_start", type=int, default=None, help="Start frame for chunk processing.")
     parser.add_argument("--frame_end", type=int, default=None, help="End frame for chunk processing.")

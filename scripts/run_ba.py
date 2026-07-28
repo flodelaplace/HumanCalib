@@ -43,6 +43,7 @@ def main(argv):
     lambda1, lambda2, target, dataset = argv[5:9]
     obs_mask, save_obs_mask = argv[9:11]
     conf_threshold = argv[11] if len(argv) > 11 else "0.5"
+    ba_jac = argv[12] if len(argv) > 12 else "analytic"
 
     current_frame_skip = int(frame_skip)
     while True:
@@ -62,6 +63,7 @@ def main(argv):
             "--th_obs_mask", "20",
             "--save_obs_mask", save_obs_mask,
             "--conf_threshold", conf_threshold,
+            "--ba_jac", ba_jac,
         ]
         result = subprocess.run(cmd)
         if result.returncode == 0:

@@ -40,7 +40,7 @@ def from_theta(theta, C):
     return R, tvecs, x
 
 
-def objfun_nll(K_all, R_all, t_all, x_all, y_all, y_mask_all, s_all):
+def objfun_nll(K_all, R_all, t_all, x_all, y_all, y_mask_all, s_all, w_all=None):
     # K_all : C x 3 x 3
     # R_all : C x 3 x 3, w2c
     # t_all : C x 3
@@ -48,15 +48,20 @@ def objfun_nll(K_all, R_all, t_all, x_all, y_all, y_mask_all, s_all):
     # y_all : C x Nc
     # y_mask_all : C x N (bool index)
     # sd_all : C x Nc
+    # w_all : C x Nc continuous per-observation quality weight (or None = all ones)
 
     e_all = []
-    for K, R, t, mask, y, s in zip(K_all, R_all, t_all, y_mask_all, y_all, s_all):
+    for ci, (K, R, t, mask, y, s) in enumerate(
+        zip(K_all, R_all, t_all, y_mask_all, y_all, s_all)
+    ):
         # for each camera
 
         # visible points
         x = x_all[mask]
         y = y[mask]
         s = np.sqrt(2) * s[mask]
+        if w_all is not None:
+            s = s * w_all[ci][mask]
         s = np.copy(s.reshape((-1, 1)))
 
         # project
@@ -132,7 +137,7 @@ def objfun_varbone(x_all, bone_idx, invalid_mask=None):
 # reprojection objective, which degrades the final MRE. Do not re-introduce.
 
 
-def objfun(params, K, sp2d, ss2d, sp3d, ss3d, bone_idx, C, N, J, lambda1, lambda2, invalid_mask, conf_threshold=0.5):
+def objfun(params, K, sp2d, ss2d, sp3d, ss3d, bone_idx, C, N, J, lambda1, lambda2, invalid_mask, conf_threshold=0.5, obs_weight=None):
     R_w2c, t_w2c, x = from_theta(params, C)
     E = []
     e = objfun_nll(
@@ -143,6 +148,7 @@ def objfun(params, K, sp2d, ss2d, sp3d, ss3d, bone_idx, C, N, J, lambda1, lambda
         sp2d,
         (ss2d > conf_threshold).reshape((C, N * J)),
         ss2d.reshape((C, N * J)),
+        w_all=obs_weight,
     )
     E.append(e.flatten())
 
@@ -276,7 +282,8 @@ def build_jac_sparsity(C, N, J, ss2d_work, ss3d, bone_idx, invalid_mask, conf_th
 
 def _run_ba(K, R_w2c, t_w2c, x_all, sp2d_flat, ss2d, sp3d, ss3d, bone_idx,
             C, N, J, lambda1, lambda2, invalid_mask, conf_threshold, cost_history,
-            plot_path=None, jac_sparsity=None):
+            plot_path=None, jac_sparsity=None, loss="linear", f_scale=1.0,
+            obs_weight=None, jac_mode="numeric"):
     """Single pass of bundle adjustment optimization."""
     best_cost = cost_history[-1] if cost_history else float('inf')
     pbar = tqdm(desc="  BA optimizing", unit="eval", dynamic_ncols=True)
@@ -314,10 +321,16 @@ def _run_ba(K, R_w2c, t_w2c, x_all, sp2d_flat, ss2d, sp3d, ss3d, bone_idx,
         gtol=1e-7,
         max_nfev=max_evals,
         method="trf",
+        loss=loss,
+        f_scale=f_scale,
         args=(K, sp2d_flat, ss2d, sp3d, ss3d, bone_idx,
-              C, N, J, lambda1, lambda2, invalid_mask, conf_threshold),
+              C, N, J, lambda1, lambda2, invalid_mask, conf_threshold, obs_weight),
     )
-    if jac_sparsity is not None:
+    if jac_mode == "analytic":
+        # Exact Jacobian: no finite differences -> far fewer objective evals.
+        from calibration.ba_jacobian import ba_jacobian
+        kwargs['jac'] = ba_jacobian
+    elif jac_sparsity is not None:
         kwargs['jac_sparsity'] = jac_sparsity
 
     res = least_squares(objfun_wrapped, theta0, **kwargs)
@@ -336,7 +349,8 @@ def _run_ba(K, R_w2c, t_w2c, x_all, sp2d_flat, ss2d, sp3d, ss3d, bone_idx,
 
 def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
             conf_threshold=0.5, bone_idx=None, n_iterations=2, outlier_threshold=2.0,
-            plot_dir=None):
+            plot_dir=None, loss="linear", f_scale=1.0, obs_weight_mode="none",
+            border_margin=20.0, img_size=(1920, 1080), jac_mode="numeric"):
 
     C = len(camid)
     N = sp2d.shape[1]
@@ -344,6 +358,10 @@ def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
 
     if bone_idx is None:
         bone_idx = core.OP_BONE
+
+    if loss != "linear" or obs_weight_mode != "none":
+        print(f"  Robust BA: loss={loss}, f_scale={f_scale}, "
+              f"obs_weight={obs_weight_mode}")
 
     cost_history = []
     ss2d_work = ss2d.copy()
@@ -368,6 +386,29 @@ def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
             ss2d_work[c][invalid_mask_3d] = 0.0
 
         sp2d_flat = sp2d.reshape((C, N * J, 2))
+
+        # Continuous per-observation quality weight (folded into the NLL term).
+        # 'completeness' = fraction of confident joints in that (camera, frame):
+        # truncated/partial detections (person clipped at the frame border) get
+        # fewer confident joints and are smoothly down-weighted.
+        if obs_weight_mode == "completeness":
+            conf_mask = ss2d_work > conf_threshold          # C x N x J
+            q = conf_mask.sum(axis=2) / float(J)            # C x N in [0, 1]
+            obs_weight = np.repeat(q[:, :, None], J, axis=2).reshape(C, N * J)
+        elif obs_weight_mode == "declip":
+            # Hard-zero joints landing within `border_margin` px of the image
+            # edge: truncated detections give biased keypoints that no camera
+            # pose can fit. Fits each camera from its in-frame joints only.
+            W, H = img_size
+            px = sp2d.reshape(C, N * J, 2)
+            near = ((px[:, :, 0] < border_margin) | (px[:, :, 0] > W - border_margin) |
+                    (px[:, :, 1] < border_margin) | (px[:, :, 1] > H - border_margin))
+            obs_weight = (~near).astype(np.float64)         # C x (N*J), 0 at border
+            kept = obs_weight.sum() / obs_weight.size
+            print(f"  declip: kept {100*kept:.1f}% of joint observations "
+                  f"(margin {border_margin:.0f}px)")
+        else:
+            obs_weight = None
 
         e_nll = objfun_nll(K, R_w2c, t_w2c, x_all, sp2d_flat,
                        (ss2d_work > conf_threshold).reshape((C, N * J)),
@@ -397,22 +438,25 @@ def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
             print(f"  Bone variance negligible ({bone_energy:.6f}), "
                   f"disabling bone regularization (lambda2=0)")
 
-        # Build Jacobian sparsity pattern (huge speedup for BA)
-        print("  Building Jacobian sparsity pattern...")
-        t0 = time.time()
-        jac_sp = build_jac_sparsity(C, N, J, ss2d_work, ss3d, bone_idx,
-                                    invalid_mask, conf_threshold)
-        print(f"  Sparsity built in {time.time()-t0:.1f}s")
+        # Build Jacobian sparsity pattern (only needed for the finite-diff path;
+        # the analytic Jacobian supplies exact structure itself).
+        jac_sp = None
+        if jac_mode != "analytic":
+            print("  Building Jacobian sparsity pattern...")
+            t0 = time.time()
+            jac_sp = build_jac_sparsity(C, N, J, ss2d_work, ss3d, bone_idx,
+                                        invalid_mask, conf_threshold)
+            print(f"  Sparsity built in {time.time()-t0:.1f}s")
 
-        # Verify residual count matches
-        theta_test = to_theta(R_w2c, t_w2c, x_all)
-        r_test = objfun(theta_test, K, sp2d_flat, ss2d_work, sp3d, ss3d,
-                        bone_idx, C, N, J, lambda1, lambda2, invalid_mask,
-                        conf_threshold)
-        if jac_sp.shape[0] != len(r_test):
-            print(f"  WARNING: Sparsity rows ({jac_sp.shape[0]}) != residuals "
-                  f"({len(r_test)}), falling back to dense Jacobian")
-            jac_sp = None
+            # Verify residual count matches
+            theta_test = to_theta(R_w2c, t_w2c, x_all)
+            r_test = objfun(theta_test, K, sp2d_flat, ss2d_work, sp3d, ss3d,
+                            bone_idx, C, N, J, lambda1, lambda2, invalid_mask,
+                            conf_threshold, obs_weight)
+            if jac_sp.shape[0] != len(r_test):
+                print(f"  WARNING: Sparsity rows ({jac_sp.shape[0]}) != residuals "
+                      f"({len(r_test)}), falling back to dense Jacobian")
+                jac_sp = None
 
         plot_path = (os.path.join(plot_dir, f"ba_cost_live_iter{iteration+1}.png")
                      if plot_dir else None)
@@ -421,7 +465,8 @@ def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
         R_w2c, t_w2c, x_opt = _run_ba(
             K, R_w2c, t_w2c, x_all, sp2d_flat, ss2d_work, sp3d, ss3d,
             bone_idx, C, N, J, lambda1, lambda2, invalid_mask, conf_threshold,
-            cost_history, plot_path=plot_path, jac_sparsity=jac_sp
+            cost_history, plot_path=plot_path, jac_sparsity=jac_sp,
+            loss=loss, f_scale=f_scale, obs_weight=obs_weight, jac_mode=jac_mode
         )
 
         # Outlier rejection after all but the last iteration
@@ -533,12 +578,13 @@ if __name__ == "__main__":
     OBS_MASK = args.obs_mask
     SAVE_OBS_MASK = args.save_obs_mask
 
+    _ba_suffix = f"_ba_{args.ba_out_tag}" if args.ba_out_tag else "_ba"
     if OBS_MASK:
         JSON_IN = args.prefix + "/results/" + args.target + "_mask.json"
-        JSON_OUT = args.prefix + "/results/" + args.target + "_mask_ba.json"
+        JSON_OUT = args.prefix + "/results/" + args.target + "_mask" + _ba_suffix + ".json"
     else:
         JSON_IN = args.prefix + "/results/" + args.target + ".json"
-        JSON_OUT = args.prefix + "/results/" + args.target + "_ba.json"
+        JSON_OUT = args.prefix + "/results/" + args.target + _ba_suffix + ".json"
     DATASET = args.dataset
     # bObsMask = args.obs_mask
     TH_MASK = args.th_obs_mask
@@ -590,7 +636,10 @@ if __name__ == "__main__":
 
     R_w2c_opt, t_w2c_opt, x_opt, cost_history = ba_main(
         CAMID, intrinsic, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, LAMBDA1, LAMBDA2, CONF_THRESHOLD, BONE_IDX,
-        plot_dir=plot_dir
+        plot_dir=plot_dir,
+        loss=args.ba_loss, f_scale=args.ba_f_scale, obs_weight_mode=args.ba_obs_weight,
+        border_margin=args.ba_border_margin, img_size=(width, height),
+        jac_mode=args.ba_jac,
     )
 
     # Génération et sauvegarde de la courbe d'optimisation
