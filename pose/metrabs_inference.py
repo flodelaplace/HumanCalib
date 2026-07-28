@@ -25,6 +25,11 @@ Usage:
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'       # hide TF INFO/WARNING (keep ERROR+)
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'      # silence the oneDNN custom-ops notice
+# Persistent TF-Hub cache: without this, tfhub.load() caches to /tmp/tfhub_modules,
+# which WSL wipes on restart -> the ~400MB metrabs_l model is re-downloaded every run.
+# Pin it to a persistent dir (override with a pre-set TFHUB_CACHE_DIR if desired).
+os.environ.setdefault('TFHUB_CACHE_DIR', os.path.expanduser('~/.cache/tfhub_modules'))
+os.makedirs(os.environ['TFHUB_CACHE_DIR'], exist_ok=True)
 
 import warnings
 warnings.filterwarnings('ignore')              # silence pkg_resources deprecation, etc.
