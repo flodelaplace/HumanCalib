@@ -1,0 +1,88 @@
+# HumanCalib — container orchestration
+#
+#   docker compose build
+#   docker compose run --rm calib demo
+#
+# Running as your own user (recommended, so results are not owned by root):
+#
+#   HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose run --rm calib demo
+#
+# or put those two lines in a .env file next to this one, once.
+
+services:
+
+  # --- Main service: MeTRAbs backend, MIT-licensed path only ---------------
+  calib:
+    image: humancalib:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # 1 bakes the ~708 MB pose model into the image, for an air-gapped
+        # machine or an archival build. 0 (default) downloads it on first run
+        # into the models volume below, where it is then reused.
+        BAKE_MODELS: ${BAKE_MODELS:-0}
+
+    # Requires the NVIDIA container runtime. On Compose older than v2.30, swap
+    # this for the long form:
+    #   deploy: {resources: {reservations: {devices: [{driver: nvidia,
+    #            count: all, capabilities: [gpu]}]}}}
+    gpus: all
+
+    # Without this, every file the pipeline writes into ./output is owned by
+    # root on the host. Defaults to 1000:1000, the first user on most Linux
+    # installs; override for anything else.
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+
+    volumes:
+      # Read-only, and it works: since the dropped-frame sidecars moved under
+      # the output directory, no pipeline step writes into its own input.
+      - ./input:/input:ro
+      - ./output:/output
+      # Named volume, not a bind mount: the model cache is machine state, not
+      # project data, and does not belong in the working tree.
+      - humancalib-models:/models/tfhub
+
+    # List form, not the mapping form, and deliberately so: a bare name passes
+    # the variable through only when the host has it set, whereas
+    # `CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-}` would define it as the
+    # empty string on every run -- which is precisely how you tell CUDA to
+    # expose no GPU at all. The container would fall back to CPU silently.
+    environment:
+      # Default 4 in the image. On a large node, raise it; oversubscribing
+      # OpenMP is what makes bundle adjustment slower on more cores, not faster.
+      - OMP_NUM_THREADS=${OMP_NUM_THREADS:-4}
+      # Set it on the host to pin a card; core/gpu.py honours it rather than
+      # overwriting it. Unset means "every GPU the runtime allocated".
+      - CUDA_VISIBLE_DEVICES
+
+    # tqdm draws live progress bars with carriage returns; without a TTY they
+    # arrive as thousands of separate lines.
+    tty: true
+
+  # --- Optional service: RTMPose + VideoPose3D -----------------------------
+  #
+  # Behind a profile, so `docker compose build` and `docker compose run calib`
+  # never touch it. It contains CC BY-NC 4.0 components -- see the notice at
+  # the top of Dockerfile.rtmpose before building it.
+  #
+  #   docker compose --profile rtmpose build
+  #   docker compose --profile rtmpose run --rm rtmpose <args>
+  rtmpose:
+    profiles: ["rtmpose"]
+    image: humancalib-rtmpose:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.rtmpose
+    gpus: all
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    volumes:
+      - ./input:/input:ro
+      - ./output:/output
+    environment:
+      - OMP_NUM_THREADS=${OMP_NUM_THREADS:-4}
+      - CUDA_VISIBLE_DEVICES
+    tty: true
+
+volumes:
+  humancalib-models:

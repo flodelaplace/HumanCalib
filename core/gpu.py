@@ -12,10 +12,32 @@ def select_gpu(i_selected_gpu=None):
     If `i_selected_gpu` is given, just sets that one. Otherwise, scans all
     visible GPUs (in reverse order) and picks the first one with mem_used < 18
     MiB; if none is free, falls back to the GPU with the most unused memory.
+
+    An allocation made by the surrounding runtime wins over the automatic
+    scan: if CUDA_VISIBLE_DEVICES is already set in the environment, and no
+    explicit `i_selected_gpu` was requested, this function leaves it alone.
+    Overwriting it used to break every context that hands out devices from the
+    outside -- `docker run --gpus '"device=1"'`, Slurm's --gres=gpu, a job
+    scheduler pinning one card per task -- because the index chosen here counts
+    against the *already filtered* list, so writing "0" back could point at a
+    different physical card, or at one the job was never allocated. Set
+    CUDA_VISIBLE_DEVICES="" to force CPU.
     """
+    external = os.environ.get("CUDA_VISIBLE_DEVICES")
+
     if i_selected_gpu is not None:
+        if external is not None and external != f"{i_selected_gpu}":
+            print(
+                f"  WARNING: overriding CUDA_VISIBLE_DEVICES={external} with "
+                f"{i_selected_gpu} as explicitly requested. The index is read "
+                f"against the full device list, not the allocated subset."
+            )
         os.environ["CUDA_VISIBLE_DEVICES"] = f"{i_selected_gpu}"
         print(f"CUDA_VISIBLE_DEVICES={i_selected_gpu}")
+        return
+
+    if external is not None:
+        print(f"CUDA_VISIBLE_DEVICES={external} (set by the environment, kept)")
         return
 
     unused_max = 0

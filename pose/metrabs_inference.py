@@ -43,6 +43,7 @@ import glob
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
+from core.models import METRABS_L_URL
 from core.toml_io import load_toml
 from core.sidecars import read_dropped
 
@@ -356,15 +357,6 @@ def main():
 
     # Load MeTRAbs model (this takes 30-60s: model loading + TF graph compilation)
     print(f"\nLoading MeTRAbs model (skeleton={args.skeleton}) — please wait...", flush=True)
-    # Resolved from the upstream 'https://bit.ly/metrabs_l' shortener and
-    # hardcoded: a third-party URL shortener in the critical path is
-    # unversioned, silently retargetable and blocked by many institutional
-    # proxies. The filename encodes the full model identity (EfficientNetV2-L
-    # backbone, YOLOv4 detector, 384 px input, 800k steps, 28 datasets).
-    METRABS_L_URL = (
-        'https://omnomnom.vision.rwth-aachen.de/data/metrabs/'
-        'metrabs_eff2l_y4_384px_800k_28ds.tar.gz'
-    )
     model = tfhub.load(METRABS_L_URL)
     print("Model loaded. Running warmup inference...", flush=True)
     # Warmup: first call triggers TF graph compilation (slow), subsequent calls are fast

@@ -35,9 +35,10 @@ ENV/
 
 # --- media that only matters to the README ---
 img/
-demo/*.mp4
-demo/*.avi
-demo/*.mov
+
+# NB: demo/ is deliberately NOT excluded. The four demo clips total 4.2 MB and
+# `docker compose run calib demo` -- the image's own acceptance test -- needs
+# them inside the image.
 
 # --- legacy research scripts (removed from main in a later phase) ---
 legacy/

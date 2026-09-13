@@ -1,0 +1,91 @@
+# syntax=docker/dockerfile:1
+#
+# HumanCalib — OPTIONAL image: RTMPose (2D) + VideoPose3D (3D lifting)
+#
+#   docker compose --profile rtmpose build
+#   docker compose --profile rtmpose run --rm rtmpose \
+#       /input/session /input/session/calib.toml /output/run1
+#
+# =============================================================================
+# LICENSING NOTICE — READ BEFORE USING THIS IMAGE
+#
+#   This image bakes in VideoPose3D, licensed CC BY-NC 4.0 (NON-COMMERCIAL),
+#   together with pretrained weights trained on Human3.6M, whose licence
+#   restricts use to academic research.
+#
+#   HumanCalib itself is MIT. The main image (Dockerfile) is MeTRAbs-only and
+#   carries none of these restrictions. It exists as a separate image for
+#   exactly this reason: a non-commercial dependency must not attach itself to
+#   the default one by accident.
+#
+#   By building or running this image you accept those upstream terms.
+# =============================================================================
+#
+# This is a legacy path, kept reproducible rather than improved: Python 3.8,
+# torch 1.13.1/CUDA 11.7, a pose backend superseded by MeTRAbs. New work should
+# use the main image.
+
+FROM ubuntu:22.04
+
+ENV NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+# git and wget are genuinely needed here, unlike in the main image:
+# scripts/setup_models.sh clones VideoPose3D at a pinned commit and fetches the
+# weights.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libgl1 \
+        libglib2.0-0 \
+        ca-certificates \
+        bzip2 \
+        git \
+        wget \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=mambaorg/micromamba:1.5.8 /bin/micromamba /usr/local/bin/micromamba
+ENV MAMBA_ROOT_PREFIX=/opt/conda
+
+COPY envs/rtmpose.yaml /tmp/rtmpose.yaml
+RUN micromamba create -y -f /tmp/rtmpose.yaml \
+    && micromamba clean --all --yes \
+    && find /opt/conda -follow -type f -name '*.a' -delete \
+    && rm -rf /opt/conda/pkgs /tmp/rtmpose.yaml
+
+# rtmlib cannot go in the environment file: it declares four unpinned
+# dependencies, two of which corrupt the environment if the resolver acts on
+# them -- it wants BOTH opencv distributions (same cv2/ directory, second
+# install overwrites the first) and the CPU `onnxruntime` alongside the GPU
+# build pinned in the yaml, which would silently drop CUDAExecutionProvider and
+# leave RTMPose ~50x slower with no error. `--no-deps` is not expressible in a
+# conda pip: block, so it stays a separate step. See envs/rtmpose.yaml.
+RUN /opt/conda/envs/humancalib-rtmpose/bin/pip install --no-deps rtmlib==0.0.15
+
+ENV PATH=/opt/conda/envs/humancalib-rtmpose/bin:${PATH} \
+    HUMANCALIB_PYTHON=/opt/conda/envs/humancalib-rtmpose/bin/python
+
+ENV HOME=/tmp \
+    MPLBACKEND=Agg \
+    MPLCONFIGDIR=/tmp/matplotlib \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    OMP_NUM_THREADS=4
+
+RUN mkdir -p /input /output /tmp/matplotlib \
+    && chmod -R 0777 /output /tmp/matplotlib
+
+WORKDIR /opt/humancalib
+COPY . /opt/humancalib
+
+# VideoPose3D source (pinned commit) and the H36M weights (checksummed), baked
+# in rather than fetched at run time: this backend is frozen, and its upstream
+# is a GitHub clone plus a CDN download that an offline or proxied machine
+# cannot reach.
+RUN bash scripts/setup_models.sh \
+    && chmod -R a+rX /opt/humancalib/third_party /opt/humancalib/model
+
+ENTRYPOINT ["/opt/humancalib/docker/entrypoint.sh"]
+CMD ["--help"]
+
+LABEL org.opencontainers.image.title="HumanCalib (RTMPose + VideoPose3D)" \
+      org.opencontainers.image.description="Optional legacy pose backend. Contains CC BY-NC 4.0 components." \
+      org.opencontainers.image.licenses="MIT AND CC-BY-NC-4.0"
