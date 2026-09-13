@@ -39,6 +39,7 @@ if vp3d_path not in sys.path:
 
 from core import load_poses, load_eldersim_camera
 from core.skeletons import METRABS_BONE, METRABS_KEY, OP_KEY
+from core.session import load_session_dir
 from postprocessing.evaluate_calibration import reproject_points, triangulate_skeleton
 
 # ── Display skeletons ────────────────────────────────────────────────────────
@@ -416,8 +417,7 @@ def main():
         out_dir = os.path.join(args.prefix, "results", "camera")
         args.output = os.path.join(out_dir, f"visu_3d_{args.calib}.gif")
 
-    with open(os.path.join(_REPO_ROOT, "config", "config.yaml")) as f:
-        config = yaml.safe_load(f)
+    session = load_session_dir(subset_dir)
     
     base_name = os.path.basename(os.path.normpath(args.prefix))
     import re
@@ -429,7 +429,7 @@ def main():
         print(f"WARNING: Output directory '{base_name}' does not match Axxx_Pxxx_Gxxx format. Using default IDs (AID=1, PID=1, GID=1).")
         aid, pid, gid = 1, 1, 1
     
-    camera_ids = config[args.dataset]["camera_ids"]
+    camera_ids = session["camera_ids"]
 
     print(f"Dataset    : {args.dataset}")
     print(f"Subset     : {subset_dir}")
@@ -464,7 +464,7 @@ def main():
     print(f"X3d_world shape: {X3d_world.shape}")
 
     if args.export_trc:
-        dataset_fps = config.get(args.dataset, {}).get("frame_rate", 30.0)
+        dataset_fps = session.get("frame_rate", 30.0)
         export_to_trc(X3d_world, args.export_trc, fps=dataset_fps)
 
     # Auto-step: cap GIF to ~max_frames for fast rendering

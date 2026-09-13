@@ -12,6 +12,7 @@ from scipy.optimize import least_squares
 import time
 from tqdm import tqdm
 import core
+import core.session
 from argument import parse_args
 import matplotlib
 matplotlib.use("Agg") # Mode sans interface graphique pour éviter les bugs sous WSL
@@ -571,12 +572,10 @@ if __name__ == "__main__":
     # bObsMask = args.obs_mask
     TH_MASK = args.th_obs_mask
 
-    with open(os.path.join(_REPO_ROOT, "config", "config.yaml")) as file:
-        config = yaml.safe_load(file.read())
-
-    width = config[DATASET]["width"]
-    height = config[DATASET]["height"]
-    available_joints = config[DATASET]["available_joints"]
+    session = core.session.load_session_dir(PREFIX)
+    width = session["width"]
+    height = session["height"]
+    available_joints = session["available_joints"]
     FRAME_SKIP = args.frame_skip
 
     # if OBS_MASK:

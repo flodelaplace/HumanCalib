@@ -295,23 +295,9 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "[3/7] Updating configuration..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-python3 - << PYEOF
-import yaml, json, sys, os, glob, re
-script_dir = os.getcwd() # Or use a more robust path if needed
-output_dir, subset, calib_toml, aid, pid, gid = "${OUTPUT_DIR}", "${SUBSET}", "${CALIB_TOML}", ${AID}, ${PID}, ${GID}
-cam_file = os.path.join(output_dir, subset, f"cameras_G{gid:03d}.json")
-with open(cam_file) as f: n_cams = len(json.load(f)["CAMID"])
-jfiles = sorted(glob.glob(os.path.join(output_dir, subset, "2d_joint", f"A{aid:03d}_P{pid:03d}_G{gid:03d}_C*.json")))
-with open(jfiles[0]) as f:
-    jdata = json.load(f)
-    n_frames = len(jdata["data"])
-    n_joints = len(jdata["data"][0]["skeleton"][0]["score"])
-with open("./config/config.yaml") as f: config = yaml.safe_load(f)
-config["MyDataset"] = {"width": 1920, "height": 1080, "scale": 1, "frame_rate": 30, "camera_ids": list(range(1, n_cams + 1)), "available_joints": list(range(n_joints)), "ransac_th_2d": 200.0, "ransac_th_3d": 1.0}
-config.update({"aid": aid, "pid": pid, "gid": gid})
-with open("./config/config.yaml", "w") as f: yaml.dump(config, f, default_flow_style=False, allow_unicode=True)
-print(f"Config updated: {n_cams} cameras, {n_frames} frames")
-PYEOF
+python3 "${REPO_ROOT}/scripts/write_session.py" \
+    --output_dir "${OUTPUT_DIR}" --subset "${SUBSET}" --video_dir "${VIDEO_DIR}" \
+    --aid ${AID} --pid ${PID} --gid ${GID} || exit 1
 
 # --- Step 4: Lifting 2D -> 3D ------------------------------------------------
 if [ "$POSE_ENGINE" = "metrabs" ]; then

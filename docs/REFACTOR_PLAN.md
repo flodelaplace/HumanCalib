@@ -313,8 +313,8 @@ propre, avec `--gpus all`, et produit le même MRE qu'en natif.
 
 | ID | Tâche | Référence |
 |----|-------|-----------|
-| T4.1 | Remplacer le `config.yaml` global par un objet de session écrit **une fois** dans `<output_dir>/session.yaml` | §2.5 |
-| T4.2 | Dériver résolution et fps **des vidéos réelles** (`rtmlib_inference.py:144-145` les lit déjà et les jette) au lieu du 1920×1080/30 codé en dur | B6 |
+| T4.1 | **fait** — `core/session.py` + `scripts/write_session.py` ; `config/config.yaml` supprimé, session écrite dans `<output_dir>/<subset>/session.yaml` | §2.5 |
+| T4.2 | **fait** — `probe_videos()` lit les vidéos via OpenCV. Sur la démo : 1080×1920 @ 60 au lieu du 1920×1080 @ 30 codé en dur, et un avertissement signale l'hétérogénéité cam01/cam02 vs cam03/cam04 | B6 |
 | T4.3 | Déplacer les sidecars `.dropped.json` de `input/` vers `output/` → permet de monter `input/` en lecture seule | §2.8 |
 | T4.4 | Supprimer la dérivation de `AID`/`PID`/`GID` par regex sur le nom de dossier | §2.7 |
 

@@ -12,6 +12,7 @@ if vp3d_path not in sys.path:
 import argument
 from core import load_poses, op_to_coco, COCO_KEY, H36M17_KEY
 from core.gpu import select_gpu  # torch-dependent: imported only on this path
+from core.session import load_session_dir
 import numpy as np
 from core import OP_KEY
 import matplotlib.pyplot as plt
@@ -292,11 +293,10 @@ if __name__ == "__main__":
 
     DATASET = args.dataset
 
-    with open("./config/config.yaml") as file:
-        config = yaml.safe_load(file.read())
-    width = config[DATASET]["width"]
-    height = config[DATASET]["height"]
-    camera_ids = config[DATASET]["camera_ids"]
+    session = load_session_dir(PREFIX)
+    width = session["width"]
+    height = session["height"]
+    camera_ids = session["camera_ids"]
     model = f"./model/{args.model}"
 
     for cid in camera_ids:
