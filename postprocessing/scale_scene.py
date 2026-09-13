@@ -28,7 +28,6 @@ import sys
 import glob
 import re
 
-import cv2
 import numpy as np
 
 # Add repo root for util import (script lives in postprocessing/);

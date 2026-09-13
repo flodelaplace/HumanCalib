@@ -298,7 +298,7 @@ propre, avec `--gpus all`, et produit le même MRE qu'en natif.
 | T3.2 | Supprimer les 15 arguments morts d'`argument.py` (11 n'existent que pour `legacy/`) | §2.6 |
 | T3.3 | Supprimer les 4 blocs de datasets morts du `config.yaml` | §2.5 |
 | T3.4 | Supprimer les 9 fonctions mortes confirmées | §2.6 |
-| T3.5 | Unifier la triangulation : 7 implémentations → un seul `core.geometry.triangulate_dlt` | §2.6 |
+| T3.5 | Unifier la triangulation. **Partiellement fait : 7 → 5.** Les deux `triangulate_skeleton` (prouvés équivalents par diff) sont fusionnés, et le `triangulate` mort de `core/geometry.py` — qui partageait la signature de `pycalib.calib.triangulate` et le masquait via `from core import *` — est supprimé. **La consolidation restante est reportée après la Phase 5** : `scale_scene.get_3d_keypoint` et `fix_person_association.triangulate` ont des signatures et des pondérations différentes ; les fusionner sans test golden-run risquerait des résultats faux sans plantage. | §2.6 |
 | T3.6 | Unifier `parse_toml` : 4 variantes → une, **sans `eval()`** | §2.6, B4 |
 | T3.7 | Source unique pour les constantes de squelette (supprimer les doublons de `visualize_results.py:46-91`) | §2.6 |
 | T3.8 | Supprimer les 73 imports inutilisés et les 3 `import *` | §2.6 |

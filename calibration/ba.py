@@ -6,10 +6,8 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 import cv2
-from matplotlib.style import available
 import numpy as np
 import json
-from scipy.sparse import lil_matrix
 from scipy.optimize import least_squares
 import time
 from tqdm import tqdm
@@ -18,7 +16,6 @@ from argument import parse_args
 import matplotlib
 matplotlib.use("Agg") # Mode sans interface graphique pour éviter les bugs sous WSL
 import matplotlib.pyplot as plt
-from pycalib.calib import *
 import yaml
 from core import project_cv2
 

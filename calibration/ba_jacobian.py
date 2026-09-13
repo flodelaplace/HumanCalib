@@ -23,7 +23,7 @@ import cv2
 import numpy as np
 from scipy.sparse import coo_matrix
 
-from calibration.ba import objfun_var3d, objfun_varbone
+from calibration.ba import objfun_var3d
 
 
 def _nll_jac(params, K, ss2d, x, C, N, J, conf_threshold, obs_weight, n_cam):

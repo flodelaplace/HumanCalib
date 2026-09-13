@@ -17,11 +17,9 @@ Usage:
 """
 
 import argparse
-import json
 import os
 import sys
 
-import cv2
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -40,7 +38,7 @@ if vp3d_path not in sys.path:
     sys.path.insert(0, vp3d_path)
 
 from core import load_poses, load_eldersim_camera
-from postprocessing.evaluate_calibration import reproject_points
+from postprocessing.evaluate_calibration import reproject_points, triangulate_skeleton
 
 # ── squelette OpenPose-25 ─────────────────────────────────────────────────────
 OPENPOSE_SKELETON = (
@@ -134,42 +132,6 @@ def export_to_trc(X3d_world, output_path, fps=30.0):
 BONE_COLOR  = "#f94e3e"
 CAM_COLOR   = ["#2196F3", "#4CAF50", "#FF9800", "#9C27B0",
                "#00BCD4", "#FFEB3B", "#795548", "#607D8B"]
-
-
-def triangulate_skeleton(p2d_all, s2d_all, K, R_w2c, t_w2c, conf_threshold=0.5):
-    """
-    Triangule les joints 2D de toutes les caméras pour obtenir un squelette
-    dans le repère monde. Utilise toutes les caméras visibles via DLT.
-    p2d_all : (C, N, J, 2)
-    s2d_all : (C, N, J)
-    Retourne : (N, J, 3)
-    """
-    C, N, J, _ = p2d_all.shape
-    X3d = np.full((N, J, 3), np.nan)
-
-    Ps_all = [K[c] @ np.hstack([R_w2c[c], t_w2c[c].reshape(3, 1)]) for c in range(C)]
-
-    for n in range(N):
-        for j in range(J):
-            vis = s2d_all[:, n, j] > conf_threshold
-            if np.sum(vis) < 2:
-                continue
-            
-            pts_vis = p2d_all[vis, n, j]
-            Ps_vis  = [Ps_all[c] for c, is_vis in enumerate(vis) if is_vis]
-
-            rows = []
-            for pt, P in zip(pts_vis, Ps_vis):
-                x, y = pt
-                rows.append(x * P[2] - P[0])
-                rows.append(y * P[2] - P[1])
-            A = np.array(rows)
-            _, _, Vt = np.linalg.svd(A)
-            Xh = Vt[-1]
-            if abs(Xh[3]) > 1e-10:
-                X3d[n, j] = Xh[:3] / Xh[3]
-
-    return X3d
 
 
 def draw_camera(ax, R_w2c, t_w2c, color, label, scale=0.15):

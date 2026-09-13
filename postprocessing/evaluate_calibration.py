@@ -24,7 +24,6 @@ Usage:
 """
 
 import argparse
-import json
 import os
 import sys
 import glob
@@ -32,7 +31,6 @@ import re
 
 import cv2
 import numpy as np
-import yaml
 
 try:  # Python 3.11+
     import tomllib
@@ -50,6 +48,18 @@ if _REPO_ROOT not in sys.path:
 from core import load_poses, load_eldersim_camera
 
 def triangulate_skeleton(p2d_all, s2d_all, K, R_w2c, t_w2c, conf_threshold=0.5):
+    """Triangulate 2D joints from every camera into a world-frame skeleton.
+
+    Uses all cameras that see a joint above conf_threshold, via DLT.
+    A joint seen by fewer than two cameras is left as NaN.
+
+    Args:
+        p2d_all: (C, N, J, 2) 2D joints per camera
+        s2d_all: (C, N, J) per-joint confidence
+        K, R_w2c, t_w2c: per-camera intrinsics and world-to-camera pose
+    Returns:
+        (N, J, 3) world-frame 3D joints, NaN where untriangulable
+    """
     C, N, J, _ = p2d_all.shape
     X3d = np.full((N, J, 3), np.nan)
     Ps_all = [K[c] @ np.hstack([R_w2c[c], t_w2c[c].reshape(3, 1)]) for c in range(C)]

@@ -33,25 +33,6 @@ def z_test_w2c(R1, t1, R2, t2, n1, n2):
     return 1 if zp > zn else -1, zp, zn
 
 
-def triangulate(pt2d, P):
-    """Triangulate a 3D point from two or more views by DLT."""
-    N = len(pt2d)
-    assert N == len(P)
-
-    AtA = np.zeros((4, 4))
-    x = np.zeros((2, 4))
-    for i in range(N):
-        x[0, :] = P[i][0, :] - pt2d[i][0] * P[i][2, :]
-        x[1, :] = P[i][1, :] - pt2d[i][1] * P[i][2, :]
-        AtA += x.T @ x
-
-    _, v = np.linalg.eigh(AtA)
-    if np.isclose(v[3, 0], 0):
-        return v[:, 0]
-    else:
-        return v[:, 0] / v[3, 0]
-
-
 def constraint_mat_from_single_view(p, proj_mat):
     u, v = p
     const_mat = np.empty((2, 4))
