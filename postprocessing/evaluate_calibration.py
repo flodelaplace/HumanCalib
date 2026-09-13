@@ -34,11 +34,13 @@ import cv2
 import numpy as np
 import yaml
 
-try:
-    import tomli as tomllib
-except ImportError:
-    print("ERROR: 'tomli' is required for TOML parsing. Please run: pip install tomli", file=sys.stderr)
-    tomllib = None
+try:  # Python 3.11+
+    import tomllib
+except ImportError:  # Python <= 3.10
+    try:
+        import tomli as tomllib
+    except ImportError:
+        tomllib = None
 
 
 # Add repo root for util import (script lives in postprocessing/)
@@ -118,10 +120,17 @@ def export_to_toml(input_toml_path, output_toml_path, R_w2c, t_w2c, cam_names):
     current_cam_index = -1
     cam_name_pattern = re.compile(r'\[([^]]+)\]')
 
+    # Track what we actually rewrote. A section that matches no camera (e.g.
+    # [metadata]) is legitimate, but a camera we never wrote extrinsics for
+    # means the output would silently carry the *input* pose for that camera.
+    written = {name: set() for name in cam_names}
+    seen_sections = []
+
     for line in lines:
         match = cam_name_pattern.match(line)
         if match:
             cam_name = match.group(1)
+            seen_sections.append(cam_name)
             try:
                 current_cam_index = cam_names.index(cam_name)
             except ValueError:
@@ -131,11 +140,38 @@ def export_to_toml(input_toml_path, output_toml_path, R_w2c, t_w2c, cam_names):
             rvec, _ = cv2.Rodrigues(R_w2c[current_cam_index])
             r_str = ', '.join(map(str, rvec.flatten()))
             output_lines.append(f"rotation = [{r_str}]\n")
+            written[cam_names[current_cam_index]].add("rotation")
         elif current_cam_index != -1 and line.strip().startswith('translation'):
             t_str = ', '.join(map(str, t_w2c[current_cam_index].flatten()))
             output_lines.append(f"translation = [{t_str}]\n")
+            written[cam_names[current_cam_index]].add("translation")
         else:
             output_lines.append(line)
+
+    incomplete = {
+        name: sorted({"rotation", "translation"} - fields)
+        for name, fields in written.items()
+        if fields != {"rotation", "translation"}
+    }
+    if incomplete:
+        raise ValueError(
+            "Refusing to write {out}: calibrated extrinsics were not applied to "
+            "every camera, so the file would silently keep the ORIGINAL pose for "
+            "{n} camera(s).\n"
+            "  Missing per camera: {missing}\n"
+            "  Cameras expected (from video filenames): {expected}\n"
+            "  Sections found in {inp}: {found}\n"
+            "Camera section names in the TOML must match the video filenames "
+            "(without extension), and each section must already contain "
+            "'rotation' and 'translation' lines.".format(
+                out=output_toml_path,
+                n=len(incomplete),
+                missing=", ".join(f"{k} ({'+'.join(v)})" for k, v in sorted(incomplete.items())),
+                expected=", ".join(cam_names),
+                inp=input_toml_path,
+                found=", ".join(seen_sections) or "(none)",
+            )
+        )
 
     with open(output_toml_path, "w") as f:
         f.writelines(output_lines)
