@@ -180,11 +180,6 @@ def undistort_points(pts_2d, K, dist_coeffs):
     return undist.reshape(-1, 2).astype(np.float32)
 
 
-def bml87_to_calib26(kp_bml87):
-    """Extract the 26 calibration joints from bml_movi_87 (87 joints)."""
-    return kp_bml87[METRABS_BML87_INDICES].astype(np.float32)
-
-
 def bml87_to_halpe26(kp_bml87):
     """Convert bml_movi_87 keypoints to Halpe26 format."""
     n_dim = kp_bml87.shape[-1]

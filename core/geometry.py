@@ -124,37 +124,6 @@ def project(K, R_w2c, t_w2c, pts3d_w):
     return p.T
 
 
-def invRT(R, t):
-    T = np.eye(4)
-    if t.shape == (3, 1):
-        t = t[:, -1]
-
-    T[:3, :3] = R
-    T[:3, 3] = t
-    invT = np.linalg.inv(T)
-    invR = invT[0:3, 0:3]
-    invt = invT[0:3, 3]
-    return invR, invt
-
-
-def invRT_batch(R_w2c_gt, t_w2c_gt):
-    t_c2w_gt = []
-    R_c2w_gt = []
-
-    if len(t_w2c_gt.shape) == 2:
-        t_w2c_gt = t_w2c_gt[:, :, None]
-
-    for R_w2c_gt_i, t_w2c_gt_i in zip(R_w2c_gt, t_w2c_gt):
-        R_c2w_gt_i, t_c2w_gt_i = invRT(R_w2c_gt_i, t_w2c_gt_i)
-        R_c2w_gt.append(R_c2w_gt_i)
-        t_c2w_gt.append(t_c2w_gt_i)
-
-    t_c2w_gt = np.array(t_c2w_gt)
-    R_c2w_gt = np.array(R_c2w_gt)
-
-    return R_c2w_gt, t_c2w_gt
-
-
 def project_cv2(Rs, ts, Ks, X, width, height):
     assert Rs.ndim == 3
     assert Ks.ndim == 3

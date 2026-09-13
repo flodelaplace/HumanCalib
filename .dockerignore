@@ -1,0 +1,50 @@
+# Keep the build context small. Without this, `docker build` would ship
+# ~4.3 GB of session data to the daemon before running a single instruction.
+
+# --- data: mounted at run time, never baked into the image ---
+input/
+output/
+
+# --- downloaded assets: fetched at build or run time, or mounted ---
+model/
+third_party/
+*.sif
+
+# --- version control & IDE ---
+.git/
+.gitignore
+.github/
+.idea/
+.vscode/
+.claude/
+
+# --- python artefacts ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# --- environments ---
+.venv/
+venv/
+ENV/
+.env
+
+# --- media that only matters to the README ---
+img/
+demo/*.mp4
+demo/*.avi
+demo/*.mov
+
+# --- legacy research scripts (removed from main in a later phase) ---
+legacy/
+
+# --- runtime state ---
+config/config.yaml
+*.log
+
+# --- WSL alternate-data-stream junk ---
+*:Zone.Identifier

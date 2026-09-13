@@ -24,11 +24,10 @@ from .skeletons import (
 from .geometry import (
     z_test_w2c, triangulate, constraint_mat_from_single_view, constraint_mat,
     triangulate_point, triangulate_with_conf,
-    project, project_cv2, invRT, invRT_batch,
+    project, project_cv2,
 )
 from .poses_io import (
     load_poses, load_eldersim_camera, load_eldersim_skeleton_w, load_eldersim,
-    save_cam, save_joint,
 )
 from .filtering import joints2orientations, joints2projections
 

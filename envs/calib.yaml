@@ -18,33 +18,46 @@
 
 name: humancalib
 
+# conda-forge only, on purpose. The `defaults` channel points at Anaconda's
+# own servers, whose Terms of Service now require a paid licence for larger
+# organisations -- an avoidable trap for a repository meant to be reinstalled
+# by other labs. `nodefaults` makes the exclusion explicit rather than relying
+# on the user's own .condarc.
 channels:
-  - defaults
   - conda-forge
+  - nodefaults
 
 dependencies:
   - python=3.10.20
   - pip=26.0.1
 
   # CUDA userspace for TensorFlow 2.12. The host only needs a driver >= 525.
+  # cuDNN 8.9.7 is the conda-forge build; TF 2.12 requires >= 8.6.
   - cudatoolkit=11.8.0
-  - cudnn=8.9.2.26
+  - cudnn=8.9.7.29
 
-  # Used by imageio for video IO. imageio-ffmpeg also bundles a static binary,
-  # so this can be dropped if image size matters more than convenience.
-  - ffmpeg=8.0.1
+  # matplotlib writes the .mp4 animations through an ffmpeg executable on PATH.
+  # imageio-ffmpeg bundles its own static binary, so this could be dropped by
+  # pointing matplotlib's animation.ffmpeg_path at it -- worth doing if image
+  # size matters (see docs/REFACTOR_PLAN.md, Docker phase).
+  - ffmpeg
 
   - pip:
       # --- numerical core ---
       #
-      # numpy 1.25.2 is DELIBERATE and outside tensorflow 2.12's declared range
-      # (it asks for numpy>=1.22,<1.24). It is the version the pipeline has
-      # actually been validated on: the reference MRE figures in the README were
-      # produced with it. The declared constraint is not enforced at runtime and
-      # TF 2.12 works with it in practice. Revisit once the golden-run test
-      # exists (docs/REFACTOR_PLAN.md T5.2) — switching to 1.23.5 would satisfy
-      # the metadata but has never been validated against this code.
-      - numpy==1.25.2
+      # 1.23.5 is the ceiling tensorflow 2.12 allows (it requires
+      # numpy>=1.22,<1.24) and the floor scipy 1.15.3 requires -- the only value
+      # that satisfies both.
+      #
+      # Note for anyone comparing against an older install: the development
+      # environment was running numpy 1.25.2, outside TF's declared range. That
+      # was not a deliberate choice but a conda/pip collision -- a conda
+      # numpy-base 1.25.2 pulled in by an unrelated package overwrote pip's
+      # files while both dist-info records survived, bypassing the resolver.
+      # pip refuses that combination outright, so it was never reproducible by
+      # declaration. Confirm with the golden-run test (docs/REFACTOR_PLAN.md
+      # T5.2) that the published MRE figures are unchanged at 1.23.5.
+      - numpy==1.23.5
       - scipy==1.15.3
       - matplotlib==3.10.8
 

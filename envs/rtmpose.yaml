@@ -33,11 +33,13 @@
 
 name: humancalib-rtmpose
 
+# `defaults` is deliberately absent (Anaconda ToS); pytorch/nvidia are needed
+# for the CUDA 11.7 torch build, which conda-forge does not carry.
 channels:
   - pytorch
   - nvidia
   - conda-forge
-  - defaults
+  - nodefaults
 
 dependencies:
   - python=3.8.19

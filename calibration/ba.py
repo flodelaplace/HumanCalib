@@ -160,20 +160,6 @@ def objfun(params, K, sp2d, ss2d, sp3d, ss3d, bone_idx, C, N, J, lambda1, lambda
     return np.concatenate(E)
 
 
-def gen_new_mask(x_all, C, J, N):
-
-    assert x_all.shape == (N, J, 3)
-    # nan -> 1,0,0 for optimization
-
-    x_all = x_all.reshape(-1, 3)
-    mask_nan = np.isnan(x_all)[:, 0]
-    x_all[mask_nan] = np.array([1, 0, 0])
-
-    mask = np.tile(~mask_nan, (C, 1))  # for more then2 views
-    mask = mask.reshape(C, N, J)
-    return mask, x_all
-
-
 def _save_cost_plot(cost_history, output_path, elapsed_secs=None, eval_count=0):
     """Save a snapshot of the cost convergence curve."""
     if len(cost_history) < 2:
