@@ -5,7 +5,7 @@ Submodules:
 - geometry  : triangulation, projection, R/T inversion
 - poses_io  : JSON load/save for poses, cameras, skeletons
 - filtering : per-frame visibility / orientation helpers used by linear calibration
-- gpu       : GPU selection helper
+- gpu       : GPU selection helper (import directly: ``from core.gpu import select_gpu``)
 
 Everything is re-exported here so consumers can do either:
     from core import OP_BONE, load_poses, triangulate_with_conf
@@ -31,4 +31,9 @@ from .poses_io import (
     save_cam, save_joint,
 )
 from .filtering import joints2orientations, joints2projections
-from .gpu import select_gpu
+
+# NOTE: ``core.gpu`` is deliberately NOT re-exported here. It imports torch and
+# nvgpu at module level, which would force every consumer of ``core`` -- the
+# whole calibration, bundle-adjustment, evaluation and visualisation chain -- to
+# depend on PyTorch. Only the VideoPose3D lifting step needs it, so it imports
+# ``core.gpu`` directly. See docs/REFACTOR_PLAN.md T1.4.

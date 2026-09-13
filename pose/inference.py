@@ -10,7 +10,8 @@ if vp3d_path not in sys.path:
     sys.path.append(vp3d_path)
 
 import argument
-from core import load_poses, op_to_coco, COCO_KEY, H36M17_KEY, select_gpu
+from core import load_poses, op_to_coco, COCO_KEY, H36M17_KEY
+from core.gpu import select_gpu  # torch-dependent: imported only on this path
 import numpy as np
 from core import OP_KEY
 import matplotlib.pyplot as plt
