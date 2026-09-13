@@ -48,7 +48,6 @@ from tqdm import tqdm
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')              # defensive: also silence Python-side TF logger
 import tensorflow_hub as tfhub
-import cameralib
 
 # ---------------------------------------------------------------------------
 # 26-joint calibration skeleton (subset of bml_movi_87)
@@ -195,7 +194,7 @@ def bml87_to_halpe26(kp_bml87):
     return kp_out
 
 
-def process_video(video_path, model, skeleton, camera, start_frame=None, end_frame=None, batch_size=8):
+def process_video(video_path, model, skeleton, intrinsic_matrix, start_frame=None, end_frame=None, batch_size=8):
     """Run MeTRAbs on a video and return per-frame poses.
 
     Uses a streaming generator to avoid loading all frames into RAM.
@@ -251,7 +250,7 @@ def process_video(video_path, model, skeleton, camera, start_frame=None, end_fra
     for frame_batch in tqdm(frame_ds, total=n_batches, desc="  MeTRAbs inference"):
         pred = model.detect_poses_batched(
             frame_batch,
-            intrinsic_matrix=camera.intrinsic_matrix[tf.newaxis],
+            intrinsic_matrix=intrinsic_matrix[tf.newaxis],
             skeleton=skeleton,
         )
 
@@ -418,15 +417,11 @@ def main():
 
         print(f"\n[Camera {cid}]")
 
-        # Create cameralib Camera with real intrinsics
-        camera = cameralib.Camera(
-            intrinsic_matrix=K.astype(np.float32),
-            distortion_coeffs=dist.astype(np.float32) if np.any(dist != 0) else None,
-        )
-
+        # MeTRAbs only consumes the intrinsic matrix; lens distortion is handled
+        # separately by undistort_points() on the predicted 2D keypoints below.
         # Run inference
         frame_indices, poses3d_raw, poses2d_raw, confidences = process_video(
-            video_path, model, args.skeleton, camera,
+            video_path, model, args.skeleton, K.astype(np.float32),
             start_frame=args.start_frame, end_frame=args.end_frame,
             batch_size=args.batch_size,
         )
