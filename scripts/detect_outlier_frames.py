@@ -12,10 +12,10 @@ Prints ``NEW_DROPS=<n>`` on the last line for shell consumption.
 
 Usage:
     python scripts/detect_outlier_frames.py \\
-        --prefix ./output/calib_remi_unitapa \\
+        --prefix ./output/my_session \\
         --subset noise_1_0 --aid 1 --pid 1 --gid 1 \\
         --calib linear_1_0 \\
-        --video_dir ./input/calib_remi_unitapa \\
+        --video_dir ./input/my_session \\
         --abs_px 50 --x_median 5
 """
 import argparse

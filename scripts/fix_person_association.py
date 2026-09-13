@@ -22,7 +22,7 @@ prints a per-subject reprojection BEFORE vs AFTER report.
 
 Usage:
     python scripts/fix_person_association.py \\
-        --project "/mnt/c/Users/fdela/Documents/These Flo/Stage M2/pose2sim_project" \\
+        --project "/path/to/pose2sim_project" \\
         --pose_dir pose-associated --out_dir pose-associated-fixed
 """
 import argparse, ast, glob, json, os, re, sys

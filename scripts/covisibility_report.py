@@ -19,9 +19,9 @@ This is a *diagnostic only* — it never modifies poses or calibration files.
 
 Usage:
     python scripts/covisibility_report.py \\
-        --prefix ./output/calib_elodie_unitapa_v3 \\
+        --prefix ./output/my_session \\
         --subset noise_1_0 --aid 1 --pid 1 --gid 1 \\
-        --video_dir ./input/calib_elodie_unitapa \\
+        --video_dir ./input/my_session \\
         --min_covis 50
 """
 import argparse
