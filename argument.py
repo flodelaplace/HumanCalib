@@ -1,7 +1,21 @@
 import argparse
 
-# from xml.etree.ElementInclude import default_loader
-from distutils.util import strtobool
+_TRUE = {"y", "yes", "t", "true", "on", "1"}
+_FALSE = {"n", "no", "f", "false", "off", "0"}
+
+
+def strtobool(value):
+    """Parse a truthy/falsy string into a bool.
+
+    Replaces ``distutils.util.strtobool``: distutils was removed from the
+    standard library in Python 3.12.
+    """
+    normalized = str(value).strip().lower()
+    if normalized in _TRUE:
+        return True
+    if normalized in _FALSE:
+        return False
+    raise argparse.ArgumentTypeError(f"expected a boolean value, got {value!r}")
 
 
 def parse_args(predefined_args=None):

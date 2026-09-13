@@ -615,7 +615,7 @@ if __name__ == "__main__":
     LAMBDA1 = args.ba_lambda1
     LAMBDA2 = args.ba_lambda2
     CONF_THRESHOLD = args.conf_threshold
-    assert np.alltrue(CAMID == sCAMID)
+    assert np.array_equal(CAMID, sCAMID)
 
     sp3d_w = sp3d_w[::FRAME_SKIP, :, :]
     sp3d = sp3d[:, ::FRAME_SKIP, :, :]
