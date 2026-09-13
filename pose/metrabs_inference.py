@@ -40,6 +40,11 @@ import json
 import sys
 import glob
 
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+from core.toml_io import load_toml
+
 import numpy as np
 import cv2
 import imageio
@@ -92,45 +97,9 @@ BML87_TO_HALPE26 = {
 }
 
 
-def parse_toml(path):
-    """Parse a TOML file."""
-    try:
-        import tomllib
-    except ImportError:
-        try:
-            import tomli as tomllib
-        except ImportError:
-            tomllib = None
-
-    if tomllib is not None:
-        with open(path, "rb") as f:
-            return tomllib.load(f)
-
-    import re
-    data = {}
-    current = None
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            m = re.match(r'^\[(.+)\]$', line)
-            if m:
-                current = m.group(1)
-                data[current] = {}
-                continue
-            if current and '=' in line:
-                key, _, val = line.partition('=')
-                key = key.strip()
-                val = val.strip()
-                try:
-                    data[current][key] = eval(val)
-                except Exception:
-                    data[current][key] = val.strip('"')
-    return data
-
-
 def get_intrinsics_from_toml(toml_path, cam_names):
     """Extract intrinsic matrices and distortion coefficients from TOML."""
-    data = parse_toml(toml_path)
+    data = load_toml(toml_path)
     K_list = []
     dist_list = []
     for cam_name in cam_names:

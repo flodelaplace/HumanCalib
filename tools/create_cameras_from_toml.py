@@ -30,41 +30,10 @@ import glob
 import numpy as np
 import cv2
 
-try:
-    import tomllib
-except ImportError:
-    try:
-        import tomli as tomllib
-    except ImportError:
-        tomllib = None
-
-
-def parse_toml(path):
-    """Parse a TOML file, falling back to manual parsing if tomllib unavailable."""
-    if tomllib is not None:
-        with open(path, "rb") as f:
-            return tomllib.load(f)
-
-    import re
-    data = {}
-    current = None
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            m = re.match(r'^\[(.+)\]$', line)
-            if m:
-                current = m.group(1)
-                data[current] = {}
-                continue
-            if current and '=' in line:
-                key, _, val = line.partition('=')
-                key = key.strip()
-                val = val.strip()
-                try:
-                    data[current][key] = eval(val)
-                except Exception:
-                    data[current][key] = val.strip('"')
-    return data
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+from core.toml_io import load_toml
 
 
 def main():
@@ -78,7 +47,7 @@ def main():
     args = parser.parse_args()
 
     # ---- Lire le TOML -------------------------------------------------------
-    data = parse_toml(args.toml)
+    data = load_toml(args.toml)
 
     print(f"Recherche des sections pour les caméras: {args.cam_names}")
 
