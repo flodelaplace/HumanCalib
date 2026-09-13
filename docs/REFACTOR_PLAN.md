@@ -315,8 +315,8 @@ propre, avec `--gpus all`, et produit le même MRE qu'en natif.
 |----|-------|-----------|
 | T4.1 | **fait** — `core/session.py` + `scripts/write_session.py` ; `config/config.yaml` supprimé, session écrite dans `<output_dir>/<subset>/session.yaml` | §2.5 |
 | T4.2 | **fait** — `probe_videos()` lit les vidéos via OpenCV. Sur la démo : 1080×1920 @ 60 au lieu du 1920×1080 @ 30 codé en dur, et un avertissement signale l'hétérogénéité cam01/cam02 vs cam03/cam04 | B6 |
-| T4.3 | Déplacer les sidecars `.dropped.json` de `input/` vers `output/` → permet de monter `input/` en lecture seule | §2.8 |
-| T4.4 | Supprimer la dérivation de `AID`/`PID`/`GID` par regex sur le nom de dossier | §2.7 |
+| T4.3 | **fait** — `core/sidecars.py` ; écriture dans `<output>/<subset>/dropped_frames/`, lecture rétro-compatible de l'ancien emplacement (fusion, avec avertissement) pour ne perdre aucune exclusion déjà constituée | §2.8 |
+| T4.4 | **fait** — constantes fixes et documentées ; renommer un dossier de sortie ne change plus silencieusement les fichiers cherchés. Leur suppression complète touche 15 fichiers et la disposition des artefacts sur disque : reportée au packaging | §2.7 |
 
 **Critère d'acceptation :** deux sessions concurrentes sur des jeux de données différents n'interfèrent
 plus ; `input/` montable en lecture seule ; `git status` reste propre après exécution.
@@ -427,8 +427,8 @@ exécuter la démo. C'est le point de sortie minimal si le chantier doit s'arrê
 | 0 — Assainissement publication | **terminée** | 2026-09-13 |
 | 1 — Bugs + envs épinglés | en cours | 2026-09-13 |
 | 2 — Docker | à faire | |
-| 3 — Nettoyage | à faire | |
-| 4 — Config par session | à faire | |
+| 3 — Nettoyage | **terminée** | 2026-09-13 |
+| 4 — Config par session | **terminée** | 2026-09-13 |
 | 5 — Tests + CI | à faire | |
 | 6 — Package | à faire | |
 | 7 — CLI Python | à faire | |

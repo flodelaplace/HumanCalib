@@ -32,6 +32,7 @@ if REPO_ROOT not in sys.path:
 
 from postprocessing.evaluate_calibration import triangulate_skeleton, reproject_points
 from core import load_poses, load_eldersim_camera
+from core.sidecars import write_dropped
 
 
 def parse_args():
@@ -91,22 +92,6 @@ def detect_outliers(frame_errors, abs_px, x_median):
         outliers.append({int(i) for i in bad})
     return outliers
 
-
-def update_sidecar(video_path, new_indices):
-    """Merge ``new_indices`` (absolute frame numbers) into ``<video>.dropped.json``."""
-    sidecar = os.path.splitext(video_path)[0] + '.dropped.json'
-    existing = []
-    if os.path.exists(sidecar):
-        with open(sidecar) as f:
-            existing = json.load(f).get('dropped_frame_indices', [])
-    existing_set = {int(i) for i in existing}
-    merged = existing_set | new_indices
-    added = len(merged) - len(existing_set)
-    if added == 0:
-        return 0
-    with open(sidecar, 'w') as f:
-        json.dump({'dropped_frame_indices': sorted(merged)}, f, indent=2)
-    return added
 
 
 def zero_scores_in_json(json_path, dropped_frames):
@@ -171,7 +156,7 @@ def main():
         print(f"  Cam {cid}: {len(bad_frames)} outliers (median {med:.1f}px, "
               f"worst-outlier {worst:.1f}px)")
 
-        added = update_sidecar(video_files[c], bad_frames)
+        added = write_dropped(args.prefix, args.subset, video_files[c], bad_frames)
         total_added += added
 
         fname = f"A{args.aid:03d}_P{args.pid:03d}_G{args.gid:03d}_C{cid:03d}.json"

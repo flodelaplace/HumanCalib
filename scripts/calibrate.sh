@@ -98,18 +98,22 @@ done
 
 OUTPUT_DIR=$(realpath "${OUTPUT_DIR}")
 
-# --- Extraire AID, PID, GID depuis le nom du dossier de sortie ---
-BASENAME=$(basename "${OUTPUT_DIR}")
-if [[ ${BASENAME} =~ A([0-9]+)_P([0-9]+)_G([0-9]+) ]]; then
-    AID=$((10#${BASH_REMATCH[1]}))
-    PID=$((10#${BASH_REMATCH[2]}))
-    GID=$((10#${BASH_REMATCH[3]}))
-else
-    echo "WARNING: Le nom du dossier de sortie '${BASENAME}' ne suit pas le format Axxx_Pxxx_Gxxx. Using defaults."
-    AID=1; PID=1; GID=1
-fi
-
-# Constantes internes
+# --- Vestigial session identifiers -------------------------------------------
+# AID (action), PID (person) and GID (group) come from the ElderSim/SynADL
+# dataset layout of the original research code. Nothing varies them any more:
+# they only shape artefact filenames (A001_P001_G001_C00N.json) and are carried
+# through every function signature. SUBSET and DATASET are equally vestigial --
+# "noise_1_0" named a synthetic noise level that no longer exists.
+#
+# They used to be regex-parsed out of the OUTPUT DIRECTORY NAME, so renaming an
+# output folder silently changed which files the pipeline looked for, and any
+# name not matching Axxx_Pxxx_Gxxx fell back to 1/1/1 with a warning. Fixed
+# constants say what was already true. Removing them entirely means touching 15
+# files and the on-disk artefact layout, so it is left to the packaging phase
+# (see docs/REFACTOR_PLAN.md).
+AID=1
+PID=1
+GID=1
 SUBSET="noise_1_0"
 DATASET="MyDataset"
 MODEL="pretrained_h36m_detectron_coco.bin"

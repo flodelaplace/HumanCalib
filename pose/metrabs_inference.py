@@ -44,6 +44,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 from core.toml_io import load_toml
+from core.sidecars import read_dropped
 
 import numpy as np
 import cv2
@@ -158,7 +159,8 @@ def bml87_to_halpe26(kp_bml87):
     return kp_out
 
 
-def process_video(video_path, model, skeleton, intrinsic_matrix, start_frame=None, end_frame=None, batch_size=8):
+def process_video(video_path, model, skeleton, intrinsic_matrix, output_dir, subset,
+                  start_frame=None, end_frame=None, batch_size=8):
     """Run MeTRAbs on a video and return per-frame poses.
 
     Uses a streaming generator to avoid loading all frames into RAM.
@@ -177,15 +179,11 @@ def process_video(video_path, model, skeleton, intrinsic_matrix, start_frame=Non
     n_frames = ef - sf + 1
     print(f"  Video: {os.path.basename(video_path)} ({imshape[1]}x{imshape[0]}, frames {sf}-{ef})")
 
-    # Sidecar: deterministic list of black-filler indices (from pipeline_sync.py)
-    sidecar_path = os.path.splitext(video_path)[0] + '.dropped.json'
-    dropped_set = set()
-    if os.path.exists(sidecar_path):
-        with open(sidecar_path) as _f:
-            _meta = json.load(_f)
-        dropped_set = {int(i) for i in _meta.get('dropped_frame_indices', [])}
+    # Deterministic list of frames to treat as missing (black / corrupted).
+    dropped_set = read_dropped(output_dir, subset, video_path)
+    if dropped_set:
         in_range = sum(1 for i in dropped_set if sf <= i <= ef)
-        print(f"  Sidecar: {in_range}/{len(dropped_set)} dropped indices in range [{sf},{ef}] -> {os.path.basename(sidecar_path)}")
+        print(f"  Sidecar: {in_range}/{len(dropped_set)} dropped indices in range [{sf},{ef}]")
 
     # Generator that yields frames one by one (no bulk RAM allocation)
     def frame_generator():
@@ -395,6 +393,7 @@ def main():
         # Run inference
         frame_indices, poses3d_raw, poses2d_raw, confidences = process_video(
             video_path, model, args.skeleton, K.astype(np.float32),
+            args.output_dir, args.subset_name,
             start_frame=args.start_frame, end_frame=args.end_frame,
             batch_size=args.batch_size,
         )

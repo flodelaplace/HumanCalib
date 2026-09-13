@@ -37,6 +37,7 @@ if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
 from core import load_poses, load_eldersim_camera
+from core.sidecars import read_dropped
 
 
 def parse_args():
@@ -95,10 +96,9 @@ def load_dropped(video_dir, camid):
     dropped, serials = {}, {}
     for c, v in enumerate(videos):
         serials[c] = os.path.splitext(os.path.basename(v))[0]
-        sidecar = os.path.splitext(v)[0] + ".dropped.json"
-        if os.path.exists(sidecar):
-            with open(sidecar) as f:
-                dropped[c] = {int(i) for i in json.load(f).get("dropped_frame_indices", [])}
+        idx = read_dropped(args.prefix, args.subset, v)
+        if idx:
+            dropped[c] = idx
         else:
             dropped[c] = set()
     return dropped, serials
