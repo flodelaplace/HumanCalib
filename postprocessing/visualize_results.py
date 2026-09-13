@@ -38,10 +38,20 @@ if vp3d_path not in sys.path:
     sys.path.insert(0, vp3d_path)
 
 from core import load_poses, load_eldersim_camera
+from core.skeletons import METRABS_BONE, METRABS_KEY, OP_KEY
 from postprocessing.evaluate_calibration import reproject_points, triangulate_skeleton
 
-# ── squelette OpenPose-25 ─────────────────────────────────────────────────────
-OPENPOSE_SKELETON = (
+# ── Display skeletons ────────────────────────────────────────────────────────
+#
+# IMPORTANT: OPENPOSE_DRAW_SKELETON is NOT core.skeletons.OP_BONE and must not
+# be merged with it. core's OP_BONE has 12 bones -- the set used for bone-length
+# regularisation in bundle adjustment. The 24 edges below are for *drawing*:
+# they add face, ears and toe segments that make the rendered figure readable
+# but would be redundant or degenerate as calibration constraints.
+#
+# The MeTRAbs topology and both joint-name lists, by contrast, were verified
+# identical to core's and are now taken from there.
+OPENPOSE_DRAW_SKELETON = (
     (1, 8), (1, 2), (1, 5), (0, 15), (0, 16),
     (15, 17), (16, 18), (1, 0),
     (2, 3), (3, 4), (5, 6), (6, 7),
@@ -51,42 +61,11 @@ OPENPOSE_SKELETON = (
     (11, 22), (11, 24), (22, 23),
     (14, 19), (14, 21), (19, 20),
 )
-OP_NAMES = [
-    "Nose", "Neck", "RShoulder", "RElbow", "RWrist",
-    "LShoulder", "LElbow", "LWrist", "MidHip", "RHip",
-    "RKnee", "RAnkle", "LHip", "LKnee", "LAnkle",
-    "REye", "LEye", "REar", "LEar", "LBigToe",
-    "LSmallToe", "LHeel", "RBigToe", "RSmallToe", "RHeel"
-]
+OPENPOSE_SKELETON = OPENPOSE_DRAW_SKELETON  # backwards-compatible alias
 
-# ── squelette MeTRAbs calib-26 ────────────────────────────────────────────────
-METRABS_SKELETON = (
-    # Spine
-    (5, 4), (4, 2), (2, 1), (1, 0),
-    # Torso
-    (3, 2), (6, 7), (14, 15),
-    # Shoulders
-    (2, 6), (2, 7),
-    # Hips
-    (4, 14), (4, 15),
-    # Left arm
-    (6, 8), (8, 10), (10, 12),
-    # Right arm
-    (7, 9), (9, 11), (11, 13),
-    # Left leg
-    (14, 16), (16, 18), (18, 20),
-    # Right leg
-    (15, 17), (17, 19), (19, 21),
-    # Feet
-    (18, 22), (22, 24),
-    (19, 23), (23, 25),
-)
-METRABS_NAMES = [
-    "head", "backneck", "thor", "sternum", "pelv", "mhip",
-    "lsho", "rsho", "lelb", "relb", "lwri", "rwri",
-    "lhan", "rhan", "lhip", "rhip", "lkne", "rkne",
-    "lank", "rank", "lfoo", "rfoo", "lhee", "rhee", "ltoe", "rtoe",
-]
+METRABS_SKELETON = METRABS_BONE
+OP_NAMES = list(OP_KEY)
+METRABS_NAMES = list(METRABS_KEY)
 
 
 def export_to_trc(X3d_world, output_path, fps=30.0):
