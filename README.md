@@ -1,6 +1,6 @@
-# Dynamic Extrinsic Camera Calibrator
+# HumanCalib
 
-A complete pipeline for **extrinsic camera calibration from a moving person**. It leverages human pose estimation to calibrate multi-camera setups without needing a checkerboard or specialized calibration patterns — just a person walking in the scene.
+**Extrinsic multi-camera calibration from a moving person.** No checkerboard, no calibration pattern — just someone walking through the capture volume. HumanCalib uses human pose estimation to recover the relative pose of every camera in the rig.
 
 Two pose estimation architectures are supported, with fundamentally different approaches:
 
@@ -9,7 +9,7 @@ Two pose estimation architectures are supported, with fundamentally different ap
 
 In short, MeTRAbs collapses the 2D detection + 3D lifting into a **single forward pass** that outputs metric-scale 3D, while the RTMPose path requires two separate models and produces relative-scale 3D that must be rescaled during calibration.
 
-![Overview camera extrinsics](img/Graphical_abstract_lab_camera_dynamic_calibrator_metrabs.png)
+![Overview camera extrinsics](img/graphical_abstract.png)
 
 ### What the final output looks like
 
@@ -121,8 +121,8 @@ Use `--ba_jac numeric` to fall back to the legacy finite-difference path (same r
 ### Clone the repository
 
 ```bash
-git clone https://github.com/flodelaplace/lab-camera-dynamic-calibrator.git
-cd lab-camera-dynamic-calibrator
+git clone https://github.com/flodelaplace/HumanCalib.git
+cd HumanCalib
 ```
 
 ### Main environment (`human_calib`)
@@ -218,7 +218,7 @@ export TFHUB_CACHE_DIR="$HOME/.cache/tfhub_modules"
 | NVIDIA Driver | 581+ |
 
 ```bash
-cd ../lab-camera-dynamic-calibrator
+cd ../HumanCalib
 ```
 
 See the [Metrabs_to_Opensim repository](https://github.com/flodelaplace/Metrabs_to_Opensim) for additional info on standalone single-camera usage and troubleshooting.
@@ -504,7 +504,7 @@ The joint format is **auto-detected** based on the number of joints in the 2D po
 ## 5. Project Structure
 
 ```
-lab-camera-dynamic-calibrator/
+HumanCalib/
 ├── argument.py               # CLI argument parser shared across entry points
 ├── conda_linux.yaml          # Conda environment (human_calib)
 │
