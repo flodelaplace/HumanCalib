@@ -1,0 +1,89 @@
+# HumanCalib — optional legacy environment
+#
+# Only needed for the RTMPose (2D) + VideoPose3D (3D lifting) backend, i.e.
+# pose/rtmlib_inference.py and pose/inference.py. The default MeTRAbs backend
+# does NOT use this environment: see envs/calib.yaml.
+#
+# ---------------------------------------------------------------------------
+# LICENSING NOTICE
+#   VideoPose3D is CC BY-NC 4.0 (non-commercial) and its pretrained weights
+#   were trained on Human3.6M, which is restricted to academic use. HumanCalib
+#   itself is MIT, but any use of THIS backend inherits those restrictions.
+# ---------------------------------------------------------------------------
+#
+#   conda env create -f envs/rtmpose.yaml
+#   conda activate humancalib-rtmpose
+#   pip install --no-deps rtmlib==0.0.15      # REQUIRED, see note below
+#   bash scripts/setup_models.sh              # VideoPose3D source + weights
+#
+# Why rtmlib must be installed with --no-deps:
+#   rtmlib 0.0.15 declares four unpinned dependencies, two of which break the
+#   environment if the resolver is allowed to act on them:
+#     * it requires BOTH opencv-python and opencv-contrib-python. Both ship the
+#       same cv2/ directory, so the second install silently overwrites the
+#       first one's files while both .dist-info records survive.
+#     * it requires `onnxruntime` (the CPU build) alongside the GPU build
+#       pinned below. The CPU wheel winning would drop CUDAExecutionProvider
+#       and RTMPose would fall back to CPU with no error, just ~50x slower.
+#   `--no-deps` is not valid inside a conda `pip:` block (it is a requirements
+#   file, not a command line), so this has to stay a post-install step.
+#
+# Byte-for-byte lock:
+#   conda list -n humancalib-rtmpose --explicit > envs/rtmpose.lock
+
+name: humancalib-rtmpose
+
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.8.19
+  - pip=24.3.1
+
+  # --- torch stack (CUDA 11.7) ---
+  - pytorch::pytorch=1.13.1
+  - pytorch::torchvision=0.14.1
+  - pytorch::pytorch-cuda=11.7
+  # Works around "undefined symbol: iJIT_NotifyEvent" in these pytorch builds.
+  - mkl=2024.0.0
+
+  # --- numerical core ---
+  - numpy=1.24.4
+  - pandas=2.0.3          # required by nvgpu
+  # matplotlib-base, not matplotlib: the code forces matplotlib.use("Agg"), so
+  # the Qt backend is dead weight and drags in qt-main, mysql, libpq, openldap.
+  - matplotlib-base=3.7.3
+  - pyyaml=6.0.2
+  - tqdm=4.67.1
+  - toml=0.10.2
+
+  - pip:
+      # opencv-contrib-python ONLY -- see the rtmlib note above.
+      - opencv-contrib-python==4.7.0.72
+
+      # --- calibration / bundle adjustment ---
+      - pycalib-simple==2025.12.5.1
+      - scikit-image==0.20.0
+      - scipy==1.9.1
+      - imageio==2.22.2
+      - tomli==2.4.0
+
+      # --- RTMPose inference backend ---
+      #
+      # onnxruntime-gpu 1.15.0 officially targets CUDA 11.8 while the torch
+      # stack above is CUDA 11.7. Verified working: the CUDA execution provider
+      # loads and registers, because CUDA 11.x keeps a stable libcublas soname
+      # across minor versions. Kept as-is rather than churning a validated
+      # combination. A strictly coherent alternative would be torch 2.0.1 +
+      # pytorch-cuda=11.8 (still Python 3.8 compatible), but that pairing has
+      # not been runtime-tested here.
+      - onnxruntime-gpu==1.15.0
+
+      # --- GPU auto-selection (core/gpu.py) ---
+      - nvgpu==0.10.0
+
+      # --- VideoPose3D build helper ---
+      - ninja==1.13.0

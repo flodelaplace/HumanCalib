@@ -256,17 +256,17 @@ Chaque tâche porte un identifiant stable (`T<phase>.<n>`) pour le suivi.
 | T1.2 | `np.alltrue` → `np.array_equal` | B2 | fait |
 | T1.3 | Remplacer `distutils.util.strtobool` par un parseur local | B3 | fait |
 | T1.4 | Rendre `core/gpu` paresseux : retirer la réexportation de `core/__init__.py:34`, importer `select_gpu` à l'usage dans `pose/inference.py:282` | §2.2 | fait — vérifié : `core` importable sans torch ni nvgpu |
-| T1.5 | `env/calib.yaml` — py3.10, TF 2.12, MeTRAbs + cœur calibration, **toutes versions épinglées** depuis la résolution actuelle vérifiée | §2.3 | en cours (agent) |
-| T1.6 | `env/rtmpose.yaml` — py3.8, torch 1.13, rtmlib, épinglé ; résoudre le double OpenCV | §2.3 | en cours (agent) |
+| T1.5 | `envs/calib.yaml` — py3.10, TF 2.12, MeTRAbs + cœur calibration, **toutes versions épinglées** depuis la résolution actuelle vérifiée | §2.3 | **fait** |
+| T1.6 | `envs/rtmpose.yaml` — py3.8, torch 1.13, rtmlib, épinglé ; résoudre le double OpenCV | §2.3 | **fait** |
 | T1.7 | Supprimer les 7 dépendances mortes (`pandas`, `networkx`, `tabulate`, `termcolor`, `portalocker`, `ninja`, `numba`) | §2.3 | **fait** — équivalence prouvée sur les 4 caméras de démo (mêmes valeurs, dtype, forme) |
-| T1.8 | Résoudre `bit.ly/metrabs_l` vers son URL permanente et l'inscrire en dur | §2.9 | en cours (agent) |
+| T1.8 | Résoudre `bit.ly/metrabs_l` vers son URL permanente et l'inscrire en dur | §2.9 | **fait** — URL RWTH résolue et vérifiée (301 → 200, 708 Mo) ; cache TF Hub préservé par lien symbolique sur le nouveau hash |
 | T1.9 | Supprimer la dépendance `cameralib` (remplacer par `tf.constant(K)[tf.newaxis]`) — élimine la seule dépendance `git+https` | §2.3 | **fait** — équivalence prouvée sur les 4 caméras de démo (mêmes valeurs, dtype, forme) |
 | T1.10 | Épingler le commit VideoPose3D dans `setup_models.sh` ; supprimer `.gitmodules` (submodule fantôme) | §2.9 | **fait** — commit `1afb1ca0` épinglé, SHA256 des poids vérifié, `.gitmodules` supprimé, mention CC BY-NC ajoutée |
 
 **Correctif connexe (hors liste) :** `postprocessing/evaluate_calibration.py:37-41` n'avait pas le repli `tomllib`-d'abord présent dans les deux autres lecteurs TOML ; il affichait une erreur à l'import et dégradait silencieusement (`tomllib = None`). Aligné sur le motif commun.
 
 **Critère d'acceptation :** création des deux envs depuis zéro, puis exécution complète de la démo
-MeTRAbs dans `env/calib.yaml` **sans torch installé**, avec un MRE final conforme à la référence.
+MeTRAbs dans `envs/calib.yaml` **sans torch installé**, avec un MRE final conforme à la référence.
 
 ---
 
@@ -275,7 +275,7 @@ MeTRAbs dans `env/calib.yaml` **sans torch installé**, avec un MRE final confor
 
 | ID | Tâche |
 |----|-------|
-| T2.1 | `Dockerfile` : base `nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04`, micromamba, `env/calib.yaml`. apt : `ffmpeg libgl1 libglib2.0-0 git wget ca-certificates` |
+| T2.1 | `Dockerfile` : base `nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04`, micromamba, `envs/calib.yaml`. apt : `ffmpeg libgl1 libglib2.0-0 git wget ca-certificates` |
 | T2.2 | `Dockerfile.rtmpose` séparé (py3.8/torch), avec **mention explicite CC BY-NC 4.0** dans l'image et sa documentation |
 | T2.3 | Entrypoint à **interpréteur absolu** (neutralise le piège `python3` → conda base) ; `MPLBACKEND=Agg`, `PYTHONUNBUFFERED=1`, `TFHUB_CACHE_DIR=/models/tfhub`, `OMP_NUM_THREADS` |
 | T2.4 | Neutraliser le correctif WSL `LD_LIBRARY_PATH=/usr/lib/wsl/lib` (`calibrate.sh:43-44`) en conteneur |

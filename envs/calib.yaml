@@ -1,0 +1,81 @@
+# HumanCalib — main environment (default)
+#
+# Runs the whole recommended pipeline: MeTRAbs pose extraction, linear
+# calibration, bundle adjustment, evaluation, scaling and visualisation.
+# Python 3.10, TensorFlow 2.12, no PyTorch.
+#
+#   conda env create -f envs/calib.yaml
+#   conda activate humancalib
+#
+# No post-install steps are required.
+#
+# Direct dependencies are pinned here. For a byte-for-byte reproduction of a
+# specific machine, also generate and commit a lock file:
+#   conda list -n humancalib --explicit > envs/calib.lock
+#   # restore with: conda create -n humancalib --file envs/calib.lock
+#
+# The optional RTMPose + VideoPose3D backend lives in envs/rtmpose.yaml.
+
+name: humancalib
+
+channels:
+  - defaults
+  - conda-forge
+
+dependencies:
+  - python=3.10.20
+  - pip=26.0.1
+
+  # CUDA userspace for TensorFlow 2.12. The host only needs a driver >= 525.
+  - cudatoolkit=11.8.0
+  - cudnn=8.9.2.26
+
+  # Used by imageio for video IO. imageio-ffmpeg also bundles a static binary,
+  # so this can be dropped if image size matters more than convenience.
+  - ffmpeg=8.0.1
+
+  - pip:
+      # --- numerical core ---
+      #
+      # numpy 1.25.2 is DELIBERATE and outside tensorflow 2.12's declared range
+      # (it asks for numpy>=1.22,<1.24). It is the version the pipeline has
+      # actually been validated on: the reference MRE figures in the README were
+      # produced with it. The declared constraint is not enforced at runtime and
+      # TF 2.12 works with it in practice. Revisit once the golden-run test
+      # exists (docs/REFACTOR_PLAN.md T5.2) — switching to 1.23.5 would satisfy
+      # the metadata but has never been validated against this code.
+      - numpy==1.25.2
+      - scipy==1.15.3
+      - matplotlib==3.10.8
+
+      # --- computer vision ---
+      #
+      # opencv-contrib-python ONLY. It is a strict superset of opencv-python and
+      # is what pycalib-simple requires. Installing both -- which is what
+      # happened before, via an unpinned transitive dependency -- puts two
+      # distributions in the same cv2/ directory and the later install silently
+      # overwrites the earlier one's files.
+      - opencv-contrib-python==4.11.0.86
+
+      # --- calibration / bundle adjustment ---
+      #
+      # pycalib-simple pulls scikit-image (pycalib.calib imports
+      # skimage.transform at module scope), which pulls networkx and tifffile.
+      # scikit-image is pinned because 0.25+ raises its own numpy floor.
+      - pycalib-simple==2025.12.5.1
+      - scikit-image==0.24.0
+
+      # --- MeTRAbs / TensorFlow ---
+      - tensorflow==2.12.0
+      - tensorflow-hub==0.16.1
+
+      # --- config, IO, progress ---
+      #
+      # Python 3.10 has no stdlib tomllib (3.11+), so tomli is mandatory here.
+      # `toml` is a different package, required by utils/convert_calib_rotation.py.
+      - tomli==2.4.0
+      - toml==0.10.2
+      - PyYAML==6.0.3
+      - tqdm==4.67.3
+      - imageio==2.37.3
+      - imageio-ffmpeg==0.6.0

@@ -125,103 +125,76 @@ git clone https://github.com/flodelaplace/HumanCalib.git
 cd HumanCalib
 ```
 
-### Main environment (`human_calib`)
+### Install the environment
 
-This environment is **always required** — it runs the calibration pipeline, Bundle Adjustment, evaluation, and visualization. It also supports the RTMPose path.
-
-```bash
-conda env create -f conda_linux.yaml
-conda activate human_calib
-```
-
-Key packages: Python 3.8, PyTorch 1.13 (CUDA 11.7), scipy, opencv, rtmlib, numba, pycalib-simple.
-
-### MeTRAbs environment (optional, recommended)
-
-MeTRAbs requires a **separate** conda environment (Python 3.10, TensorFlow) because it is incompatible with the PyTorch-based `human_calib` environment. The pipeline handles the environment switching automatically via `conda run`.
-
-#### Platform support
-
-| Platform | Status |
-|---|---|
-| **Linux** (Ubuntu 22.04) | Tested, fully supported |
-| **Windows via WSL2** | Tested, fully supported (recommended for Windows users) |
-| **Windows native** | Not tested — CUDA/TensorFlow GPU setup differs significantly (system-wide NVIDIA CUDA install required instead of conda). CPU-only mode may work. If you're on Windows, **use WSL2**. |
-| **macOS** | Not supported (requires NVIDIA GPU) |
-
-#### Prerequisites
-
-- Linux or WSL2 (tested on Ubuntu 22.04)
-- NVIDIA GPU with recent drivers (tested with RTX 3500 Ada)
-- [Miniconda](https://docs.conda.io/en/latest/miniconda.html) or Anaconda
-
-#### 1. Clone the repository
+One environment runs the whole recommended pipeline — pose extraction,
+calibration, bundle adjustment, evaluation, scaling and visualisation:
 
 ```bash
-cd ..
-git clone https://github.com/flodelaplace/Metrabs_to_Opensim.git
-cd Metrabs_to_Opensim
+conda env create -f envs/calib.yaml
+conda activate humancalib
 ```
 
-#### 2. Create the conda environment
+That is all. There are no post-install steps, no second environment to create,
+and no other repository to clone.
 
-```bash
-conda env create --file environment.yml
-conda activate metrabs_opensim
-```
+Key packages: Python 3.10, TensorFlow 2.12 (CUDA 11.8), scipy, opencv-contrib,
+pycalib-simple. Every version is pinned; see `envs/calib.yaml` for the rationale
+behind each pin.
 
-#### 3. Configure GPU (CUDA)
+> For a byte-for-byte reproduction of a known-good machine, generate a lock file
+> once the environment is created:
+> ```bash
+> conda list -n humancalib --explicit > envs/calib.lock
+> ```
 
-TensorFlow installed via pip needs the CUDA library path set manually:
+### The MeTRAbs model (automatic, cached once)
 
-```bash
-mkdir -p $CONDA_PREFIX/etc/conda/activate.d
-echo 'export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH' \
-  > $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+The `metrabs_l` model (~1.1 GB) is downloaded automatically on first run from
+the authors' server at RWTH Aachen, via TensorFlow Hub. No manual download.
 
-# Reactivate to apply
-conda deactivate && conda activate metrabs_opensim
-```
-
-Verify GPU access:
-
-```bash
-python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
-# Expected: [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
-```
-
-#### 4. MeTRAbs model (automatic, persistently cached)
-
-The MeTRAbs model is downloaded automatically on first run via TensorFlow Hub (~1.1 GB on disk). No manual download is needed.
-
-**Persistent local cache.** By default TensorFlow Hub caches models in `/tmp/tfhub_modules`, which is **ephemeral** — on WSL (and many systems) `/tmp` is wiped on restart, so the model would be **re-downloaded every reboot** (~10 min each time). To avoid this, `pose/metrabs_inference.py` pins the cache to a **persistent** directory *in code*, before TensorFlow Hub is imported:
+`pose/metrabs_inference.py` pins the TF Hub cache to a **persistent** directory
+before TensorFlow Hub is imported:
 
 ```python
 os.environ.setdefault('TFHUB_CACHE_DIR', os.path.expanduser('~/.cache/tfhub_modules'))
 ```
 
-So the model is downloaded **once** to `~/.cache/tfhub_modules/` and reused across reboots. Cold start (download) is a one-time ~10 min; every subsequent run loads from disk in ~50 s (TensorFlow/GPU init — irreducible), and re-running the **same dataset** skips MeTRAbs entirely (cached poses). To use a different location, set `TFHUB_CACHE_DIR` yourself (the code respects a pre-set value); optionally add to `~/.bashrc`:
+TF Hub otherwise caches into `/tmp`, which WSL and many systems wipe on restart —
+the model would then be re-downloaded on every reboot. With the cache pinned, the
+download happens once; later runs load from disk in ~50 s (TensorFlow/GPU init),
+and re-running the **same dataset** skips MeTRAbs entirely thanks to the pose
+cache. Set `TFHUB_CACHE_DIR` yourself to relocate it — the code honours a
+pre-existing value.
+
+### Optional: the RTMPose + VideoPose3D backend
+
+Only needed to reproduce the legacy two-step path. It is **not** required for
+normal use and is kept mainly for comparison.
+
+> **Licensing:** VideoPose3D is CC BY-NC 4.0 (non-commercial) and its pretrained
+> weights were trained on Human3.6M, which is restricted to academic use.
+> HumanCalib itself is MIT, but any use of this backend inherits those
+> restrictions. The default MeTRAbs backend is unaffected.
 
 ```bash
-export TFHUB_CACHE_DIR="$HOME/.cache/tfhub_modules"
+conda env create -f envs/rtmpose.yaml
+conda activate humancalib-rtmpose
+pip install --no-deps rtmlib==0.0.15   # required — see envs/rtmpose.yaml
+bash scripts/setup_models.sh           # VideoPose3D source + weights, checksummed
 ```
 
-#### Tested versions
+### Platform support
 
-| Component | Version |
+| Platform | Status |
 |---|---|
-| Python | 3.10 |
-| TensorFlow | 2.12.0 |
-| CUDA Toolkit | 11.8 |
-| cuDNN | 8.9 |
-| supervision | 0.27+ |
-| NVIDIA Driver | 581+ |
+| **Linux** (Ubuntu 22.04) | Tested, fully supported |
+| **Windows via WSL2** | Tested, fully supported (recommended for Windows users) |
+| **Windows native** | Not tested — CUDA/TensorFlow GPU setup differs significantly. Use WSL2. |
+| **macOS** | Not supported (requires an NVIDIA GPU) |
 
-```bash
-cd ../HumanCalib
-```
-
-See the [Metrabs_to_Opensim repository](https://github.com/flodelaplace/Metrabs_to_Opensim) for additional info on standalone single-camera usage and troubleshooting.
+Tested with an NVIDIA RTX 3500 Ada, driver 581. Any driver >= 525 should cover
+the CUDA 11.8 runtime shipped by the environment.
 
 ### VideoPose3D setup (RTMPose path only)
 
@@ -595,9 +568,13 @@ This project builds upon [Extrinsic Camera Calibration From a Moving Person](htt
   doi={10.1109/LRA.2022.3192629}}
 ```
 
-**MeTRAbs** — Metric-Scale Truncation-Robust Heatmaps for Absolute 3D Human Pose Estimation:
-- Original: [github.com/isarandi/metrabs](https://github.com/isarandi/metrabs)
-- MeTRAbs-to-OpenSim pipeline (used in this project): [github.com/flodelaplace/Metrabs_to_Opensim](https://github.com/flodelaplace/Metrabs_to_Opensim)
+**MeTRAbs** — Metric-Scale Truncation-Robust Heatmaps for Absolute 3D Human Pose Estimation,
+by István Sárándi et al. HumanCalib uses the official `metrabs_l` model, loaded
+unmodified from the authors' server via TensorFlow Hub.
+- [github.com/isarandi/metrabs](https://github.com/isarandi/metrabs)
+- Companion project by the maintainer of HumanCalib, not a dependency:
+  [Metrabs_to_Opensim](https://github.com/flodelaplace/Metrabs_to_Opensim) — a companion
+  single-camera MeTRAbs → OpenSim pipeline.
 
 **RTMPose** — Real-Time Multi-Person Pose Estimation:
 - [RTMLib](https://github.com/Tau-J/rtmlib) — Part of the [MMPose](https://github.com/open-mmlab/mmpose) ecosystem
