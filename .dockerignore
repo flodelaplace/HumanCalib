@@ -8,6 +8,9 @@ output/
 # --- downloaded assets: fetched at build or run time, or mounted ---
 model/
 third_party/
+
+# --- obsolete Singularity recipe (gitignored, so local to one machine) ---
+singularity/
 *.sif
 
 # --- version control & IDE ---

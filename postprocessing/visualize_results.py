@@ -26,7 +26,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import mpl_toolkits.mplot3d.art3d as art3d
-import yaml
 
 # Add repo root for util import (script lives in postprocessing/) and locate VideoPose3D
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

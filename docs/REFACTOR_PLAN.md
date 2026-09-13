@@ -275,14 +275,14 @@ MeTRAbs dans `envs/calib.yaml` **sans torch installé**, avec un MRE final confo
 
 | ID | Tâche |
 |----|-------|
-| T2.1 | `Dockerfile` : base `nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04`, micromamba, `envs/calib.yaml`. apt : `ffmpeg libgl1 libglib2.0-0 git wget ca-certificates` |
-| T2.2 | `Dockerfile.rtmpose` séparé (py3.8/torch), avec **mention explicite CC BY-NC 4.0** dans l'image et sa documentation |
-| T2.3 | Entrypoint à **interpréteur absolu** (neutralise le piège `python3` → conda base) ; `MPLBACKEND=Agg`, `PYTHONUNBUFFERED=1`, `TFHUB_CACHE_DIR=/models/tfhub`, `OMP_NUM_THREADS` |
-| T2.4 | Neutraliser le correctif WSL `LD_LIBRARY_PATH=/usr/lib/wsl/lib` (`calibrate.sh:43-44`) en conteneur |
-| T2.5 | Rendre surchargeable l'appel `conda run -n metrabs_opensim` (`calibrate.sh:188`) via variable d'environnement |
-| T2.6 | Échappatoire sur `core/gpu.py:43` : ne plus forcer `CUDA_VISIBLE_DEVICES=0` sans condition (écrase l'affectation du runtime ou de Slurm) |
-| T2.7 | `compose.yaml` : volumes pour `input/`, `output/`, et le cache modèles ; argument de build `BAKE_MODELS` (image ~9 Go avec modèles vs ~5 Go sans, 1,2 Go au premier lancement) |
-| T2.8 | `.dockerignore` (exclure `input/` 2,4 Go, `output/` 1,9 Go, `model/`, `third_party/`) |
+| T2.1 | **fait** — `Dockerfile`. **Écart assumé au plan initial : base `ubuntu:22.04`, pas `nvidia/cuda`.** Le CUDA userspace dont TensorFlow a besoin est déjà déclaré dans `envs/calib.yaml` (cudatoolkit 11.8 + cuDNN 8.9) ; une base CUDA en poserait une **seconde** copie, construite indépendamment, sur le chemin de l'éditeur de liens — ~1,8 Go de doublon dont le seul effet possible est de lier la mauvaise. Une seule déclaration = le conteneur exécute la même pile qu'une installation native, ce qui est précisément l'objectif. `NVIDIA_VISIBLE_DEVICES`/`NVIDIA_DRIVER_CAPABILITIES` déclarés explicitement, faute d'être hérités. apt réduit à `libgl1 libglib2.0-0 ca-certificates bzip2` : `ffmpeg` vient de l'env conda (deux builds sur le PATH sinon), `git`/`wget` ne servent qu'à l'image rtmpose |
+| T2.2 | **fait** — `Dockerfile.rtmpose`, derrière un profil compose pour qu'aucun `docker compose build` ne le construise par accident. Mention CC BY-NC 4.0 en tête de fichier, dans le `LABEL ...licenses="MIT AND CC-BY-NC-4.0"` et dans `compose.yaml`. `rtmlib` installé en post-étape `--no-deps` (voir `envs/rtmpose.yaml`) ; VideoPose3D et ses poids cuits dans l'image via `setup_models.sh` |
+| T2.3 | **fait** — `docker/entrypoint.sh`. Toutes les étapes passent par `${HUMANCALIB_PYTHON}`, chemin absolu de l'interpréteur de l'env. `MPLBACKEND=Agg`, `MPLCONFIGDIR`, `HOME=/tmp` (le conteneur tourne sous l'uid de l'hôte, sans entrée passwd), `PYTHONUNBUFFERED=1`, `PYTHONDONTWRITEBYTECODE=1`, `TFHUB_CACHE_DIR=/models/tfhub`, `OMP_NUM_THREADS=4`. Préflight : GPU absent, `/output` non inscriptible, cache modèles non monté |
+| T2.4 | **fait** — le correctif WSL est désormais conditionné à l'existence de `/usr/lib/wsl/lib`. Inconditionnel, il masquait les stubs du driver injectés par le runtime NVIDIA |
+| T2.5 | **fait** — `HUMANCALIB_PYTHON` et `HUMANCALIB_METRABS_PYTHON` surchargent respectivement `python3` et `conda run -n metrabs_opensim`. Dans l'image les deux moitiés partagent un env : conda n'est jamais invoqué |
+| T2.6 | **fait** — `core/gpu.py` respecte un `CUDA_VISIBLE_DEVICES` déjà positionné. L'indice qu'il écrivait compte sur la liste **complète** des périphériques : il pouvait donc désigner une carte non allouée au job (`--gpus device=1`, `--gres=gpu` de Slurm, épinglage par tâche). Un argument explicite l'emporte encore, avec avertissement |
+| T2.7 | **fait** — `compose.yaml` : `./input:/input:ro` (rendu possible par T4.3), `./output:/output`, volume nommé pour le cache modèles, `user: ${HOST_UID}:${HOST_GID}`, argument de build `BAKE_MODELS`. **Piège évité :** la forme *mapping* `CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-}` la définit à la chaîne vide à chaque exécution — c'est exactement la façon de dire à CUDA de n'exposer aucun GPU. Forme *liste* (nom nu) : transmise seulement si l'hôte la définit |
+| T2.8 | **fait** — `.dockerignore`. `demo/` volontairement **conservé** (4,2 Mo) : `docker compose run calib demo` est le critère d'acceptation de l'image et a besoin des clips |
 
 **Critère d'acceptation :** `docker compose run calib` exécute la démo de bout en bout sur une machine
 propre, avec `--gpus all`, et produit le même MRE qu'en natif.
@@ -302,7 +302,7 @@ propre, avec `--gpus all`, et produit le même MRE qu'en natif.
 | T3.6 | Unifier `parse_toml` : 4 variantes → une, **sans `eval()`** | §2.6, B4 |
 | T3.7 | Source unique pour les constantes de squelette (supprimer les doublons de `visualize_results.py:46-91`) | §2.6 |
 | T3.8 | Supprimer les 73 imports inutilisés et les 3 `import *` | §2.6 |
-| T3.9 | Supprimer `singularity/` (obsolète, remplacé par la Phase 2) | §2.9 |
+| T3.9 | **sans objet** — vérifié : `singularity/` est *gitignoré* (`.gitignore:78`) et n'a jamais été suivi par git. Il n'a donc jamais été publié et il n'y a rien à retirer du dépôt ; les fichiers restent en local sur la machine de l'auteur. La recette était bien obsolète (torch 1.8.1/CUDA 11.1, detectron2 — inutilisé partout —, `numba`, et les **deux** distributions opencv, soit le bug corrigé en Phase 1). Ajouté au `.dockerignore` pour ne pas se retrouver dans l'image. | §2.9 |
 
 **Critère d'acceptation :** `pyflakes` propre ; la démo produit un MRE identique à ±1e-9 avant/après.
 
@@ -426,7 +426,7 @@ exécuter la démo. C'est le point de sortie minimal si le chantier doit s'arrê
 |-------|------|------|
 | 0 — Assainissement publication | **terminée** | 2026-09-13 |
 | 1 — Bugs + envs épinglés | en cours | 2026-09-13 |
-| 2 — Docker | à faire | |
+| 2 — Docker | écrite, `docker build` en cours de vérification | 2026-09-13 |
 | 3 — Nettoyage | **terminée** | 2026-09-13 |
 | 4 — Config par session | **terminée** | 2026-09-13 |
 | 5 — Tests + CI | à faire | |

@@ -51,13 +51,29 @@ COPY --from=mambaorg/micromamba:1.5.8 /bin/micromamba /usr/local/bin/micromamba
 ENV MAMBA_ROOT_PREFIX=/opt/conda
 ENV HUMANCALIB_ENV=/opt/conda/envs/humancalib
 
+# Downloading a conda environment this size (cudatoolkit alone is ~700 MB) over
+# a slow or flaky link is the single most common reason this build fails.
+# libmamba's defaults give up quickly -- curl error 28, "Timeout was reached",
+# usually its low-speed cutoff rather than a genuinely dead connection. These
+# raise the patience considerably; combined with the cache mount below, an
+# interrupted build resumes instead of starting the downloads over.
+ENV MAMBA_REMOTE_MAX_RETRIES=5 \
+    MAMBA_REMOTE_BACKOFF_FACTOR=3 \
+    MAMBA_REMOTE_CONNECT_TIMEOUT_SECS=60 \
+    MAMBA_REMOTE_READ_TIMEOUT_SECS=600
+
 # Copied on its own, before the source tree: editing a Python file must not
 # invalidate the layer that takes twenty minutes to build.
 COPY envs/calib.yaml /tmp/calib.yaml
-RUN micromamba create -y -f /tmp/calib.yaml \
-    && micromamba clean --all --yes \
-    && find /opt/conda -follow -type f -name '*.a' -delete \
-    && rm -rf /opt/conda/pkgs /tmp/calib.yaml
+# The package cache is a BuildKit cache mount, so the downloaded tarballs
+# survive a failed build and never enter an image layer -- which is why
+# there is no `micromamba clean` here: cleaning would throw away exactly
+# what makes the next attempt cheap, and the mount is not part of the
+# image regardless.
+RUN --mount=type=cache,target=/opt/conda/pkgs,sharing=locked \
+    micromamba create -y -f /tmp/calib.yaml \
+    && find /opt/conda/envs -follow -type f -name '*.a' -delete \
+    && rm -f /tmp/calib.yaml
 
 # The environment's interpreter, by absolute path, for every step. This is the
 # single most common way a working install breaks: with conda on PATH, a bare

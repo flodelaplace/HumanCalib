@@ -17,7 +17,7 @@ import numpy as np
 from core import OP_KEY
 import matplotlib.pyplot as plt
 import torch
-import yaml, json
+import json
 from common.loss import *
 from common.model import *
 from common.camera import *

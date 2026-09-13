@@ -17,7 +17,6 @@ from argument import parse_args
 import matplotlib
 matplotlib.use("Agg") # Mode sans interface graphique pour éviter les bugs sous WSL
 import matplotlib.pyplot as plt
-import yaml
 from core import project_cv2
 
 

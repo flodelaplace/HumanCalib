@@ -26,7 +26,6 @@ Usage:
 """
 import argparse
 import glob
-import json
 import os
 import sys
 
@@ -77,8 +76,8 @@ def load_all_2d(prefix, subset, aid, pid, gid, camid):
     return frame_indices, np.array(p2d_all), np.array(s2d_all)
 
 
-def load_dropped(video_dir, camid):
-    """Return {cam_idx: set(absolute frame indices)} from sidecar <video>.dropped.json.
+def load_dropped(prefix, subset, video_dir, camid):
+    """Return {cam_idx: set(absolute frame indices)} from the dropped-frame sidecars.
 
     Maps cameras to videos the same way the rest of the pipeline does: sorted
     video filenames aligned to the CAMID order.
@@ -96,7 +95,7 @@ def load_dropped(video_dir, camid):
     dropped, serials = {}, {}
     for c, v in enumerate(videos):
         serials[c] = os.path.splitext(os.path.basename(v))[0]
-        idx = read_dropped(args.prefix, args.subset, v)
+        idx = read_dropped(prefix, subset, v)
         if idx:
             dropped[c] = idx
         else:
@@ -221,7 +220,7 @@ def main():
 
     frame_indices, p2d, s2d = load_all_2d(
         args.prefix, args.subset, args.aid, args.pid, args.gid, CAMID)
-    dropped, serials = load_dropped(args.video_dir, CAMID)
+    dropped, serials = load_dropped(args.prefix, args.subset, args.video_dir, CAMID)
     labels = [serials.get(c, f"CAM{int(CAMID[c])}") for c in range(n_cams)]
 
     print("=" * 70)
