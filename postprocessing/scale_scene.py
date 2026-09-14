@@ -26,7 +26,6 @@ import json
 import os
 import sys
 import glob
-import re
 
 import numpy as np
 
@@ -39,6 +38,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 from core import load_poses
+from core.session import session_ids
 from postprocessing.evaluate_calibration import export_to_toml
 
 # Keypoint indices in Halpe26 (used with RTMPose)
@@ -158,14 +158,7 @@ def main():
     R_w2c_orig = np.array(calib_data['R_w2c'])
     t_w2c_orig = np.array(calib_data['t_w2c'])
 
-    base_name = os.path.basename(os.path.normpath(args.prefix))
-    match = re.search(r'A(\d+)_P(\d+)_G(\d+)', base_name)
-    if match:
-        aid, pid, gid = int(match.group(1)), int(match.group(2)), int(match.group(3))
-    else:
-        # Fallback for folder names that don't follow the Axxx_Pxxx_Gxxx convention
-        print(f"WARNING: Output directory '{base_name}' does not match Axxx_Pxxx_Gxxx format. Using default IDs (AID=1, PID=1, GID=1).")
-        aid, pid, gid = 1, 1, 1
+    aid, pid, gid = session_ids(os.path.join(args.prefix, args.subset), args.prefix)
 
     p2d_list, s2d_list = [], []
     min_frames = float('inf')

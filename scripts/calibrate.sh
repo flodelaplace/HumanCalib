@@ -412,7 +412,15 @@ for CALIB in linear_1_0 linear_1_0_ba; do
         MRE=$(echo "${OUTPUT}" | grep "Global MRE" | awk '{print $4}')
         if [ -n "$MRE" ]; then
             MRE_SCORES[$CALIB]=$MRE
-            if (( $(echo "$MRE < $BEST_MRE" | bc -l) )); then BEST_MRE=$MRE; BEST_CALIB=$CALIB; fi
+            # awk, not bc: bc is not installed by default on a minimal Ubuntu
+            # (including the container base), and its absence was silent here --
+            # the command substitution produced nothing, the test never fired, and
+            # the pipeline simply stopped choosing between the linear and
+            # bundle-adjusted calibrations. awk is part of the base system
+            # everywhere this runs.
+            if awk -v m="$MRE" -v b="$BEST_MRE" 'BEGIN { exit !(m < b) }'; then
+                BEST_MRE=$MRE; BEST_CALIB=$CALIB
+            fi
         fi
         echo "  → 3D Visualization for ${CALIB}..."
         "${PYTHON}" "${REPO_ROOT}/postprocessing/visualize_results.py" --prefix "${OUTPUT_DIR}" --subset "${SUBSET}" --calib "${CALIB}" --dataset ${DATASET} --output "${OUTPUT_DIR}/results/camera/visu_3d_${CALIB}.gif" --conf_threshold ${CONF_THRESHOLD} || echo "  ⚠ Visu ${CALIB} failed"

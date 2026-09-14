@@ -355,6 +355,19 @@ def main():
     K_list, dist_list = get_intrinsics_from_toml(args.calib_toml, cam_names)
     print(f"\nLoaded intrinsics for {len(K_list)} cameras from {args.calib_toml}")
 
+    # Say plainly which device this will run on. Falling back to CPU is not an
+    # error and TensorFlow does it silently, so the only symptom is that a
+    # 20-second job takes five minutes -- easy to blame on the model, the video
+    # or the machine. On a GPU host, seeing "CPU" here means the CUDA runtime
+    # libraries are not on the loader path (LD_LIBRARY_PATH).
+    _gpus = tf.config.list_physical_devices('GPU')
+    if _gpus:
+        print(f"\nCompute device: GPU ({len(_gpus)} visible to TensorFlow)", flush=True)
+    else:
+        print("\nCompute device: CPU — no GPU visible to TensorFlow. Inference will "
+              "be roughly 15x slower.\n  If this machine has a GPU, the CUDA runtime "
+              "libraries are not on the loader path.", flush=True)
+
     # Load MeTRAbs model (this takes 30-60s: model loading + TF graph compilation)
     print(f"\nLoading MeTRAbs model (skeleton={args.skeleton}) — please wait...", flush=True)
     model = tfhub.load(METRABS_L_URL)

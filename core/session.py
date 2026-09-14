@@ -130,3 +130,38 @@ def load_session_dir(subset_dir):
         )
     with open(path) as f:
         return yaml.safe_load(f)
+
+
+def session_ids(subset_dir, prefix=None):
+    """Return ``(aid, pid, gid)`` for the run stored in ``subset_dir``.
+
+    They come from the session file, which is where they are recorded. Three
+    post-processing scripts used to re-derive them by regex from the *name of
+    the output directory*, each with its own copy of the same block: renaming a
+    result folder therefore changed which artefacts were read, and any name not
+    matching ``Axxx_Pxxx_Gxxx`` fell back to 1/1/1 behind a warning that looked
+    alarming but described the normal case.
+
+    The regex survives only as a fallback for result directories produced
+    before the session file existed. ``prefix`` is the output directory whose
+    name is parsed in that case; without it the defaults are used silently,
+    which is correct -- nothing has varied these values in a long time.
+    """
+    try:
+        session = load_session_dir(subset_dir)
+    except (FileNotFoundError, OSError):
+        session = None
+
+    if session and all(k in session for k in ("aid", "pid", "gid")):
+        return int(session["aid"]), int(session["pid"]), int(session["gid"])
+
+    if prefix:
+        import re
+        match = re.search(r"A(\d+)_P(\d+)_G(\d+)",
+                          os.path.basename(os.path.normpath(prefix)))
+        if match:
+            print("  NOTE: no session file; session IDs read from the directory "
+                  "name (pre-refactor result folder).")
+            return int(match.group(1)), int(match.group(2)), int(match.group(3))
+
+    return 1, 1, 1

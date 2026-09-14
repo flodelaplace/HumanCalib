@@ -81,6 +81,18 @@ RUN --mount=type=cache,target=/opt/conda/pkgs,sharing=locked \
 # single most common way a working install breaks: with conda on PATH, a bare
 # `python3` resolves to whichever environment is active -- usually one without
 # the dependencies -- and fails several steps later with an opaque ImportError.
+# LD_LIBRARY_PATH matters as much as PATH here, and is easier to forget.
+# TensorFlow finds libcudart/libcublas/libcudnn through the loader, and
+# they live in the environment's lib/. Natively that path is added by conda's
+# activation script -- which this image deliberately never runs, calling the
+# interpreter by absolute path instead. Without this line the container
+# starts, sees the GPU through nvidia-smi, and then silently runs the whole
+# pipeline on CPU: no error, just fifteen times slower.
+#
+# Safe to prepend: the conda environment ships no libcuda/libnvidia of its
+# own, so the driver injected by the NVIDIA container runtime at
+# /usr/lib/x86_64-linux-gnu is not shadowed. Verified inside the image.
+ENV LD_LIBRARY_PATH=/opt/conda/envs/humancalib/lib
 ENV PATH=/opt/conda/envs/humancalib/bin:${PATH} \
     HUMANCALIB_PYTHON=/opt/conda/envs/humancalib/bin/python
 

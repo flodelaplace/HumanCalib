@@ -37,12 +37,46 @@ USAGE
 }
 
 preflight() {
-    # GPU. A missing driver is not fatal -- the pipeline runs on CPU, just very
-    # slowly -- but silence here is what makes people wonder why it crawls.
-    if [ ! -e /dev/nvidiactl ] && ! command -v nvidia-smi >/dev/null 2>&1; then
+    # --- GPU ---------------------------------------------------------------
+    #
+    # Two different failures look identical from the outside, and both end with
+    # the pipeline quietly running on CPU about fifteen times slower. They are
+    # separated here because the fixes are unrelated.
+    #
+    # An explicitly empty CUDA_VISIBLE_DEVICES means the operator asked for CPU;
+    # that is a choice, not a fault, so neither check applies.
+    if [ "${CUDA_VISIBLE_DEVICES-unset}" = "" ]; then
+        echo "  NOTE: CUDA_VISIBLE_DEVICES is empty — running on CPU by request." >&2
+
+    elif ! nvidia-smi -L >/dev/null 2>&1; then
+        # (1) No GPU reached the container at all. Not fatal: CPU is a valid,
+        # if slow, way to run the demo, and some machines have no GPU.
         echo "  NOTE: no NVIDIA device visible in the container. Pose extraction" >&2
         echo "        will run on CPU (hours, not minutes). Start the container" >&2
         echo "        with '--gpus all', or 'gpus: all' under compose." >&2
+
+    elif ! "${PYTHON}" -c "import ctypes; ctypes.CDLL('libcudnn.so.8'); ctypes.CDLL('libcudart.so.11.0')" 2>/dev/null; then
+        # (2) The GPU is right there and the driver works, but the CUDA runtime
+        # libraries cannot be resolved by the loader. TensorFlow reports no
+        # error for this -- it just returns an empty device list and carries on
+        # using the CPU. That is the one case worth refusing to start for: the
+        # machine can clearly do better, and a silent 15x slowdown is far more
+        # expensive than stopping now. Checked with ctypes rather than by
+        # importing TensorFlow, which would cost ~20 seconds on every run.
+        echo "ERROR: this container can see a GPU, but cannot load the CUDA runtime" >&2
+        echo "       libraries (libcudnn.so.8 / libcudart.so.11.0)." >&2
+        echo "       TensorFlow would not report this: it would silently run the" >&2
+        echo "       whole pipeline on CPU, roughly 15x slower." >&2
+        echo >&2
+        echo "       The libraries ship inside the conda environment, so its lib/" >&2
+        echo "       directory must be on the loader path. The image sets this;" >&2
+        echo "       if you overrode LD_LIBRARY_PATH at run time, append to it" >&2
+        echo "       rather than replacing it:" >&2
+        echo "         LD_LIBRARY_PATH=/opt/conda/envs/humancalib/lib:\$LD_LIBRARY_PATH" >&2
+        echo >&2
+        echo "       Currently: LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-<empty>}" >&2
+        echo "       To run on CPU deliberately instead, set CUDA_VISIBLE_DEVICES=\"\"" >&2
+        exit 1
     fi
 
     # Output must be writable. Running as the host user (recommended, so the

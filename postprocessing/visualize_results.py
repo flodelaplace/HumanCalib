@@ -38,7 +38,7 @@ if vp3d_path not in sys.path:
 
 from core import load_poses, load_eldersim_camera
 from core.skeletons import METRABS_BONE, METRABS_KEY, OP_KEY
-from core.session import load_session_dir
+from core.session import load_session_dir, session_ids
 from postprocessing.evaluate_calibration import reproject_points, triangulate_skeleton
 
 # ── Display skeletons ────────────────────────────────────────────────────────
@@ -418,15 +418,7 @@ def main():
 
     session = load_session_dir(subset_dir)
     
-    base_name = os.path.basename(os.path.normpath(args.prefix))
-    import re
-    match = re.search(r'A(\d+)_P(\d+)_G(\d+)', base_name)
-    if match:
-        aid, pid, gid = int(match.group(1)), int(match.group(2)), int(match.group(3))
-    else:
-        # Fallback for folder names that don't follow the Axxx_Pxxx_Gxxx convention
-        print(f"WARNING: Output directory '{base_name}' does not match Axxx_Pxxx_Gxxx format. Using default IDs (AID=1, PID=1, GID=1).")
-        aid, pid, gid = 1, 1, 1
+    aid, pid, gid = session_ids(subset_dir, args.prefix)
     
     camera_ids = session["camera_ids"]
 
