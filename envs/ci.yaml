@@ -1,0 +1,41 @@
+# HumanCalib — continuous-integration environment
+#
+# envs/calib.yaml minus everything the test suite does not touch: the CUDA
+# userspace (2.8 GB), TensorFlow and its jax dependency, ffmpeg and the imageio
+# writers. None of that is imported by the calibration, bundle adjustment,
+# evaluation or IO code -- only by the pose-extraction step, which cannot run on
+# a CPU-only runner in reasonable time anyway. Installing it would add several
+# gigabytes to every CI job for nothing.
+#
+# This file duplicates version pins, which is how such a file rots. That is
+# guarded: tests/test_env_consistency.py fails if any package pinned in both
+# files disagrees, so the two cannot drift apart silently.
+#
+#   conda env create -f envs/ci.yaml
+#   conda activate humancalib-ci
+#   pytest tests
+
+name: humancalib-ci
+
+channels:
+  - conda-forge
+  - nodefaults
+
+dependencies:
+  - python=3.10.20
+  - pip=26.0.1
+  - setuptools=80.9.0
+
+  - pip:
+      - numpy==1.23.5
+      - scipy==1.15.3
+      - matplotlib==3.10.8
+      - opencv-contrib-python==4.11.0.86
+      - pycalib-simple==2025.12.5.1
+      - scikit-image==0.24.0
+      - pandas==2.0.3
+      - tomli==2.4.0
+      - toml==0.10.2
+      - PyYAML==6.0.3
+      - tqdm==4.67.3
+      - pytest==8.3.4

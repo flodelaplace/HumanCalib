@@ -1,0 +1,56 @@
+# Keep the build context small. Without this, `docker build` would ship
+# ~4.3 GB of session data to the daemon before running a single instruction.
+
+# --- data: mounted at run time, never baked into the image ---
+input/
+output/
+
+# --- downloaded assets: fetched at build or run time, or mounted ---
+model/
+third_party/
+
+# --- obsolete Singularity recipe (gitignored, so local to one machine) ---
+singularity/
+*.sif
+
+# --- version control & IDE ---
+.git/
+.gitignore
+.github/
+.idea/
+.vscode/
+.claude/
+
+# --- python artefacts ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# --- environments ---
+.venv/
+venv/
+ENV/
+.env
+
+# --- media that only matters to the README ---
+img/
+
+# NB: demo/ is deliberately NOT excluded. The four demo clips total 4.2 MB and
+# `docker compose run calib demo` -- the image's own acceptance test -- needs
+# them inside the image.
+
+# --- legacy research scripts (removed from main in a later phase) ---
+legacy/
+
+# --- runtime state ---
+config/config.yaml
+*.log
+
+# --- WSL alternate-data-stream junk ---
+*:Zone.Identifier

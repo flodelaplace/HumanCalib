@@ -1,0 +1,131 @@
+# syntax=docker/dockerfile:1
+#
+# HumanCalib — OPTIONAL image: RTMPose (2D) + VideoPose3D (3D lifting)
+#
+#   docker compose --profile rtmpose build
+#   docker compose --profile rtmpose run --rm rtmpose \
+#       /input/session /input/session/calib.toml /output/run1
+#
+# =============================================================================
+# LICENSING NOTICE — READ BEFORE USING THIS IMAGE
+#
+#   This image bakes in VideoPose3D, licensed CC BY-NC 4.0 (NON-COMMERCIAL),
+#   together with pretrained weights trained on Human3.6M, whose licence
+#   restricts use to academic research.
+#
+#   HumanCalib's own code is MIT. The main image is NOT an unrestricted
+#   alternative, though: the pretrained MeTRAbs model it downloads at run time
+#   is also licensed for non-commercial use only, because of its training
+#   data. This image is separate because it bakes in CC BY-NC 4.0 code and
+#   weights on a legacy Python 3.8 stack -- not because the default is free
+#   of such terms.
+#
+#   By building or running this image you accept those upstream terms.
+# =============================================================================
+#
+# This is a legacy path, kept reproducible rather than improved: Python 3.8,
+# torch 1.13.1/CUDA 11.7, a pose backend superseded by MeTRAbs. New work should
+# use the main image.
+
+FROM ubuntu:22.04
+
+ENV NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+# git and wget are genuinely needed here, unlike in the main image:
+# scripts/setup_models.sh clones VideoPose3D at a pinned commit and fetches the
+# weights.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libgl1 \
+        libglib2.0-0 \
+        ca-certificates \
+        bzip2 \
+        git \
+        wget \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=mambaorg/micromamba:1.5.8 /bin/micromamba /usr/local/bin/micromamba
+ENV MAMBA_ROOT_PREFIX=/opt/conda
+
+# Downloading a conda environment this size (cudatoolkit alone is ~700 MB) over
+# a slow or flaky link is the single most common reason this build fails.
+# libmamba's defaults give up quickly -- curl error 28, "Timeout was reached",
+# usually its low-speed cutoff rather than a genuinely dead connection. These
+# raise the patience considerably; combined with the cache mount below, an
+# interrupted build resumes instead of starting the downloads over.
+ENV MAMBA_REMOTE_MAX_RETRIES=5 \
+    MAMBA_REMOTE_BACKOFF_FACTOR=3 \
+    MAMBA_REMOTE_CONNECT_TIMEOUT_SECS=60 \
+    MAMBA_REMOTE_READ_TIMEOUT_SECS=600
+
+COPY envs/rtmpose.yaml /tmp/rtmpose.yaml
+# Both package caches are BuildKit cache mounts: the tarballs survive a
+# failed build and never enter an image layer. Hence no `micromamba clean`
+# -- cleaning would throw away exactly what makes the next attempt cheap,
+# and the mount is not part of the image either way. The pip mount matters
+# on its own: pip's HTTP cache was adding 902 MB of downloaded wheels to
+# the finished image, where nothing would ever read them again.
+RUN --mount=type=cache,target=/opt/conda/pkgs,sharing=locked \
+    --mount=type=cache,target=/root/.cache/pip,sharing=locked \
+    micromamba create -y -f /tmp/rtmpose.yaml \
+    && find /opt/conda/envs -follow -type f -name '*.a' -delete \
+    && rm -f /tmp/rtmpose.yaml
+
+# rtmlib cannot go in the environment file: it declares four unpinned
+# dependencies, two of which corrupt the environment if the resolver acts on
+# them -- it wants BOTH opencv distributions (same cv2/ directory, second
+# install overwrites the first) and the CPU `onnxruntime` alongside the GPU
+# build pinned in the yaml, which would silently drop CUDAExecutionProvider and
+# leave RTMPose ~50x slower with no error. `--no-deps` is not expressible in a
+# conda pip: block, so it stays a separate step. See envs/rtmpose.yaml.
+RUN /opt/conda/envs/humancalib-rtmpose/bin/pip install --no-deps rtmlib==0.0.15
+
+# LD_LIBRARY_PATH matters as much as PATH here, and is easier to forget.
+# TensorFlow finds libcudart/libcublas/libcudnn through the loader, and
+# they live in the environment's lib/. Natively that path is added by conda's
+# activation script -- which this image deliberately never runs, calling the
+# interpreter by absolute path instead. Without this line the container
+# starts, sees the GPU through nvidia-smi, and then silently runs the whole
+# pipeline on CPU: no error, just fifteen times slower.
+#
+# Safe to prepend: the conda environment ships no libcuda/libnvidia of its
+# own, so the driver injected by the NVIDIA container runtime at
+# /usr/lib/x86_64-linux-gnu is not shadowed. Verified inside the image.
+ENV LD_LIBRARY_PATH=/opt/conda/envs/humancalib-rtmpose/lib
+ENV PATH=/opt/conda/envs/humancalib-rtmpose/bin:${PATH} \
+    HUMANCALIB_PYTHON=/opt/conda/envs/humancalib-rtmpose/bin/python
+
+# The only pose backend in this image: no TensorFlow, so no MeTRAbs.
+ENV HUMANCALIB_DEFAULT_ENGINE=rtmpose
+
+# TORCH_HOME: rtmlib downloads its RTMPose/RTMDet ONNX models to
+# $TORCH_HOME/hub, falling back to ~/.cache/rtmlib -- and HOME is /tmp here,
+# so without this every container would download them again. compose.yaml
+# mounts a volume at this path.
+ENV HOME=/tmp \
+    TORCH_HOME=/models/torch \
+    MPLBACKEND=Agg \
+    MPLCONFIGDIR=/tmp/matplotlib \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    OMP_NUM_THREADS=4
+
+RUN mkdir -p /input /output /models/torch /tmp/matplotlib \
+    && chmod -R 0777 /output /models /tmp/matplotlib
+
+WORKDIR /opt/humancalib
+COPY . /opt/humancalib
+
+# VideoPose3D source (pinned commit) and the H36M weights (checksummed), baked
+# in rather than fetched at run time: this backend is frozen, and its upstream
+# is a GitHub clone plus a CDN download that an offline or proxied machine
+# cannot reach.
+RUN bash scripts/setup_models.sh \
+    && chmod -R a+rX /opt/humancalib/third_party /opt/humancalib/model
+
+ENTRYPOINT ["/opt/humancalib/docker/entrypoint.sh"]
+CMD ["--help"]
+
+LABEL org.opencontainers.image.title="HumanCalib (RTMPose + VideoPose3D)" \
+      org.opencontainers.image.description="Optional legacy pose backend. Contains CC BY-NC 4.0 components." \
+      org.opencontainers.image.licenses="MIT AND CC-BY-NC-4.0"

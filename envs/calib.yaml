@@ -1,0 +1,129 @@
+# HumanCalib — main environment (default)
+#
+# Runs the whole recommended pipeline: MeTRAbs pose extraction, linear
+# calibration, bundle adjustment, evaluation, scaling and visualisation.
+# Python 3.10, TensorFlow 2.12, no PyTorch.
+#
+#   conda env create -f envs/calib.yaml
+#   conda activate humancalib
+#
+# No post-install steps are required.
+#
+# Direct dependencies are pinned here. For a byte-for-byte reproduction of a
+# specific machine, also generate and commit a lock file:
+#   conda list -n humancalib --explicit > envs/calib.lock
+#   # restore with: conda create -n humancalib --file envs/calib.lock
+#
+# The optional RTMPose + VideoPose3D backend lives in envs/rtmpose.yaml.
+
+name: humancalib
+
+# conda-forge only, on purpose. The `defaults` channel points at Anaconda's
+# own servers, whose Terms of Service now require a paid licence for larger
+# organisations -- an avoidable trap for a repository meant to be reinstalled
+# by other labs. `nodefaults` makes the exclusion explicit rather than relying
+# on the user's own .condarc.
+channels:
+  - conda-forge
+  - nodefaults
+
+dependencies:
+  - python=3.10.20
+  - pip=26.0.1
+
+  # Pinned below 81, which is where setuptools removed `pkg_resources`.
+  # tensorflow-hub imports it unconditionally at package import
+  # (tensorflow_hub/__init__.py, _ensure_tf_install), so a newer setuptools
+  # makes the entire MeTRAbs path unimportable -- ModuleNotFoundError before a
+  # single frame is read. Nothing here pins setuptools otherwise, so the
+  # resolver would happily take the latest.
+  - setuptools=80.9.0
+
+  # CUDA userspace for TensorFlow 2.12. The host only needs a driver >= 525.
+  # cuDNN 8.9.7 is the conda-forge build; TF 2.12 requires >= 8.6.
+  - cudatoolkit=11.8.0
+  - cudnn=8.9.7.29
+
+  # matplotlib writes the .mp4 animations through an ffmpeg executable on PATH.
+  # imageio-ffmpeg bundles its own static binary, so this could be dropped by
+  # pointing matplotlib's animation.ffmpeg_path at it -- worth doing if image
+  # size matters (see docs/REFACTOR_PLAN.md, Docker phase).
+  - ffmpeg
+
+  - pip:
+      # --- numerical core ---
+      #
+      # 1.23.5 is the ceiling tensorflow 2.12 allows (it requires
+      # numpy>=1.22,<1.24) and the floor scipy 1.15.3 requires -- the only value
+      # that satisfies both.
+      #
+      # Note for anyone comparing against an older install: the development
+      # environment was running numpy 1.25.2, outside TF's declared range. That
+      # was not a deliberate choice but a conda/pip collision -- a conda
+      # numpy-base 1.25.2 pulled in by an unrelated package overwrote pip's
+      # files while both dist-info records survived, bypassing the resolver.
+      # pip refuses that combination outright, so it was never reproducible by
+      # declaration. Confirm with the golden-run test (docs/REFACTOR_PLAN.md
+      # T5.2) that the published MRE figures are unchanged at 1.23.5.
+      - numpy==1.23.5
+      - scipy==1.15.3
+      - matplotlib==3.10.8
+
+      # --- computer vision ---
+      #
+      # opencv-contrib-python ONLY. It is a strict superset of opencv-python and
+      # is what pycalib-simple requires. Installing both -- which is what
+      # happened before, via an unpinned transitive dependency -- puts two
+      # distributions in the same cv2/ directory and the later install silently
+      # overwrites the earlier one's files.
+      - opencv-contrib-python==4.11.0.86
+
+      # --- calibration / bundle adjustment ---
+      #
+      # pycalib-simple pulls scikit-image (pycalib.calib imports
+      # skimage.transform at module scope), which pulls networkx and tifffile.
+      # scikit-image is pinned because 0.25+ raises its own numpy floor.
+      - pycalib-simple==2025.12.5.1
+      - scikit-image==0.24.0
+
+      # pandas is an UNDECLARED dependency of pycalib-simple: pycalib/__init__
+      # imports .robust, which imports pandas at module scope. Nothing in its
+      # metadata says so, so a clean install fails on `import pycalib` while a
+      # long-lived development environment works, because something else
+      # brought pandas in years ago. Found by building the container.
+      #
+      # It belongs here rather than in the conda section: conda's pandas would
+      # drag in conda's numpy, which overwrites pip's files while both
+      # dist-info records survive -- the exact shadowing described above.
+      - pandas==2.0.3
+
+      # --- MeTRAbs / TensorFlow ---
+      - tensorflow==2.12.0
+      - tensorflow-hub==0.16.1
+
+      # tensorflow 2.12 declares `jax>=0.3.15` with no upper bound, and jax
+      # pulls jaxlib -- together about 300 MB that nothing in this pipeline
+      # calls. Unpinned they drift with every rebuild, which is the one thing
+      # this file exists to prevent, so they are frozen at what was validated.
+      # They cannot simply be dropped: pip would reinstall them to satisfy
+      # tensorflow's own metadata.
+      - jax==0.4.30
+      - jaxlib==0.4.30
+
+      # --- config, IO, progress ---
+      #
+      # Python 3.10 has no stdlib tomllib (3.11+), so tomli is mandatory here.
+      # `toml` is a different package, required by humancalib/tools/convert_calib_rotation.py.
+      - tomli==2.4.0
+      - toml==0.10.2
+      - PyYAML==6.0.3
+      - tqdm==4.67.3
+      - imageio==2.37.3
+      - imageio-ffmpeg==0.6.0
+
+      # --- tests ---
+      #
+      # Kept in the main environment rather than a separate dev one: the test
+      # suite exists to be run by whoever installs this, including on CI, and a
+      # second environment file is one more thing to drift.
+      - pytest==8.3.4

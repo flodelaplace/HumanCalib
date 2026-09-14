@@ -1,0 +1,52 @@
+cff-version: 1.2.0
+message: >-
+  If you use HumanCalib, please cite it as below. Please also cite the method it
+  builds on (Lee et al., 2022) and the pose estimator you used.
+title: "HumanCalib: multi-camera extrinsic calibration from human pose"
+type: software
+authors:
+  - family-names: Delaplace
+    given-names: Florian
+version: 0.1.0
+license: MIT
+repository-code: "https://github.com/flodelaplace/HumanCalib"
+keywords:
+  - camera calibration
+  - extrinsic calibration
+  - multi-view
+  - human pose estimation
+  - bundle adjustment
+references:
+  - type: article
+    title: "Extrinsic Camera Calibration From a Moving Person"
+    authors:
+      - family-names: Lee
+        given-names: Sang-Eun
+      - family-names: Shibata
+        given-names: Keisuke
+      - family-names: Nonaka
+        given-names: Soma
+      - family-names: Nobuhara
+        given-names: Shohei
+      - family-names: Nishino
+        given-names: Ko
+    journal: "IEEE Robotics and Automation Letters"
+    year: 2022
+    volume: 7
+    issue: 4
+    start: 10344
+    end: 10351
+    doi: "10.1109/LRA.2022.3192629"
+  - type: article
+    title: "MeTRAbs: Metric-Scale Truncation-Robust Heatmaps for Absolute 3D Human Pose Estimation"
+    authors:
+      - family-names: Sárándi
+        given-names: István
+      - family-names: Linder
+        given-names: Timm
+      - family-names: Arras
+        given-names: Kai O.
+      - family-names: Leibe
+        given-names: Bastian
+    journal: "IEEE Transactions on Biometrics, Behavior, and Identity Science"
+    year: 2021
