@@ -356,7 +356,9 @@ plus ; `input/` montable en lecture seule ; `git status` reste propre après ex�
 **Critère d'acceptation :** `pip install .` dans un env vierge, puis exécution de la démo depuis un
 répertoire de travail arbitraire.
 
-*Vérifié (2026-09-14)* : installé dans l'image puis utilisé depuis `/` **sans `PYTHONPATH`** — `import humancalib` résout vers `site-packages`, `python -m humancalib.pipeline.write_session` et `python -m humancalib.pose.metrabs_inference` répondent ; 52 tests verts. *Démo de bout en bout depuis l'image empaquetée : en cours de vérification.*
+*Vérifié (2026-09-14)* : installé dans l'image puis utilisé depuis `/` **sans `PYTHONPATH`** — `import humancalib` résout vers `site-packages`, `python -m humancalib.pipeline.write_session` et `python -m humancalib.pose.metrabs_inference` répondent ; 52 tests verts. Démo de bout en bout depuis l'image qui installe le paquet par pip : `DEMO_RC=0`, `Compute device: GPU`, MRE **4,057 px** (BA) / 8,214 px (linéaire), fichiers de sortie à l'uid de l'hôte, `output/demo` bien ignoré par git ; CI verte sur runner public, étapes d'installation et d'import hors dépôt comprises. **Critère tenu.**
+
+*Sur l'écart de MRE* avec la validation Docker du matin (4,050 / 7,998) : il ne vient pas de l'empaquetage — le golden-run, sur poses figées, reste identique. Deux causes connues se cumulent ici sans pouvoir être séparées par ce seul run : le correctif B7, qui réintègre l'image 0 et change donc les images retenues par `frame_skip=10` (0, 10, … au lieu de 1, 11, …), et la ré-extraction des poses sur GPU, non déterministe. Le BA absorbe presque tout (+0,007 px) ; l'initialisation linéaire, plus sensible au choix des images, bouge de 0,2 px.
 
 **Découvert en chemin, hors périmètre prévu :** `calibrate.sh` lançait l'étape MeTRAbs via `conda run -n metrabs_opensim` **sans condition** — l'environnement de la machine de l'auteur. Toute installation suivant le README (`envs/calib.yaml`, un seul env) échouait dès l'étape 1 sur `EnvironmentLocationNotFound` ; seul Docker y échappait, parce qu'il surchargeait la variable. L'env séparé n'est plus utilisé que s'il existe.
 
@@ -508,6 +510,6 @@ Mesures : GPU 9–12 s par caméra contre 3 min 55 s en CPU. Image ramenée de
 | 3 — Nettoyage | **terminée** | 2026-09-13 |
 | 4 — Config par session | **terminée** | 2026-09-13 |
 | 5 — Tests + CI | **terminée** | 2026-09-14 |
-| 6 — Package | écrite, démo en vérification | 2026-09-14 |
+| 6 — Package | **terminée** | 2026-09-14 |
 | 7 — CLI Python | à faire | |
 | 8 — logging + docs | à faire | |
