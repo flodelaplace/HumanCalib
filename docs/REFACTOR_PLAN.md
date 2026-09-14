@@ -328,16 +328,16 @@ plus ; `input/` montable en lecture seule ; `git status` reste propre après ex�
 
 | ID | Tâche |
 |----|-------|
-| T5.1 | Figer les JSON de poses de la démo comme fixtures → toute la chaîne numérique testable **sans GPU ni téléchargement de modèle** |
+| T5.1 | **fait** — `tests/fixtures/demo_20f/`, 412 Ko. 20 images **contiguës** : `load_eldersim` intersecte les indices d'images avec ceux du squelette monde, décalés d'une unité (B7), donc une sélection éparse donnait une intersection **vide** et la fixture ne testait rien. C'est ainsi que B7 a été découvert. |
 | T5.2 | Test golden-run : linéaire → BA → évaluation sur `demo/`, MRE dans une tolérance. **Tolérances mesurées le 2026-09-14** en rejouant la calibration du run natif du 2026-05-11 sur poses figées, dans le conteneur : l'étape **linéaire est reproduite au bit près** (rotation 0,000°, translation 1,4e-12 sur ~6073) — donc testable à 1e-9. Le **BA ne l'est pas** : 0,011° de rotation et 2e-4 en translation relative, parce que `least_squares` (TRF) suit un chemin d'itérations différent au moindre epsilon et s'arrête ailleurs dans le même bassin. Un test d'égalité stricte sur le BA serait instable ; viser ~0,05° et 1e-3 relatif |
-| T5.3 | `procrustes_align` (`calib_linear.py:134`) — recouvrement de `(R,t,s)` connus à 1e-9, cas de réflexion inclus (`:155-156`) |
-| T5.4 | **Jacobienne analytique vs différences finies** (`ba_jacobian.py:151`) — c'est le code le plus récent et le plus risqué, activé **par défaut** (`argument.py:74`) |
+| T5.3 | **fait** — recouvrement exact d'une similitude connue, identité, invariance d'échelle, et refus des réflexions (seul mode d'échec d'Umeyama produisant un résultat plausible plutôt qu'une erreur). |
+| T5.4 | **fait — a trouvé un bug dès la première exécution.** `_varbone_jac` faisait `xw[invalid_mask] = np.nan` : avec `invalid_mask=None`, `xw[None]` ajoute un axe et l'affectation remplit **tout** le tableau de NaN, donc le bloc ne renvoyait aucune ligne — régularisateur d'os **silencieusement inerte**. Production épargnée (`ba.py:362` passe toujours un tableau), mais `objfun_varbone` accepte `None` et le protège : résidu et dérivée étaient en désaccord sur le contrat. Corrigé. Bloc de reprojection concordant à **3,9e-10**. |
 | T5.5 | **fait** — `tests/test_triangulation.py`. Le dépôt contenait **deux estimateurs distincts**, pas cinq doublons : (a) DLT homogène par SVD, en trois copies (`triangulate_skeleton`, `get_3d_keypoint`, `fix_person_association.triangulate`) et (b) moindres carrés inhomogènes pondérés (`core.triangulate_point`), qui fixe la coordonnée homogène à 1 au lieu de prendre le plus petit vecteur singulier — donc **volontairement différent** sous bruit. Les trois copies de (a) ont été prouvées identiques à 1e-9, bruit compris, **avant** d'être fusionnées dans `core.geometry.triangulate_dlt` ; (b) n'est pas fusionné, et un test vérifie que les deux familles restent distinctes (écart borné à 5 mm pour 2 px de bruit) pour que personne ne les confonde plus tard. Clôt la déduplication reportée en T3.5 : 5 → 2. |
-| T5.6 | `get_bone_config(87)` — invariant des 27 os sans articulation virtuelle (documenté comme porteur dans les notes projet) |
-| T5.7 | Aller-retour `load_poses`/`save_json` et export TOML (couvre la régression B1) |
-| T5.8 | GitHub Actions, CPU seul |
+| T5.6 | **fait** — 27 os, prouvés être la topologie à 26 articulations réindexée, ne touchant que les 26 articulations réelles. |
+| T5.7 | **fait** — aller-retour `load_poses` (indices non contigus compris) et export TOML : caméra absente refusée, caméra incomplète refusée, `[metadata]` toléré, rien écrit en cas d'échec. |
+| T5.8 | **fait** — `.github/workflows/tests.yml`. `envs/ci.yaml` = `calib.yaml` sans les 2,8 Go de CUDA ni TensorFlow, qu'aucun test n'importe ; `test_env_consistency.py` échoue si les deux fichiers divergent sur un paquet commun, pour que la duplication ne pourrisse pas. Second job : `bash -n` sur tous les scripts shell. |
 
-**Critère d'acceptation :** `pytest` vert sur une machine sans GPU ; la CI passe sur un runner public.
+**Critère d'acceptation : tenu (2026-09-14).** 51 tests verts en 4,4 s dans le conteneur avec `CUDA_VISIBLE_DEVICES=""`, sans téléchargement de modèle ni réseau ; les quatre exécutions GitHub Actions déclenchées par ces commits sont vertes sur runner public.
 
 ---
 
@@ -501,7 +501,7 @@ Mesures : GPU 9–12 s par caméra contre 3 min 55 s en CPU. Image ramenée de
 | 2 — Docker | **terminée** | 2026-09-14 |
 | 3 — Nettoyage | **terminée** | 2026-09-13 |
 | 4 — Config par session | **terminée** | 2026-09-13 |
-| 5 — Tests + CI | à faire | |
+| 5 — Tests + CI | **terminée** | 2026-09-14 |
 | 6 — Package | à faire | |
 | 7 — CLI Python | à faire | |
 | 8 — logging + docs | à faire | |
