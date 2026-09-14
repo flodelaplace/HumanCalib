@@ -1,6 +1,6 @@
 # Usage Guide
 
-This guide explains how to calibrate camera extrinsics from your own videos using this pipeline.
+This guide explains how to calibrate camera extrinsics from your own videos using this pipeline. It is the full reference for the command line. It assumes HumanCalib is installed: see [Installation](README.md#installation) in the README — Docker is the simplest.
 
 ### 1. Prepare your data
 
@@ -16,6 +16,16 @@ Optional but useful: a `<video>.dropped.json` sidecar listing absolute frame ind
 ### 2. Run the full pipeline
 
 `scripts/calibrate.sh` runs the 7-step pipeline (pose extraction → intrinsics loading → linear init → auto outlier-frame drop → BA → MRE evaluation → scaling). It forwards to the Python CLI: once the package is installed, `humancalib run` takes exactly the same arguments, and `humancalib --help` lists the steps that can be run on their own.
+
+**With Docker**, give the same arguments after `docker compose run --rm calib`, using the container's paths: the repository's `input/` is `/input` and `output/` is `/output`.
+
+```bash
+docker compose run --rm calib \
+    /input/my_session /input/my_session/Calib_scene.toml /output/my_session \
+    --height 1.84 --ref_frame 1415
+```
+
+Each image defaults to the pose backend it contains — MeTRAbs in `calib`, RTMPose in `rtmpose` — so `--pose_engine` can be left out there. Outside Docker it defaults to `rtmpose`.
 
 **Recommended: MeTRAbs path** (direct metric 3D, Procrustes init, much higher accuracy):
 
@@ -56,7 +66,7 @@ bash scripts/calibrate.sh \
 
 | Flag | Default | Effect |
 |------|---------|--------|
-| `--pose_engine <eng>` | `rtmpose` | `metrabs` (recommended) or `rtmpose` |
+| `--pose_engine <eng>` | `rtmpose` (in Docker: the image's backend) | `metrabs` (recommended) or `rtmpose` |
 | `--height <m>` | — | Subject height in **meters** (e.g. `1.84`). Enables step 7 (scaling + orientation). |
 | `--ref_frame <n>` | — | Frame where the subject is standing straight, feet flat. Used to define the floor and to scale to metric units. Must be inside `[start_frame, end_frame]`. |
 | `--start_frame <n>` | `0` | First frame to process. |
@@ -69,6 +79,7 @@ bash scripts/calibrate.sh \
 | `--outlier_abs_px <p>` | `50` | Absolute reproj threshold for the outlier drop. |
 | `--outlier_x_median <m>` | `5` | Multiplier above per-camera median for the outlier drop (frame must exceed **both** thresholds to be dropped). |
 | `--save_video` | off | Save 2D pose overlay video (RTMPose only). |
+| `--verbose` / `--quiet` | — | More detail (debug messages), or only warnings and errors. Also settable with `HUMANCALIB_LOG_LEVEL`. |
 
 #### Full real-world example
 

@@ -19,62 +19,200 @@ In short, MeTRAbs collapses the 2D detection + 3D lifting into a **single forwar
 
 ---
 
-## Quick start with Docker
+## Installation
 
-The recommended way to run HumanCalib: nothing to install besides Docker, and
-the container runs exactly the environment the results were validated with.
+| | Docker *(recommended)* | conda | pip |
+|---|---|---|---|
+| Full pipeline on GPU | ✓ | ✓ | — |
+| Installs on the host | Docker only | a conda environment | a Python package |
+| Same environment as the published results | exactly | same pinned versions | versions resolved by pip |
+| Best for | running calibrations | developing, or no Docker | using the library and single steps |
 
-**Prerequisites:** an NVIDIA GPU with driver ≥ 525, Docker, and the
-[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
-Linux or WSL2.
+All three need Linux or WSL2. The first two need an NVIDIA GPU with driver ≥ 525.
+
+### Option A — Docker (recommended)
+
+Nothing to install on the host besides Docker: the container runs exactly the
+environment the results were validated with. Requires Docker with Compose v2
+and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
 
 ```bash
 git clone https://github.com/flodelaplace/HumanCalib.git
 cd HumanCalib
+printf 'HOST_UID=%s\nHOST_GID=%s\n' "$(id -u)" "$(id -g)" > .env   # once
 docker compose build
-HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose run --rm calib demo
+docker compose run --rm calib demo
 ```
 
-The demo calibrates the 4 bundled cameras and writes its results to
-`output/demo/results/`. The first run downloads the MeTRAbs model (~708 MB) into
-a Docker volume; later runs reuse it.
+The `.env` file makes the results belong to you rather than to root. The build
+downloads about 2 GB and uses about 10 GB of disk; if the connection drops,
+run `docker compose build` again and it resumes where it stopped. The demo then
+downloads the MeTRAbs model (~708 MB) once, into a Docker volume.
 
-**Your own data:** put a session folder — synchronised videos plus a
-`Calib_scene.toml` with the intrinsics — under `input/`, then:
+**It worked if** the run ends with an MRE summary table and
+`output/demo/results/Calib_scene_calibrated.toml` exists.
+
+At start-up the container checks that it can see the GPU and load CUDA, and
+refuses to fall back to CPU without saying so. `docker compose run --rm calib --help`
+lists the commands; `docker compose run --rm calib shell` opens a shell inside.
+
+### Option B — conda
 
 ```bash
-HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose run --rm calib \
-    /input/my_session /input/my_session/Calib_scene.toml /output/my_session \
-    --pose_engine metrabs --height 1.84 --ref_frame 1415
+git clone https://github.com/flodelaplace/HumanCalib.git
+cd HumanCalib
+conda env create -f envs/calib.yaml
+conda activate humancalib
+
+bash scripts/calibrate.sh demo demo/Calib_scene.toml output/demo_metrabs \
+    --pose_engine metrabs --height 1.78 --ref_frame 5
 ```
 
-`./input` is mounted read-only and `./output` read-write. `HOST_UID`/`HOST_GID`
-make the results belong to you rather than to root. The container checks at
-start-up that it can see the GPU and load CUDA, and refuses to fall back to CPU
-silently. Arguments are those of [Usage](#3-usage-with-your-own-data).
+One environment runs the whole pipeline, with every version pinned — see
+`envs/calib.yaml` for why each pin is what it is. No post-install step is
+needed: `scripts/calibrate.sh` runs the code straight from the checkout. To
+also get the `humancalib` command, add `pip install --no-deps -e .`; `--no-deps`
+keeps the exact versions of the environment instead of letting pip replace
+them.
 
-Without Docker, see [Installation](#1-installation-without-docker).
+The MeTRAbs model (~1.1 GB on disk) is downloaded on the first run and cached in
+`~/.cache/tfhub_modules`, which survives reboots, unlike TensorFlow Hub's default
+`/tmp`. Set `TFHUB_CACHE_DIR` to put it elsewhere. On WSL2, the CUDA driver path
+(`/usr/lib/wsl/lib`) is added automatically.
+
+### Option C — pip
+
+```bash
+pip install "git+https://github.com/flodelaplace/HumanCalib"
+humancalib --help
+```
+
+This installs the `humancalib` package and command (Python ≥ 3.10): linear
+calibration, bundle adjustment, evaluation and scaling run on a CPU, as
+individual steps (`humancalib ba --prefix output/my_session`) or from Python.
+
+What pip cannot provide is **GPU pose extraction**. TensorFlow 2.12 has no pip
+variant that bundles CUDA, so running the full pipeline needs cudatoolkit 11.8
+and cuDNN 8.9 from conda or Docker — use option A or B for that.
+
+### Optional backend: RTMPose + VideoPose3D
+
+The legacy two-step pose backend, kept for comparison. MeTRAbs is recommended
+for new work. It uses Python 3.8 and PyTorch, so it lives in its own image or
+environment. Its weights carry non-commercial licences — see
+[Licensing](#licensing).
+
+With Docker:
+
+```bash
+docker compose --profile rtmpose build
+docker compose --profile rtmpose run --rm rtmpose demo      # results in output/demo_rtmpose/
+```
+
+With conda:
+
+```bash
+conda env create -f envs/rtmpose.yaml
+conda activate humancalib-rtmpose
+pip install --no-deps rtmlib==0.0.15   # --no-deps is required: see envs/rtmpose.yaml
+bash scripts/setup_models.sh           # VideoPose3D source + weights, checksummed
+
+bash scripts/calibrate.sh demo demo/Calib_scene.toml output/demo_rtmpose \
+    --height 1.78 --ref_frame 5
+```
+
+### Platform support
+
+| Platform | Status |
+|---|---|
+| **Linux** (Ubuntu 22.04) | Tested, fully supported |
+| **Windows via WSL2** | Tested, fully supported |
+| **Windows native** | Not tested — use WSL2 |
+| **macOS** | Not supported (needs an NVIDIA GPU) |
+
+Tested with an NVIDIA RTX 3500 Ada, driver 581.
 
 ---
 
-## Licensing
+## Calibrating your own data
 
-**HumanCalib's code is MIT. The pretrained pose models it relies on are not
-free for commercial use** — and that holds for the default backend too.
+### 1. Prepare a session folder
 
-| Component | Licence | Applies to |
+Put one folder per session under `input/`, with one synchronised video per
+camera (`.mp4`, `.avi`, `.mov` or `.mkv`) and a `Calib_scene.toml` holding each
+camera's intrinsics in [Pose2Sim](https://github.com/perfanalytics/pose2sim)
+format:
+
+```toml
+[camera01]
+name = "camera01"
+size = [1920.0, 1080.0]
+matrix = [[1057.46, 0.0, 942.23], [0.0, 1056.83, 535.6], [0.0, 0.0, 1.0]]
+distortions = [-0.041, 0.0086, -0.0002, 0.0002]
+fisheye = false
+```
+
+Video names without their extension must match the TOML sections. Cameras are
+numbered in alphabetical order of those names, so pad numbers with zeros
+(`camera01 … camera10`). [`input/README.md`](input/README.md) has the details,
+including how to flag frames to ignore.
+
+> **Intrinsics matter most.** Wrong focal lengths or distortion coefficients are
+> the first cause of poor results; k1, k2 above about 5 in absolute value are
+> almost certainly wrong.
+
+### 2. Run
+
+With Docker — paths inside the container are `/input/...` and `/output/...`:
+
+```bash
+docker compose run --rm calib \
+    /input/my_session /input/my_session/Calib_scene.toml /output/my_session \
+    --height 1.84 --ref_frame 1415
+```
+
+With conda:
+
+```bash
+bash scripts/calibrate.sh \
+    input/my_session input/my_session/Calib_scene.toml output/my_session \
+    --pose_engine metrabs --height 1.84 --ref_frame 1415
+```
+
+`humancalib run` takes the same arguments once the package is installed. Outside
+Docker, `--pose_engine` defaults to `rtmpose` for backward compatibility, so pass
+`--pose_engine metrabs`; each Docker image defaults to the backend it contains.
+
+### 3. Main options
+
+| Option | Default | Effect |
 |---|---|---|
-| HumanCalib | MIT ([`LICENSE`](LICENSE)) | all code in this repository |
-| MeTRAbs code | MIT | the pose model's reference implementation |
-| **MeTRAbs pretrained model** (`metrabs_l`) | **Non-commercial use only.** In the words of the MeTRAbs README: *"The models can only be used for non-commercial purposes due to the licensing of the used training datasets."* | every calibration made with `--pose_engine metrabs`, the recommended default path |
-| VideoPose3D code and weights | CC BY-NC 4.0; weights trained on Human3.6M (academic use) | the optional RTMPose path only |
-| rtmlib | Apache-2.0. Its README does not state the licence of the RTMPose/RTMDet weights it downloads. | the optional RTMPose path only |
+| `--pose_engine metrabs\|rtmpose` | see above | Pose backend |
+| `--height <m>` + `--ref_frame <n>` | — | Subject height, and a frame where they stand straight: enables metric scaling and a gravity-aligned frame |
+| `--start_frame <n>` / `--end_frame <n>` | whole video | Frame range to use |
+| `--frame_skip <n>` | `10` | Frame subsampling for bundle adjustment; lower is denser and slower |
+| `--conf_threshold <t>` | `0.5` | Minimum keypoint confidence |
+| `--verbose` / `--quiet` | — | More detail, or only warnings and errors |
 
-In practice, whichever pose backend you choose, the pretrained weights restrict
-use to non-commercial purposes. The Docker images contain no MeTRAbs weights
-unless built with `BAKE_MODELS=1`; the optional `rtmpose` image does contain the
-VideoPose3D weights. This section summarises upstream terms and is not legal
-advice: check the upstream licences for your use.
+**Every option**, with worked examples and a guide to diagnosing a camera that
+stays worse than the others: [HOWTO.md](HOWTO.md).
+
+### 4. Results
+
+Everything lands in `<output_dir>/results/`:
+
+| File | Contents |
+|---|---|
+| `Calib_scene_calibrated.toml` | Final calibration, metric and gravity-aligned — ready for Pose2Sim, OpenCap or OpenSim |
+| `3d_skeleton_FINAL.trc` | Triangulated 3D skeleton, TRC format |
+| `camera/visu_3d_FINAL.gif` | 3D animation of the skeleton and cameras |
+| `MRE_visualizations/` | Best and worst reprojection frame per camera |
+| `ba_cost_live_iter*.png` | Bundle adjustment convergence |
+
+Re-running on the same output folder and frame range reuses the extracted poses
+and skips pose estimation. The cache checks the frame range only, not the
+intrinsics: after changing the TOML, delete `<output_dir>/noise_1_0/2d_joint`
+and `3d_joint` to force re-extraction.
 
 ---
 
@@ -169,257 +307,7 @@ Use `--ba_jac numeric` to fall back to the legacy finite-difference path (same r
 
 ---
 
-## 1. Installation without Docker
-
-### Prerequisites
-
-- **OS:** Linux or WSL2 (Windows Subsystem for Linux)
-- **GPU:** NVIDIA GPU with CUDA support (recommended)
-- **Conda:** Anaconda or Miniconda
-
-### Clone the repository
-
-```bash
-git clone https://github.com/flodelaplace/HumanCalib.git
-cd HumanCalib
-```
-
-### Install the environment
-
-One environment runs the whole recommended pipeline — pose extraction,
-calibration, bundle adjustment, evaluation, scaling and visualisation:
-
-```bash
-conda env create -f envs/calib.yaml
-conda activate humancalib
-```
-
-That is all. There are no post-install steps, no second environment to create,
-and no other repository to clone.
-
-Key packages: Python 3.10, TensorFlow 2.12 (CUDA 11.8), scipy, opencv-contrib,
-pycalib-simple. Every version is pinned; see `envs/calib.yaml` for the rationale
-behind each pin.
-
-> For a byte-for-byte reproduction of a known-good machine, generate a lock file
-> once the environment is created:
-> ```bash
-> conda list -n humancalib --explicit > envs/calib.lock
-> ```
-
-### The MeTRAbs model (automatic, cached once)
-
-The `metrabs_l` model (~1.1 GB) is downloaded automatically on first run from
-the authors' server at RWTH Aachen, via TensorFlow Hub. No manual download.
-
-`src/humancalib/pose/metrabs_inference.py` pins the TF Hub cache to a **persistent** directory
-before TensorFlow Hub is imported:
-
-```python
-os.environ.setdefault('TFHUB_CACHE_DIR', os.path.expanduser('~/.cache/tfhub_modules'))
-```
-
-TF Hub otherwise caches into `/tmp`, which WSL and many systems wipe on restart —
-the model would then be re-downloaded on every reboot. With the cache pinned, the
-download happens once; later runs load from disk in ~50 s (TensorFlow/GPU init),
-and re-running the **same dataset** skips MeTRAbs entirely thanks to the pose
-cache. Set `TFHUB_CACHE_DIR` yourself to relocate it — the code honours a
-pre-existing value.
-
-### Optional: the RTMPose + VideoPose3D backend
-
-Only needed to reproduce the legacy two-step path. It is **not** required for
-normal use and is kept mainly for comparison.
-
-> **Licensing:** VideoPose3D is CC BY-NC 4.0 (non-commercial) and its pretrained
-> weights were trained on Human3.6M, which is restricted to academic use.
-> HumanCalib's code is MIT, but any use of this backend inherits those
-> restrictions — as does the default MeTRAbs backend, whose pretrained model is
-> also for non-commercial use only. See [Licensing](#licensing).
-
-```bash
-conda env create -f envs/rtmpose.yaml
-conda activate humancalib-rtmpose
-pip install --no-deps rtmlib==0.0.15   # required — see envs/rtmpose.yaml
-bash scripts/setup_models.sh           # VideoPose3D source + weights, checksummed
-```
-
-### Platform support
-
-| Platform | Status |
-|---|---|
-| **Linux** (Ubuntu 22.04) | Tested, fully supported |
-| **Windows via WSL2** | Tested, fully supported (recommended for Windows users) |
-| **Windows native** | Not tested — CUDA/TensorFlow GPU setup differs significantly. Use WSL2. |
-| **macOS** | Not supported (requires an NVIDIA GPU) |
-
-Tested with an NVIDIA RTX 3500 Ada, driver 581. Any driver >= 525 should cover
-the CUDA 11.8 runtime shipped by the environment.
-
-### WSL2 GPU fix
-
-On WSL2 the Windows driver's CUDA library lives in `/usr/lib/wsl/lib`, off the default loader path. `humancalib run` adds it for the steps that use the GPU. For other manual runs:
-
-```bash
-export LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH
-```
-
----
-
-### Installing as a Python package
-
-The calibration itself — linear initialisation, bundle adjustment, evaluation
-and scaling, from pose files you already have — installs with pip alone and runs
-on a CPU:
-
-```bash
-pip install git+https://github.com/flodelaplace/HumanCalib
-```
-
-GPU pose extraction with MeTRAbs needs more than pip can provide. TensorFlow 2.12
-has no pip variant that bundles CUDA, so cudatoolkit 11.8 and cuDNN 8.9 have to
-come from the system, from conda, or from the Docker image. With conda:
-
-```bash
-conda env create -f envs/calib.yaml   # CUDA, cuDNN, ffmpeg and exact pins
-conda activate humancalib
-pip install --no-deps -e .            # the package itself, into that environment
-```
-
-`--no-deps` matters: the environment already pins every dependency exactly, and
-letting pip re-resolve would swap validated versions for whatever is newest.
-
-Installing the package also provides a `humancalib` command. `humancalib run`
-takes exactly the arguments of `scripts/calibrate.sh`, and `humancalib --help`
-lists the steps that can be run on their own (`humancalib ba --prefix output/run1`).
-
-## 2. Quick Demo
-
-A demo dataset (4 cameras, 100 frames) is included in `demo/`.
-
-### With MeTRAbs (recommended)
-
-```bash
-conda activate humancalib
-
-bash scripts/calibrate.sh \
-    demo \
-    demo/Calib_scene.toml \
-    output/demo_metrabs \
-    --pose_engine metrabs \
-    --height 1.78 \
-    --ref_frame 5
-```
-
-### With RTMPose + VideoPose3D
-
-```bash
-conda activate humancalib
-
-bash scripts/calibrate.sh \
-    demo \
-    demo/Calib_scene.toml \
-    output/demo_rtmpose \
-    --height 1.78 \
-    --ref_frame 5
-```
-
-### Output
-
-Results are saved in `output/demo_*/results/`:
-
-| File | Description |
-|------|-------------|
-| `Calib_scene_calibrated.toml` | Final calibration file (metric, gravity-aligned) |
-| `camera/visu_3d_FINAL.gif` | 3D skeleton + camera positions animation |
-| `3d_skeleton_FINAL.trc` | 3D poses in TRC format (for OpenSim / Mokka) |
-| `MRE_visualizations/` | Per-camera best/worst reprojection error images |
-| `ba_cost_live_iter*.png` | Bundle Adjustment convergence curves |
-
----
-
-## 3. Usage with Your Own Data
-
-### Prepare your input
-
-Create a folder in `input/` with:
-
-1. **Synchronized videos** (`.mp4`, `.avi`, `.mov`, `.mkv`) — one per camera. File names (without extension) are used as camera identifiers and must match the TOML sections.
-2. **`Calib_scene.toml`** — intrinsic parameters for each camera, in [Pose2Sim](https://github.com/perfanalytics/pose2sim) format:
-
-```toml
-[my_camera_01]
-name = "my_camera_01"
-size = [1920.0, 1080.0]
-matrix = [[1057.46, 0.0, 942.23], [0.0, 1056.83, 535.6], [0.0, 0.0, 1.0]]
-distortions = [-0.041, 0.0086, -0.0002, 0.0002]
-fisheye = false
-```
-
-> **Important:** Intrinsic calibration quality is critical. Bad focal lengths or distortion coefficients are the #1 cause of poor results. Normal distortion values: k1, k2 in the range [-2, 2]. Values above 5 are suspicious.
-
-### Run the calibration
-
-```bash
-bash scripts/calibrate.sh <video_dir> <calib_toml> <output_dir> [options]
-```
-
-With the package installed, `humancalib run` takes exactly the same arguments.
-
-### Required arguments
-
-| Argument | Description |
-|----------|-------------|
-| `video_dir` | Folder containing the synchronized videos |
-| `calib_toml` | Path to the TOML file with intrinsic parameters |
-| `output_dir` | Where to save results |
-
-### Options
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--pose_engine <engine>` | `rtmpose` | Pose backend: `metrabs` or `rtmpose` |
-| `--height <meters>` | *(none)* | Person height in meters (enables step 7: scaling + orientation) |
-| `--ref_frame <n>` | *(none)* | Video frame number where person stands straight (for scaling) |
-| `--start_frame <n>` | `0` | First video frame to process |
-| `--end_frame <n>` | last | Last video frame to process |
-| `--frame_skip <n>` | `10` | Frame subsampling interval for Bundle Adjustment |
-| `--conf_threshold <t>` | `0.5` | Minimum keypoint confidence (lower = more data, more noise) |
-| `--save_video` | off | Save 2D pose overlay video (RTMPose only) |
-| `--ref_cam <id>` | *(auto)* | 1-indexed CAM ID forced as Procrustes reference. Default: auto-select the camera with the lowest mean Procrustes residual. |
-| `--no_auto_outlier_drop` | off | Disable the per-camera outlier-frame drop step between linear and BA. |
-| `--outlier_abs_px <p>` | `50` | Absolute reprojection threshold for the outlier drop. |
-| `--outlier_x_median <m>` | `5` | Multiplier above per-camera median for the outlier drop. A frame is dropped when its mean reproj error exceeds **both** thresholds. |
-| `cuda` / `cpu` | `cuda` | Inference device |
-| `lightweight` / `balanced` / `performance` | `balanced` | RTMPose model size |
-| `--verbose` / `--quiet` | — | More detail, or only warnings and errors (also `HUMANCALIB_LOG_LEVEL`) |
-
-### Full example
-
-```bash
-bash scripts/calibrate.sh \
-    input/my_session \
-    input/my_session/Calib_scene.toml \
-    output/my_session \
-    --pose_engine metrabs \
-    --start_frame 200 --end_frame 2199 \
-    --height 1.84 --ref_frame 2100 \
-    --conf_threshold 0.5
-```
-
-This processes frames 200–2199 from all videos, calibrates using MeTRAbs, then scales the scene using the person's height (1.84m) measured at frame 2100.
-
-### Caching
-
-When using MeTRAbs, pose extraction results are cached in the output directory. If you re-run with the same frame range, inference is skipped automatically. To force re-extraction (e.g., after changing intrinsics), delete the cached poses:
-
-```bash
-rm -rf output/my_session/noise_1_0/2d_joint output/my_session/noise_1_0/3d_joint
-```
-
----
-
-## 4. Technical Details
+## Technical details
 
 ### Linear Calibration
 
@@ -553,7 +441,28 @@ The joint format is **auto-detected** based on the number of joints in the 2D po
 
 ---
 
-## 5. Project Structure
+## Licensing
+
+**HumanCalib's code is MIT. The pretrained pose models it relies on are not
+free for commercial use** — and that holds for the default backend too.
+
+| Component | Licence | Applies to |
+|---|---|---|
+| HumanCalib | MIT ([`LICENSE`](LICENSE)) | all code in this repository |
+| MeTRAbs code | MIT | the pose model's reference implementation |
+| **MeTRAbs pretrained model** (`metrabs_l`) | **Non-commercial use only.** In the words of the MeTRAbs README: *"The models can only be used for non-commercial purposes due to the licensing of the used training datasets."* | every calibration made with `--pose_engine metrabs`, the recommended default path |
+| VideoPose3D code and weights | CC BY-NC 4.0; weights trained on Human3.6M (academic use) | the optional RTMPose path only |
+| rtmlib | Apache-2.0. Its README does not state the licence of the RTMPose/RTMDet weights it downloads. | the optional RTMPose path only |
+
+In practice, whichever pose backend you choose, the pretrained weights restrict
+use to non-commercial purposes. The Docker images contain no MeTRAbs weights
+unless built with `BAKE_MODELS=1`; the optional `rtmpose` image does contain the
+VideoPose3D weights. This section summarises upstream terms and is not legal
+advice: check the upstream licences for your use.
+
+---
+
+## Project structure
 
 ```
 HumanCalib/
@@ -599,7 +508,7 @@ HumanCalib/
 
 ---
 
-## 6. Troubleshooting
+## Troubleshooting
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
@@ -613,6 +522,12 @@ HumanCalib/
 | Same intrinsics work better than individual ones | Poor per-camera calibration | If cameras are the same model, try shared intrinsics as baseline. |
 | One camera much higher MRE than others | Wrong intrinsics for that camera | Look at its Procrustes residual in the linear log — if it's low (≤ 100 mm) but its MRE is high, the K matrix (focal/principal point) is the bottleneck. The auto reference-camera selection avoids using a problematic camera as world frame. |
 | Half-image / corrupted frames inflate MRE | Encoding artifacts | Auto outlier-frame drop catches these; sidecar `<video>.dropped.json` files are written automatically under `<output_dir>/noise_1_0/dropped_frames/`. To pre-flag known frames, hand-edit the sidecar before the first run. |
+| `could not select device driver "" with capabilities: [[gpu]]` | NVIDIA Container Toolkit missing | Install it, then restart the Docker daemon. |
+| `error getting credentials ... docker-credential-desktop.exe: exec format error` | WSL: Docker Desktop's credential helper cannot run from Linux | Remove the `"credsStore": "desktop.exe"` line from `~/.docker/config.json` (or point `DOCKER_CONFIG` at a folder with an empty `config.json`). |
+| `Timeout was reached` during `docker compose build` | Slow or unstable connection | Run `docker compose build` again: downloads resume where they stopped. |
+| `ERROR: /output is not writable by uid ...` | `output/` owned by another user, e.g. root after an earlier run | Create `.env` as in [Option A](#option-a--docker-recommended), or fix the ownership of `output/`. |
+| `ERROR: this container can see a GPU, but cannot load the CUDA runtime` | `LD_LIBRARY_PATH` overridden at run time | Append to it instead of replacing it; the message shows the value to use. |
+| `the RTMPose backend is not installed in this environment` | `--pose_engine rtmpose` (the native default) without that backend | Pass `--pose_engine metrabs`, or use the RTMPose image or environment. |
 
 ---
 
