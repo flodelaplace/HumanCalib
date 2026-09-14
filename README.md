@@ -287,11 +287,11 @@ This path is still fully functional and can be useful when MeTRAbs is not availa
 | **Joints / Bones** | 87 full (26 calib) / 27 bones | 25 joints / 12 bones |
 | **3D scale** | Metric (mm) | Relative |
 | **Calibration init** | Procrustes alignment (from 3D) | Bone collinearity (from 2D) |
-| Linear calibration MRE | 7.8 px | 152.2 px |
-| After Bundle Adjustment | **3.5 px** | **8.5 px** |
+| Linear calibration MRE | 8.1 px | 178.3 px |
+| After Bundle Adjustment | **4.0 px** | **8.5 px** |
 | Scale factor | 0.001 (metric 3D in mm) | 30.9 (arbitrary units) |
 
-*Results on demo dataset (4 cameras, 100 frames).*
+*Measured on the demo dataset (4 cameras, 100 frames) with the Docker images, on 2026-09-14. MeTRAbs pose extraction on GPU is not bit-for-bit deterministic, so expect variations of a few hundredths of a pixel between runs.*
 
 ---
 

@@ -66,14 +66,15 @@ preflight() {
         # importing TensorFlow, which would cost ~20 seconds on every run.
         echo "ERROR: this container can see a GPU, but cannot load the CUDA runtime" >&2
         echo "       libraries (libcudnn.so.8 / libcudart.so.11.0)." >&2
-        echo "       TensorFlow would not report this: it would silently run the" >&2
-        echo "       whole pipeline on CPU, roughly 15x slower." >&2
+        echo "       Neither TensorFlow nor onnxruntime reports this: pose extraction" >&2
+        echo "       would silently run on CPU, many times slower." >&2
         echo >&2
-        echo "       The libraries ship inside the conda environment, so its lib/" >&2
-        echo "       directory must be on the loader path. The image sets this;" >&2
-        echo "       if you overrode LD_LIBRARY_PATH at run time, append to it" >&2
-        echo "       rather than replacing it:" >&2
-        echo "         LD_LIBRARY_PATH=/opt/conda/envs/humancalib/lib:\$LD_LIBRARY_PATH" >&2
+        echo "       The libraries ship inside the image's conda environment, so they" >&2
+        echo "       must be on the loader path. The image sets this; if you overrode" >&2
+        echo "       LD_LIBRARY_PATH at run time, append to it rather than replacing it:" >&2
+        ENV_LIB="$(dirname "$(dirname "${PYTHON}")")/lib"
+        TORCH_LIB="$(ls -d "${ENV_LIB}"/python3*/site-packages/torch/lib 2>/dev/null | head -1 || true)"
+        echo "         LD_LIBRARY_PATH=${ENV_LIB}${TORCH_LIB:+:${TORCH_LIB}}:\$LD_LIBRARY_PATH" >&2
         echo >&2
         echo "       Currently: LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-<empty>}" >&2
         echo "       To run on CPU deliberately instead, set CUDA_VISIBLE_DEVICES=\"\"" >&2

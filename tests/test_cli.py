@@ -187,11 +187,25 @@ def test_the_environments_cuda_runtime_reaches_the_gpu_steps(tmp_path):
     (tmp_path / "lib" / "libcudart.so.11.0").write_bytes(b"")
     lib = str(tmp_path / "lib")
 
-    env = cli.child_env(environ={}, isdir=lambda _: False, prefix=str(tmp_path))
+    env = cli.child_env(environ={}, isdir=lambda _: False, prefix=str(tmp_path), torch_lib="")
     assert env["LD_LIBRARY_PATH"] == lib
 
-    again = cli.child_env(environ={"LD_LIBRARY_PATH": lib}, isdir=lambda _: False, prefix=str(tmp_path))
+    again = cli.child_env(environ={"LD_LIBRARY_PATH": lib}, isdir=lambda _: False, prefix=str(tmp_path), torch_lib="")
     assert again["LD_LIBRARY_PATH"] == lib, "added twice"
+
+
+def test_pytorchs_bundled_cudnn_reaches_the_gpu_steps(tmp_path):
+    """onnxruntime needs cuDNN, which PyTorch keeps inside its own package."""
+    env_lib = tmp_path / "env" / "lib"
+    env_lib.mkdir(parents=True)
+    (env_lib / "libcudart.so.11.0").write_bytes(b"")
+    torch_lib = tmp_path / "torch" / "lib"
+    torch_lib.mkdir(parents=True)
+    (torch_lib / "libcudnn.so.8").write_bytes(b"")
+
+    env = cli.child_env(environ={}, isdir=lambda _: False,
+                        prefix=str(tmp_path / "env"), torch_lib=str(torch_lib))
+    assert env["LD_LIBRARY_PATH"].split(os.pathsep) == [str(env_lib), str(torch_lib)]
 
 
 def test_empty_loader_path_entries_are_dropped():
@@ -202,7 +216,7 @@ def test_empty_loader_path_entries_are_dropped():
 
 
 def test_no_cuda_runtime_means_the_loader_path_is_left_alone(tmp_path):
-    env = cli.child_env(environ={}, isdir=lambda _: False, prefix=str(tmp_path))
+    env = cli.child_env(environ={}, isdir=lambda _: False, prefix=str(tmp_path), torch_lib="")
     assert "LD_LIBRARY_PATH" not in env
 
 

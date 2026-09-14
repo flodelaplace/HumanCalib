@@ -92,7 +92,13 @@ RUN /opt/conda/envs/humancalib-rtmpose/bin/pip install --no-deps rtmlib==0.0.15
 # Safe to prepend: the conda environment ships no libcuda/libnvidia of its
 # own, so the driver injected by the NVIDIA container runtime at
 # /usr/lib/x86_64-linux-gnu is not shadowed. Verified inside the image.
-ENV LD_LIBRARY_PATH=/opt/conda/envs/humancalib-rtmpose/lib
+#
+# And torch/lib: PyTorch ships cuDNN inside its own package directory, not in
+# the environment's lib/, so it is off the loader path too. onnxruntime's CUDA
+# provider needs it. Without it RTMPose ran entirely on CPU, and the only trace
+# was one "Failed to create CUDAExecutionProvider" line lost in stderr.
+# Verified: with this path the session reports CUDAExecutionProvider.
+ENV LD_LIBRARY_PATH=/opt/conda/envs/humancalib-rtmpose/lib:/opt/conda/envs/humancalib-rtmpose/lib/python3.8/site-packages/torch/lib
 ENV PATH=/opt/conda/envs/humancalib-rtmpose/bin:${PATH} \
     HUMANCALIB_PYTHON=/opt/conda/envs/humancalib-rtmpose/bin/python
 

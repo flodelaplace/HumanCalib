@@ -174,7 +174,19 @@ def repo_root():
     return candidate if (candidate / "scripts" / "calibrate.sh").is_file() else None
 
 
-def child_env(environ=None, isdir=os.path.isdir, prefix=None, exists=os.path.exists):
+def _torch_lib_dir():
+    """PyTorch's bundled library directory, located without importing torch."""
+    try:
+        spec = importlib.util.find_spec("torch")
+    except (ImportError, ValueError):
+        return None
+    if spec is None or not spec.origin:
+        return None
+    return os.path.join(os.path.dirname(spec.origin), "lib")
+
+
+def child_env(environ=None, isdir=os.path.isdir, prefix=None, exists=os.path.exists,
+              torch_lib="auto"):
     """Environment for the steps that run in their own process."""
     env = dict(os.environ if environ is None else environ)
     env["PYTHONPATH"] = os.pathsep.join(
@@ -204,6 +216,14 @@ def child_env(environ=None, isdir=os.path.isdir, prefix=None, exists=os.path.exi
         paths.insert(0, wsl)
     if exists(os.path.join(lib, "libcudart.so.11.0")) and lib not in paths:
         paths.insert(0, lib)
+
+    # The RTMPose environment adds a second trap: PyTorch keeps cuDNN in its own
+    # package directory, and onnxruntime's CUDA provider needs it. Without it,
+    # RTMPose silently ran on CPU. Appended after the environment's lib/, so a
+    # cuDNN installed at the environment level still takes precedence.
+    tlib = _torch_lib_dir() if torch_lib == "auto" else torch_lib
+    if tlib and exists(os.path.join(tlib, "libcudnn.so.8")) and tlib not in paths:
+        paths.append(tlib)
     if paths:
         env["LD_LIBRARY_PATH"] = os.pathsep.join(paths)
     else:

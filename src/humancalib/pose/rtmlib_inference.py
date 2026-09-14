@@ -287,6 +287,24 @@ def main(argv=None):
         device=args.device,
     )
 
+    # rtmlib asks onnxruntime for its CUDA provider, but onnxruntime falls back to
+    # CPU when it cannot load CUDA or cuDNN, leaving one warning line in stderr and
+    # running many times slower. Say which device is really in use.
+    if args.device == "cuda" and args.backend == "onnxruntime":
+        used = set()
+        for part in (getattr(body_model, "det_model", None), getattr(body_model, "pose_model", None)):
+            session = getattr(part, "session", None)
+            if session is not None and hasattr(session, "get_providers"):
+                used.update(session.get_providers())
+        if "CUDAExecutionProvider" in used:
+            log.info("Compute device: GPU (onnxruntime CUDAExecutionProvider)")
+        else:
+            log.warning(
+                "Compute device: CPU -- onnxruntime could not create its CUDA provider, so "
+                "pose extraction will be many times slower. PyTorch keeps cuDNN in "
+                "site-packages/torch/lib, which must be on LD_LIBRARY_PATH; `humancalib run` "
+                "and scripts/calibrate.sh add it themselves.")
+
     # ---- process each video -------------------------------------------------
     out_op25_dir = os.path.join(args.output_dir, args.subset_name, "2d_joint")
     out_halpe26_dir = os.path.join(args.output_dir, args.subset_name, "2d_joint_halpe26")
