@@ -419,7 +419,7 @@ qui existent.
 | T8.5 | **fait** — « Quick start with Docker » puis « Licensing » en tête ; tableau de pipeline aligné sur les modules et les étapes `humancalib` (il citait encore `config.yaml`) ; noms d'environnement périmés corrigés (`human_calib`, `metrabs_opensim`) ; section VideoPose3D en double supprimée ; ligne d'arborescence doublement préfixée par la Phase 6 corrigée ; lien vers ce document et vers `CONTRIBUTING.md` |
 | T8.6 | **fait** — `CITATION.cff` (avec Lee et al. 2022 et MeTRAbs en références) ; `CONTRIBUTING.md` : installation, tests, politique du golden-run, conventions, licences des contributions. `conda_linux.yaml`, supplanté par `envs/`, retiré |
 
-*Vérifié* : 99 tests verts ; CLI : erreurs sur stderr, stdout vide, `--quiet` respecté. *Démo complète dans l'image, stdout et stderr séparés : en cours de vérification.*
+*Vérifié* : 99 tests verts ; CLI : erreurs sur stderr, stdout vide, `--quiet` respecté. Démo complète dans l'image, stdout et stderr **séparés** (`-T`), deux fois. Avec poses en cache : `RC=0`, bannières et tableau MRE intacts sur stdout, un seul avertissement préfixé sur stderr, aucun préfixe doublé, MRE **identique** à la Phase 6 (4,057 / 8,214). Sans cache, pour exercer l'extraction MeTRAbs et ses 30 messages convertis : `RC=0` en 248 s, `Compute device: GPU`, messages d'extraction sur stdout, barres tqdm toujours sur stderr, MRE 4,039 px (écart dû à l'extraction GPU non déterministe). CI verte. **Critère tenu.**
 
 ---
 
@@ -562,4 +562,4 @@ Mesures : GPU 9–12 s par caméra contre 3 min 55 s en CPU. Image ramenée de
 | 5 — Tests + CI | **terminée** | 2026-09-14 |
 | 6 — Package | **terminée** | 2026-09-14 |
 | 7 — CLI Python | **terminée** | 2026-09-14 |
-| 8 — logging + docs | écrite, démo en vérification | 2026-09-14 |
+| 8 — logging + docs | **terminée** | 2026-09-14 |
