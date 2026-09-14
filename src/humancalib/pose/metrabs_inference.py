@@ -40,12 +40,9 @@ import json
 import sys
 import glob
 
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
-from core.models import METRABS_L_URL
-from core.toml_io import load_toml
-from core.sidecars import read_dropped
+from humancalib.core.models import METRABS_L_URL
+from humancalib.core.toml_io import load_toml
+from humancalib.core.sidecars import read_dropped
 
 import numpy as np
 import cv2
@@ -57,11 +54,15 @@ tf.get_logger().setLevel('ERROR')              # defensive: also silence Python-
 import tensorflow_hub as tfhub
 
 # ---------------------------------------------------------------------------
-# 26-joint calibration skeleton (subset of bml_movi_87)
-# 20 virtual joint centers + backneck + sternum + 4 foot markers
-# This matches METRABS_KEY / METRABS_BML87_INDICES in core/skeletons.py
+# 26-joint calibration skeleton (subset of bml_movi_87): 20 virtual joint
+# centres + backneck + sternum + 4 foot markers.
+#
+# Imported, not redefined. This file used to carry its own copy of the list,
+# from when it ran in a separate conda environment that could not import the
+# shared code. A second copy of an index list that must agree with the bone
+# topology is a silent-divergence trap.
 # ---------------------------------------------------------------------------
-METRABS_BML87_INDICES = [67, 0, 70, 3, 69, 68, 76, 84, 72, 80, 77, 85, 74, 82, 73, 81, 75, 83, 71, 79, 78, 86, 21, 52, 23, 54]
+from humancalib.core.skeletons import METRABS_BML87_INDICES
 N_CALIB_JOINTS = len(METRABS_BML87_INDICES)  # 26
 
 # ---------------------------------------------------------------------------

@@ -16,8 +16,8 @@ import cv2
 import numpy as np
 import pytest
 
-from calibration.ba import from_theta, objfun, objfun_var3d, to_theta
-from calibration.ba_jacobian import ba_jacobian
+from humancalib.calibration.ba import from_theta, objfun, objfun_var3d, to_theta
+from humancalib.calibration.ba_jacobian import ba_jacobian
 
 C, N, J = 3, 4, 6
 BONE_IDX = np.array([[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [0, 5]])

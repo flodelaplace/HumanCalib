@@ -52,7 +52,7 @@ services:
       # Default 4 in the image. On a large node, raise it; oversubscribing
       # OpenMP is what makes bundle adjustment slower on more cores, not faster.
       - OMP_NUM_THREADS=${OMP_NUM_THREADS:-4}
-      # Set it on the host to pin a card; core/gpu.py honours it rather than
+      # Set it on the host to pin a card; humancalib/core/gpu.py honours it rather than
       # overwriting it. Unset means "every GPU the runtime allocated".
       - CUDA_VISIBLE_DEVICES
 

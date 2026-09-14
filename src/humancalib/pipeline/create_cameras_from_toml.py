@@ -30,10 +30,7 @@ import glob
 import numpy as np
 import cv2
 
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
-from core.toml_io import load_toml
+from humancalib.core.toml_io import load_toml
 
 
 def main():
@@ -103,7 +100,7 @@ def main():
     #
     # The frame indices are 0-based, matching the pose files. They used to
     # start at 1, and load_eldersim intersects the two index lists
-    # (core/poses_io.py), so frame 0 was discarded from every calibration
+    # (humancalib/core/poses_io.py), so frame 0 was discarded from every calibration
     # without a word. See B7 in docs/REFACTOR_PLAN.md for the measured effect.
     skel_path = os.path.join(args.output_dir, f"skeleton_w_G{args.gid:03d}.json")
     if os.path.exists(skel_path):

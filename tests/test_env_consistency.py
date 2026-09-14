@@ -77,3 +77,38 @@ def test_only_one_opencv_distribution_anywhere():
         pins = _pins(path)
         assert "opencv-python" not in pins, f"{path} pulls a second cv2"
         assert "opencv-contrib-python" in pins, f"{path} pins no opencv at all"
+
+
+def test_env_pins_satisfy_the_package_ranges():
+    """The exact pins that reproduce a result must be installable as the package.
+
+    pyproject.toml declares compatible ranges; the environment files pin exact
+    versions. If a pin ever falls outside its range, `pip install humancalib`
+    and the validated environment describe two different programs -- and the
+    published numbers come from the one nobody can install.
+    """
+    from packaging.requirements import Requirement
+    from packaging.version import Version
+
+    from humancalib.core.toml_io import load_toml
+
+    project = load_toml(os.path.join(_REPO, "pyproject.toml"))["project"]
+    declared = list(project["dependencies"])
+    for group in project.get("optional-dependencies", {}).values():
+        declared += group
+
+    checked = 0
+    for env in ("envs/calib.yaml", "envs/ci.yaml"):
+        pins = _pins(env)
+        for spec in declared:
+            req = Requirement(spec)
+            if req.marker is not None and not req.marker.evaluate({"python_version": "3.10"}):
+                continue
+            pin = pins.get(req.name.lower())
+            if pin is None:
+                continue
+            assert req.specifier.contains(Version(pin), prereleases=True), (
+                f"{env} pins {req.name}=={pin}, outside pyproject.toml's {req.specifier}")
+            checked += 1
+
+    assert checked >= 20, f"only {checked} pins compared: the parsing has probably broken"

@@ -2,19 +2,19 @@
 """Chunked linear calibration runner.
 
 Replaces ``scripts/calib_linear.sh``. Splits the requested frame range into
-1000-frame chunks, runs ``calibration/calib_linear.py`` on each, evaluates
-each chunk via ``postprocessing/evaluate_calibration.py``, and copies the
+1000-frame chunks, runs ``humancalib.calibration.calib_linear`` on each, evaluates
+each chunk via ``humancalib.postprocessing.evaluate_calibration``, and copies the
 chunk with the lowest MRE to the final result file.
 
 Optional named flags (--start_frame, --end_frame, --conf_threshold) may
 appear before or after the positional arguments.
 
 Usage:
-    python scripts/run_calib_linear.py [--start_frame S] [--end_frame E] \\
+    python -m humancalib.pipeline.run_calib_linear [--start_frame S] [--end_frame E] \\
         [--conf_threshold T] PREFIX AID PID GID TARGET FRAME_SKIP DATASET
 
 Example:
-    python scripts/run_calib_linear.py ./data/A023_P102_G003 23 102 3 \\
+    python -m humancalib.pipeline.run_calib_linear ./data/A023_P102_G003 23 102 3 \\
         noise_3_0 1 SynADL
 """
 import argparse
@@ -28,9 +28,8 @@ import sys
 
 CHUNK_SIZE = 1000  # process 1000 frames at a time (visibility filter selects best within)
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CALIB_SCRIPT = os.path.join(REPO_ROOT, "calibration", "calib_linear.py")
-EVAL_SCRIPT = os.path.join(REPO_ROOT, "postprocessing", "evaluate_calibration.py")
+CALIB_MODULE = "humancalib.calibration.calib_linear"
+EVAL_MODULE = "humancalib.postprocessing.evaluate_calibration"
 
 
 def parse_args(argv):
@@ -94,7 +93,7 @@ def map_video_frames_to_indices(skeleton_file, req_start, req_end):
 def run_chunk(args, frame_start, frame_end, chunk_id, total_chunks):
     print(f"\n--- Processing Chunk {chunk_id}/{total_chunks} (Frames {frame_start}-{frame_end}) ---")
     cmd = [
-        sys.executable, CALIB_SCRIPT,
+        sys.executable, "-m", CALIB_MODULE,
         "--prefix", args.prefix,
         "--aid", str(args.aid),
         "--pid", str(args.pid),
@@ -115,7 +114,7 @@ def run_chunk(args, frame_start, frame_end, chunk_id, total_chunks):
 def evaluate_chunk(args, chunk_id):
     """Run evaluate_calibration on one chunk and return its Global MRE (or None)."""
     cmd = [
-        sys.executable, EVAL_SCRIPT,
+        sys.executable, "-m", EVAL_MODULE,
         "--prefix", args.prefix,
         "--calib", f"chunks/linear_chunk_{chunk_id}",
         "--conf_threshold", str(args.conf_threshold),

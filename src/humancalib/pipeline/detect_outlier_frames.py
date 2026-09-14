@@ -11,7 +11,7 @@ MeTRAbs.
 Prints ``NEW_DROPS=<n>`` on the last line for shell consumption.
 
 Usage:
-    python scripts/detect_outlier_frames.py \\
+    python -m humancalib.pipeline.detect_outlier_frames \\
         --prefix ./output/my_session \\
         --subset noise_1_0 --aid 1 --pid 1 --gid 1 \\
         --calib linear_1_0 \\
@@ -26,13 +26,10 @@ import sys
 
 import numpy as np
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
 
-from postprocessing.evaluate_calibration import triangulate_skeleton, reproject_points
-from core import load_poses, load_eldersim_camera
-from core.sidecars import write_dropped
+from humancalib.postprocessing.evaluate_calibration import triangulate_skeleton, reproject_points
+from humancalib.core import load_poses, load_eldersim_camera
+from humancalib.core.sidecars import write_dropped
 
 
 def parse_args():

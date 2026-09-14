@@ -136,10 +136,10 @@ RUN mkdir -p /models/tfhub /input /output /tmp/matplotlib \
 # whatever is mounted at /models, which keeps the image smaller and reusable
 # across model versions.
 #
-# Only core/models.py is copied at this point: the URL is the sole input, so
+# Only src/humancalib/core/models.py is copied at this point: the URL is the sole input, so
 # the slow download layer is not invalidated by unrelated source edits.
 ARG BAKE_MODELS=0
-COPY core/models.py /tmp/models.py
+COPY src/humancalib/core/models.py /tmp/models.py
 RUN if [ "${BAKE_MODELS}" = "1" ]; then \
         echo "Pre-fetching the MeTRAbs model into ${TFHUB_CACHE_DIR} ..." && \
         "${HUMANCALIB_PYTHON}" -c "\
@@ -158,6 +158,15 @@ print('Cached:', url)" && \
 # Last, so that editing the pipeline rebuilds only this layer.
 WORKDIR /opt/humancalib
 COPY . /opt/humancalib
+
+# Installed as a package, not only run from source, so `import humancalib` and
+# `python -m humancalib...` work from any working directory -- the acceptance
+# criterion for packaging. --no-deps: the environment above already pins every
+# dependency exactly, and letting pip re-resolve would undo that.
+# --no-build-isolation: build with the pinned setuptools instead of fetching
+# whatever PyPI serves on the day of the build.
+RUN pip install --no-deps --no-build-isolation /opt/humancalib \
+    && rm -rf /opt/humancalib/build /opt/humancalib/src/humancalib.egg-info
 
 ENTRYPOINT ["/opt/humancalib/docker/entrypoint.sh"]
 CMD ["--help"]

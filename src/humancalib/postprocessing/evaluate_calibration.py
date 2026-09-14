@@ -41,13 +41,9 @@ except ImportError:  # Python <= 3.10
         tomllib = None
 
 
-# Add repo root for util import (script lives in postprocessing/)
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
-from core import load_poses, load_eldersim_camera
-from core.geometry import triangulate_dlt
-from core.session import session_ids
+from humancalib.core import load_poses, load_eldersim_camera
+from humancalib.core.geometry import triangulate_dlt
+from humancalib.core.session import session_ids
 
 def triangulate_skeleton(p2d_all, s2d_all, K, R_w2c, t_w2c, conf_threshold=0.5):
     """Triangulate 2D joints from every camera into a world-frame skeleton.

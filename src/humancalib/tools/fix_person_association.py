@@ -21,7 +21,7 @@ Outputs corrected per-camera JSONs (same Pose2Sim format, slot s = subject s) an
 prints a per-subject reprojection BEFORE vs AFTER report.
 
 Usage:
-    python scripts/fix_person_association.py \\
+    python -m humancalib.tools.fix_person_association \\
         --project "/path/to/pose2sim_project" \\
         --pose_dir pose-associated --out_dir pose-associated-fixed
 """
@@ -30,10 +30,7 @@ import numpy as np
 import cv2
 from scipy.optimize import linear_sum_assignment
 
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
-from core.geometry import triangulate_dlt
+from humancalib.core.geometry import triangulate_dlt
 
 N_KPT = 26
 

@@ -346,15 +346,21 @@ plus ; `input/` montable en lecture seule ; `git status` reste propre après ex�
 
 | ID | Tâche |
 |----|-------|
-| T6.1 | `src/humancalib/` + `pyproject.toml` + `__init__.py` dans tous les sous-packages |
-| T6.2 | Supprimer les 12 manipulations de `sys.path` |
-| T6.3 | Corriger l'import frère nu `scale_scene.py:41` (double chargement de module) |
-| T6.4 | Fusionner `tools/` et `utils/` ; `create_cameras_from_toml.py` est une **étape du pipeline**, pas un outil |
-| T6.5 | `pip install -e .` dans les deux envs → supprime la duplication de `METRABS_BML87_INDICES` |
-| T6.6 | Mettre à jour `README.md:556-561`, qui *documente* le hack `sys.path` comme intentionnel |
+| T6.1 | **fait** — `src/humancalib/{core,calibration,pose,postprocessing,pipeline,tools}` + `pyproject.toml`. **Deux couches de dépendances, volontairement** : `pyproject.toml` déclare des *plages* compatibles (ce que `pip install` résout), `envs/*.yaml` épinglent les versions *exactes* validées ; `test_env_consistency.py` échoue si un épinglage sort de sa plage. Extras `metrabs` et `dev`. Wheel vérifié : ne contient que `humancalib/` |
+| T6.2 | **fait** — 13 manipulations, pas 12, → **0** vers la racine du dépôt. Une seule subsiste, et elle est légitime : VideoPose3D n'est pas un paquet (ses modules s'importent en `common.*`), désormais relocalisable via `HUMANCALIB_VP3D_DIR`. `visualize_results.py` insérait aussi le chemin de VideoPose3D sans jamais l'importer : code mort, supprimé. Les sous-processus (`run_ba` → `ba`, `run_calib_linear` → `calib_linear`, `evaluate_calibration`) sont lancés en `python -m`, plus par chemin de fichier |
+| T6.3 | **fait** — qualifié dès la Phase 2 (défaut n°3 du conteneur), désormais `humancalib.postprocessing.evaluate_calibration` |
+| T6.4 | **fait** — `pipeline/` regroupe les étapes que lance `calibrate.sh` (dont `create_cameras_from_toml`), `tools/` les utilitaires autonomes (`covisibility_report`, `fix_person_association`, et les deux de `utils/`). Répertoires racine `tools/` et `utils/` supprimés |
+| T6.5 | **fait** — la copie de `METRABS_BML87_INDICES` dans `metrabs_inference.py` (vestige d'un env séparé qui ne pouvait pas importer le code partagé) est remplacée par un import. `pip install --no-deps -e .` documenté pour `envs/calib.yaml`. **L'env `rtmpose` (py3.8) n'installe pas le paquet, délibérément** : la licence SPDX exige setuptools ≥ 77, donc Python ≥ 3.9 ; ce chemin figé tourne depuis les sources via `PYTHONPATH`, que `calibrate.sh` exporte |
+| T6.6 | **fait** — arborescence réécrite (elle listait encore `config/config.yaml` et `legacy/archive/`, supprimés en Phases 3-4), note `sys.path` remplacée, 17 références de chemins mises à jour, section « Installing as a Python package » qui dit franchement ce que pip seul ne peut pas fournir (CUDA pour TF 2.12) |
 
 **Critère d'acceptation :** `pip install .` dans un env vierge, puis exécution de la démo depuis un
 répertoire de travail arbitraire.
+
+*Vérifié (2026-09-14)* : installé dans l'image puis utilisé depuis `/` **sans `PYTHONPATH`** — `import humancalib` résout vers `site-packages`, `python -m humancalib.pipeline.write_session` et `python -m humancalib.pose.metrabs_inference` répondent ; 52 tests verts. *Démo de bout en bout depuis l'image empaquetée : en cours de vérification.*
+
+**Découvert en chemin, hors périmètre prévu :** `calibrate.sh` lançait l'étape MeTRAbs via `conda run -n metrabs_opensim` **sans condition** — l'environnement de la machine de l'auteur. Toute installation suivant le README (`envs/calib.yaml`, un seul env) échouait dès l'étape 1 sur `EnvironmentLocationNotFound` ; seul Docker y échappait, parce qu'il surchargeait la variable. L'env séparé n'est plus utilisé que s'il existe.
+
+**Reporté en Phase 8 :** `conda_linux.yaml`, encore suivi à la racine, est supplanté par `envs/` et n'apparaît plus dans l'arborescence documentée.
 
 ---
 
@@ -502,6 +508,6 @@ Mesures : GPU 9–12 s par caméra contre 3 min 55 s en CPU. Image ramenée de
 | 3 — Nettoyage | **terminée** | 2026-09-13 |
 | 4 — Config par session | **terminée** | 2026-09-13 |
 | 5 — Tests + CI | **terminée** | 2026-09-14 |
-| 6 — Package | à faire | |
+| 6 — Package | écrite, démo en vérification | 2026-09-14 |
 | 7 — CLI Python | à faire | |
 | 8 — logging + docs | à faire | |

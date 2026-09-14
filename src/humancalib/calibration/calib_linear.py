@@ -1,9 +1,5 @@
 #%%
-import os, sys
-# Add repo root to import path so the core/ package and argument.py remain importable
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
+import os
 
 import numpy as np
 import json
@@ -11,9 +7,9 @@ import itertools
 import scipy as sp
 
 # from numba import jit
-from argument import parse_args
-from core import *
-from core import get_bone_config
+from humancalib.argument import parse_args
+from humancalib.core import *
+from humancalib.core import get_bone_config
 import pycalib
 
 # module_path = os.path.abspath(os.path.join('./pycalib/'))

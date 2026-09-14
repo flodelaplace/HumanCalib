@@ -40,6 +40,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_ROOT}"
 
+# Run the package straight from this checkout, so a fresh clone works without
+# `pip install`. An installed copy works too; this only guarantees the clone.
+export PYTHONPATH="${REPO_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}"
+
 # --- WSL2 CUDA fix ---
 # WSL2 exposes the Windows driver's libcuda through /usr/lib/wsl/lib, which is
 # not on the default loader path. Guarded by the directory's existence: on a
@@ -58,15 +62,25 @@ fi
 # failure surfaces as a confusing ImportError several steps in.
 PYTHON="${HUMANCALIB_PYTHON:-python3}"
 
-# MeTRAbs needs TensorFlow, which historically lived in its own environment
-# while the rest of the pipeline ran from another. Hence the `conda run`.
-# HUMANCALIB_METRABS_PYTHON overrides the whole launcher with a command line of
-# its own: in the Docker image both halves share one environment, so it is set
-# to that environment's interpreter and conda is never invoked.
+# MeTRAbs needs TensorFlow. The documented installs -- envs/calib.yaml, and the
+# Docker image -- put it in the same environment as everything else, so by
+# default it runs through the same interpreter.
+#
+# The original development machine split it into a separate `metrabs_opensim`
+# conda environment, and this script used to call that environment
+# unconditionally. On any other machine the step failed at once with
+# EnvironmentLocationNotFound, before a frame was read: an install that followed
+# the README exactly could not run step 1. That environment is now used only if
+# it actually exists.
+#
+# HUMANCALIB_METRABS_PYTHON overrides all of this with a command line of its own.
 if [ -n "${HUMANCALIB_METRABS_PYTHON:-}" ]; then
     read -r -a METRABS_RUN <<< "${HUMANCALIB_METRABS_PYTHON}"
-else
+elif command -v conda >/dev/null 2>&1 && \
+     conda env list 2>/dev/null | awk '{print $1}' | grep -qx metrabs_opensim; then
     METRABS_RUN=(conda run --live-stream -n metrabs_opensim python -u)
+else
+    METRABS_RUN=("${PYTHON}" -u)
 fi
 
 # --- Default values ---
@@ -215,7 +229,7 @@ with open('${FIRST_FILE}') as f:
         # buffers everything until newline, breaking the live update. The
         # harmless "libtinfo.so.6: no version information available" warning
         # from the bash subshell that conda spawns is acceptable in exchange.
-        PYTHONUNBUFFERED=1 "${METRABS_RUN[@]}" "${REPO_ROOT}/pose/metrabs_inference.py" \
+        PYTHONUNBUFFERED=1 "${METRABS_RUN[@]}" -m humancalib.pose.metrabs_inference \
             --video_dir "${VIDEO_DIR}" \
             --calib_toml "${CALIB_TOML}" \
             --output_dir "${OUTPUT_DIR}" \
@@ -230,7 +244,7 @@ else
     echo "[1/7] Extracting 2D poses with RTMPose..."
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "  -> frame range: ${START_FRAME:-0} to ${END_FRAME:-<end>}"
-    "${PYTHON}" "${REPO_ROOT}/pose/rtmlib_inference.py" --video_dir "${VIDEO_DIR}" --output_dir "${OUTPUT_DIR}" --aid ${AID} --pid ${PID} --gid ${GID} --subset_name "${SUBSET}" --device ${DEVICE} --mode ${MODE} \
+    "${PYTHON}" -m humancalib.pose.rtmlib_inference --video_dir "${VIDEO_DIR}" --output_dir "${OUTPUT_DIR}" --aid ${AID} --pid ${PID} --gid ${GID} --subset_name "${SUBSET}" --device ${DEVICE} --mode ${MODE} \
         $( [ -n "${START_FRAME}" ] && echo --start_frame "${START_FRAME}" ) \
         $( [ -n "${END_FRAME}" ] && echo --end_frame "${END_FRAME}" ) \
         ${SAVE_VIDEO}
@@ -277,7 +291,7 @@ echo "[2/7] Reading intrinsics from TOML..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 CAM_NAMES=()
 while IFS= read -r -d $'\0' file; do BNAME=$(basename "$file"); CAM_NAMES+=("${BNAME%.*}"); done < <(find "${VIDEO_DIR}" -maxdepth 1 \( -name "*.mp4" -o -name "*.MP4" \) -print0 | sort -zV)
-"${PYTHON}" "${REPO_ROOT}/tools/create_cameras_from_toml.py" --toml "${CALIB_TOML}" --output_dir "${OUTPUT_DIR}/${SUBSET}" --gid ${GID} --cam_names "${CAM_NAMES[@]}"
+"${PYTHON}" -m humancalib.pipeline.create_cameras_from_toml --toml "${CALIB_TOML}" --output_dir "${OUTPUT_DIR}/${SUBSET}" --gid ${GID} --cam_names "${CAM_NAMES[@]}"
 
 
 # --- Step 2.5 (Formerly 1.5): Create frame mapping -------------------
@@ -325,7 +339,7 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "[3/7] Updating configuration..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-"${PYTHON}" "${REPO_ROOT}/scripts/write_session.py" \
+"${PYTHON}" -m humancalib.pipeline.write_session \
     --output_dir "${OUTPUT_DIR}" --subset "${SUBSET}" --video_dir "${VIDEO_DIR}" \
     --aid ${AID} --pid ${PID} --gid ${GID} || exit 1
 
@@ -340,7 +354,7 @@ else
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "[4/7] Lifting 2D -> 3D with VideoPose3D..."
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    "${PYTHON}" "${REPO_ROOT}/pose/inference.py" \
+    "${PYTHON}" -m humancalib.pose.inference \
         --prefix "${OUTPUT_DIR}" \
         --aid ${AID} --pid ${PID} --gid ${GID} \
         --target ${SUBSET} \
@@ -361,7 +375,7 @@ REF_CAM_ARG=""
 if [ -n "${REF_CAM}" ]; then
     REF_CAM_ARG="--ref_cam ${REF_CAM}"
 fi
-"${PYTHON}" "${SCRIPT_DIR}/run_calib_linear.py" --conf_threshold ${CONF_THRESHOLD} ${REF_CAM_ARG} "${OUTPUT_DIR}" ${AID} ${PID} ${GID} ${SUBSET} ${FRAME_SKIP} ${DATASET}
+"${PYTHON}" -m humancalib.pipeline.run_calib_linear --conf_threshold ${CONF_THRESHOLD} ${REF_CAM_ARG} "${OUTPUT_DIR}" ${AID} ${PID} ${GID} ${SUBSET} ${FRAME_SKIP} ${DATASET}
 
 # Verify linear calibration result exists
 FINAL_LINEAR_JSON="${OUTPUT_DIR}/results/linear_1_0.json"
@@ -375,7 +389,7 @@ fi
 if [ "$AUTO_OUTLIER_DROP" = "true" ]; then
     echo ""
     echo "  → Detecting outlier frames (per camera)..."
-    OUTLIER_OUT=$("${PYTHON}" "${REPO_ROOT}/scripts/detect_outlier_frames.py" \
+    OUTLIER_OUT=$("${PYTHON}" -m humancalib.pipeline.detect_outlier_frames \
         --prefix "${OUTPUT_DIR}" \
         --subset "${SUBSET}" \
         --aid ${AID} --pid ${PID} --gid ${GID} \
@@ -389,12 +403,12 @@ if [ "$AUTO_OUTLIER_DROP" = "true" ]; then
     if [ -n "${NEW_DROPS}" ] && [ "${NEW_DROPS}" -gt 0 ]; then
         echo ""
         echo "  → Re-running linear calibration on cleaned data (${NEW_DROPS} outliers dropped)..."
-        "${PYTHON}" "${SCRIPT_DIR}/run_calib_linear.py" --conf_threshold ${CONF_THRESHOLD} ${REF_CAM_ARG} "${OUTPUT_DIR}" ${AID} ${PID} ${GID} ${SUBSET} ${FRAME_SKIP} ${DATASET}
+        "${PYTHON}" -m humancalib.pipeline.run_calib_linear --conf_threshold ${CONF_THRESHOLD} ${REF_CAM_ARG} "${OUTPUT_DIR}" ${AID} ${PID} ${GID} ${SUBSET} ${FRAME_SKIP} ${DATASET}
     fi
 fi
 
 echo "  → Bundle Adjustment (linear)..."
-"${PYTHON}" "${SCRIPT_DIR}/run_ba.py" "${OUTPUT_DIR}" ${AID} ${PID} ${GID} ${FRAME_SKIP} ${LAMBDA1} ${LAMBDA2} linear_1_0 ${DATASET} false true ${CONF_THRESHOLD} ${BA_JAC}
+"${PYTHON}" -m humancalib.pipeline.run_ba "${OUTPUT_DIR}" ${AID} ${PID} ${GID} ${FRAME_SKIP} ${LAMBDA1} ${LAMBDA2} linear_1_0 ${DATASET} false true ${CONF_THRESHOLD} ${BA_JAC}
 
 # --- Step 6: Evaluation and Visualization ---------------------------------------
 echo ""
@@ -406,7 +420,7 @@ BEST_MRE=99999
 BEST_CALIB=""
 for CALIB in linear_1_0 linear_1_0_ba; do
     if [ -f "${OUTPUT_DIR}/results/${CALIB}.json" ]; then
-        OUTPUT=$("${PYTHON}" "${REPO_ROOT}/postprocessing/evaluate_calibration.py" --prefix "${OUTPUT_DIR}" --calib "${CALIB}" --video_dir "${VIDEO_DIR}" --visualize --conf_threshold ${CONF_THRESHOLD} \
+        OUTPUT=$("${PYTHON}" -m humancalib.postprocessing.evaluate_calibration --prefix "${OUTPUT_DIR}" --calib "${CALIB}" --video_dir "${VIDEO_DIR}" --visualize --conf_threshold ${CONF_THRESHOLD} \
             $( [ -n "${START_FRAME}" ] && echo --start_frame "${START_FRAME}" ))
         echo "${OUTPUT}"
         MRE=$(echo "${OUTPUT}" | grep "Global MRE" | awk '{print $4}')
@@ -423,7 +437,7 @@ for CALIB in linear_1_0 linear_1_0_ba; do
             fi
         fi
         echo "  → 3D Visualization for ${CALIB}..."
-        "${PYTHON}" "${REPO_ROOT}/postprocessing/visualize_results.py" --prefix "${OUTPUT_DIR}" --subset "${SUBSET}" --calib "${CALIB}" --dataset ${DATASET} --output "${OUTPUT_DIR}/results/camera/visu_3d_${CALIB}.gif" --conf_threshold ${CONF_THRESHOLD} || echo "  ⚠ Visu ${CALIB} failed"
+        "${PYTHON}" -m humancalib.postprocessing.visualize_results --prefix "${OUTPUT_DIR}" --subset "${SUBSET}" --calib "${CALIB}" --dataset ${DATASET} --output "${OUTPUT_DIR}/results/camera/visu_3d_${CALIB}.gif" --conf_threshold ${CONF_THRESHOLD} || echo "  ⚠ Visu ${CALIB} failed"
     fi
 done
 
@@ -459,7 +473,7 @@ if [ -n "$PERSON_HEIGHT" ] && [ -n "$REF_FRAME" ] && [ -n "$BEST_CALIB" ]; then
     fi
 
     if [ "$SKIP_SCALING" = false ]; then
-        "${PYTHON}" "${REPO_ROOT}/postprocessing/scale_scene.py" \
+        "${PYTHON}" -m humancalib.postprocessing.scale_scene \
             --prefix "${OUTPUT_DIR}" \
             --calib "${BEST_CALIB}" \
             --height ${PERSON_HEIGHT} \
@@ -474,7 +488,7 @@ if [ -n "$PERSON_HEIGHT" ] && [ -n "$REF_FRAME" ] && [ -n "$BEST_CALIB" ]; then
     FINAL_CALIB_NAME="${BEST_CALIB}_oriented_scaled"
     if [ -f "${OUTPUT_DIR}/results/${FINAL_CALIB_NAME}.json" ]; then
         echo "  → Final visualization..."
-        "${PYTHON}" "${REPO_ROOT}/postprocessing/visualize_results.py" \
+        "${PYTHON}" -m humancalib.postprocessing.visualize_results \
             --prefix  "${OUTPUT_DIR}" \
             --subset  "${SUBSET}" \
             --calib   "${FINAL_CALIB_NAME}" \

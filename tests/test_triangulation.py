@@ -25,10 +25,10 @@ the property worth pinning: it is the only case with a right answer.
 import numpy as np
 import pytest
 
-from core.geometry import triangulate_point
-from postprocessing.evaluate_calibration import triangulate_skeleton
-from postprocessing.scale_scene import get_3d_keypoint
-from scripts.fix_person_association import triangulate as triangulate_weighted
+from humancalib.core.geometry import triangulate_point
+from humancalib.postprocessing.evaluate_calibration import triangulate_skeleton
+from humancalib.postprocessing.scale_scene import get_3d_keypoint
+from humancalib.tools.fix_person_association import triangulate as triangulate_weighted
 
 
 def _rig(n_cams=4, radius=4000.0, f=1600.0):

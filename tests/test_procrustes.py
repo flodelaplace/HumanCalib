@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 import pytest
 
-from calibration.calib_linear import procrustes_align
+from humancalib.calibration.calib_linear import procrustes_align
 
 
 def _rotation(rotvec):

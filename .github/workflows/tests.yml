@@ -34,10 +34,23 @@ jobs:
           cache-environment: true
           cache-downloads: true
 
-      - name: Show what was actually installed
+      - name: Install the package
+        # --no-deps: the environment already pins every dependency exactly.
+        # --no-build-isolation: build with the pinned setuptools, not whatever
+        # PyPI serves today.
+        run: pip install --no-deps --no-build-isolation .
+
+      - name: Import it from outside the source tree
+        # From /tmp, so the checkout is not on sys.path: this proves the
+        # installed package stands on its own, which is the point of packaging.
+        working-directory: /tmp
+        env:
+          MPLBACKEND: Agg
         run: |
           python --version
           python -c "import numpy, scipy, cv2; print('numpy', numpy.__version__, '| scipy', scipy.__version__, '| cv2', cv2.__version__)"
+          python -c "import humancalib, humancalib.calibration.ba, humancalib.postprocessing.evaluate_calibration; print('humancalib', humancalib.__version__)"
+          python -m humancalib.pipeline.write_session --help > /dev/null && echo "python -m entry point OK"
 
       - name: Run the test suite
         env:

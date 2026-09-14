@@ -1,9 +1,5 @@
 #%%
-import os, sys
-# Add repo root to import path so the core/ package and argument.py remain importable
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
+import os
 
 import cv2
 import numpy as np
@@ -11,13 +7,13 @@ import json
 from scipy.optimize import least_squares
 import time
 from tqdm import tqdm
-import core
-import core.session
-from argument import parse_args
+import humancalib.core as core
+from humancalib.core import session as core_session
+from humancalib.argument import parse_args
 import matplotlib
 matplotlib.use("Agg") # Mode sans interface graphique pour éviter les bugs sous WSL
 import matplotlib.pyplot as plt
-from core import project_cv2
+from humancalib.core import project_cv2
 
 
 def to_theta(R, t, x):
@@ -310,7 +306,7 @@ def _run_ba(K, R_w2c, t_w2c, x_all, sp2d_flat, ss2d, sp3d, ss3d, bone_idx,
     )
     if jac_mode == "analytic":
         # Exact Jacobian: no finite differences -> far fewer objective evals.
-        from calibration.ba_jacobian import ba_jacobian
+        from humancalib.calibration.ba_jacobian import ba_jacobian
         kwargs['jac'] = ba_jacobian
     elif jac_sparsity is not None:
         kwargs['jac_sparsity'] = jac_sparsity
@@ -571,7 +567,7 @@ if __name__ == "__main__":
     # bObsMask = args.obs_mask
     TH_MASK = args.th_obs_mask
 
-    session = core.session.load_session_dir(PREFIX)
+    session = core_session.load_session_dir(PREFIX)
     width = session["width"]
     height = session["height"]
     available_joints = session["available_joints"]

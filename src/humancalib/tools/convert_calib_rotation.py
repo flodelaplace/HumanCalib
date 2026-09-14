@@ -1,7 +1,7 @@
 """Convertit un fichier de calibration TOML en faisant une rotation de 90deg
 
 Usage:
-  python utils/convert_calib_rotation.py --in in.toml --out out.toml --dir cw
+  python -m humancalib.tools.convert_calib_rotation --in in.toml --out out.toml --dir cw
 
 Options for --dir: cw (clockwise 90 deg), ccw (counter-clockwise 90 deg)
 

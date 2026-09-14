@@ -18,7 +18,7 @@ reports:
 This is a *diagnostic only* — it never modifies poses or calibration files.
 
 Usage:
-    python scripts/covisibility_report.py \\
+    python -m humancalib.tools.covisibility_report \\
         --prefix ./output/my_session \\
         --subset noise_1_0 --aid 1 --pid 1 --gid 1 \\
         --video_dir ./input/my_session \\
@@ -31,12 +31,9 @@ import sys
 
 import numpy as np
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if REPO_ROOT not in sys.path:
-    sys.path.insert(0, REPO_ROOT)
 
-from core import load_poses, load_eldersim_camera
-from core.sidecars import read_dropped
+from humancalib.core import load_poses, load_eldersim_camera
+from humancalib.core.sidecars import read_dropped
 
 
 def parse_args():

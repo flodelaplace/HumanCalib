@@ -8,10 +8,10 @@ Submodules:
 - gpu       : GPU selection helper (import directly: ``from core.gpu import select_gpu``)
 
 Everything is re-exported here so consumers can do either:
-    from core import OP_BONE, load_poses, triangulate_with_conf
+    from humancalib.core import OP_BONE, load_poses, triangulate_with_conf
 or:
-    from core.skeletons import OP_BONE
-    from core.poses_io import load_poses
+    from humancalib.core.skeletons import OP_BONE
+    from humancalib.core.poses_io import load_poses
 """
 from .skeletons import (
     OP_KEY, COCO_KEY, H36M32_KEY, H36M17_KEY, op_to_coco,

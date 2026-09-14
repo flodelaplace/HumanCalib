@@ -124,7 +124,7 @@ def load_session_dir(subset_dir):
     if not os.path.exists(path):
         raise FileNotFoundError(
             f"No session file at {path}. It is written by step 3 of the "
-            f"pipeline (scripts/write_session.py, called from calibrate.sh). "
+            f"pipeline (python -m humancalib.pipeline.write_session, called from calibrate.sh). "
             f"Running a later step on its own requires that step to have run "
             f"first for this output directory."
         )

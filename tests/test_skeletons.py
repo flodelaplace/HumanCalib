@@ -9,7 +9,7 @@ prevent that, which makes it worth pinning down.
 """
 import numpy as np
 
-from core.skeletons import (METRABS_BML87_INDICES, METRABS_BONE, get_bone_config)
+from humancalib.core.skeletons import (METRABS_BML87_INDICES, METRABS_BONE, get_bone_config)
 
 
 def test_87_joints_uses_the_remapped_metrabs_topology():

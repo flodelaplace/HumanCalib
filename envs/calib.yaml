@@ -113,7 +113,7 @@ dependencies:
       # --- config, IO, progress ---
       #
       # Python 3.10 has no stdlib tomllib (3.11+), so tomli is mandatory here.
-      # `toml` is a different package, required by utils/convert_calib_rotation.py.
+      # `toml` is a different package, required by humancalib/tools/convert_calib_rotation.py.
       - tomli==2.4.0
       - toml==0.10.2
       - PyYAML==6.0.3

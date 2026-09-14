@@ -23,7 +23,7 @@ import cv2
 import numpy as np
 from scipy.sparse import coo_matrix
 
-from calibration.ba import objfun_var3d
+from humancalib.calibration.ba import objfun_var3d
 
 
 def _nll_jac(params, K, ss2d, x, C, N, J, conf_threshold, obs_weight, n_cam):
@@ -137,7 +137,7 @@ def _varbone_jac(x, bone_idx, invalid_mask, lambda2, N, J, n_cam, row0):
 
 def _var3d_jac_numeric(params, sp3d, ss3d, bone_idx, C, lambda1, n_var3d, row0, eps=1e-6):
     """Finite-difference Jacobian of the var3d block over the 3C rvec params only."""
-    from calibration.ba import from_theta
+    from humancalib.calibration.ba import from_theta
 
     def var3d_of(p):
         R_w2c, _, _ = from_theta(p, C)
@@ -160,7 +160,7 @@ def _var3d_jac_numeric(params, sp3d, ss3d, bone_idx, C, lambda1, n_var3d, row0, 
 def ba_jacobian(params, K, sp2d, ss2d, sp3d, ss3d, bone_idx, C, N, J,
                 lambda1, lambda2, invalid_mask, conf_threshold=0.5, obs_weight=None):
     """Full analytic/hybrid Jacobian, matching ba.objfun's residual layout."""
-    from calibration.ba import from_theta
+    from humancalib.calibration.ba import from_theta
 
     _, _, x = from_theta(params, C)
     NJ = N * J

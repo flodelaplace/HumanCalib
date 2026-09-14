@@ -1,20 +1,27 @@
 import os, sys
 
-# This script lives in pose/. Add repo root for util/argument and locate VideoPose3D.
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
-
-vp3d_path = os.path.join(_REPO_ROOT, "third_party", "VideoPose3D")
+# VideoPose3D is not a package: it is a pinned git checkout under third_party/
+# (scripts/setup_models.sh), and its modules import each other as `common.*`,
+# so its root has to be on sys.path. This is the one path manipulation that
+# packaging cannot remove. HUMANCALIB_VP3D_DIR overrides the location; the
+# default is the checkout at the repository root, four levels above this file
+# (src/humancalib/pose/inference.py).
+vp3d_path = os.environ.get(
+    "HUMANCALIB_VP3D_DIR",
+    os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
+        "third_party", "VideoPose3D",
+    ),
+)
 if vp3d_path not in sys.path:
     sys.path.append(vp3d_path)
 
-import argument
-from core import load_poses, op_to_coco, COCO_KEY, H36M17_KEY
-from core.gpu import select_gpu  # torch-dependent: imported only on this path
-from core.session import load_session_dir
+from humancalib import argument
+from humancalib.core import load_poses, op_to_coco, COCO_KEY, H36M17_KEY
+from humancalib.core.gpu import select_gpu  # torch-dependent: imported only on this path
+from humancalib.core.session import load_session_dir
 import numpy as np
-from core import OP_KEY
+from humancalib.core import OP_KEY
 import matplotlib.pyplot as plt
 import torch
 import json

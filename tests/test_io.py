@@ -11,8 +11,8 @@ import json
 import numpy as np
 import pytest
 
-from core.poses_io import load_poses
-from postprocessing.evaluate_calibration import export_to_toml
+from humancalib.core.poses_io import load_poses
+from humancalib.postprocessing.evaluate_calibration import export_to_toml
 
 
 def _write_poses(path, n_frames=3, n_joints=4, seed=0):

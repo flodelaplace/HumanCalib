@@ -1,7 +1,7 @@
 # HumanCalib — optional legacy environment
 #
 # Only needed for the RTMPose (2D) + VideoPose3D (3D lifting) backend, i.e.
-# pose/rtmlib_inference.py and pose/inference.py. The default MeTRAbs backend
+# humancalib/pose/rtmlib_inference.py and humancalib/pose/inference.py. The default MeTRAbs backend
 # does NOT use this environment: see envs/calib.yaml.
 #
 # ---------------------------------------------------------------------------
@@ -84,7 +84,7 @@ dependencies:
       # not been runtime-tested here.
       - onnxruntime-gpu==1.15.0
 
-      # --- GPU auto-selection (core/gpu.py) ---
+      # --- GPU auto-selection (humancalib/core/gpu.py) ---
       - nvgpu==0.10.0
 
       # --- VideoPose3D build helper ---

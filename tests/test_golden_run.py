@@ -63,17 +63,21 @@ def calibrated(tmp_path_factory):
     run = work / "run"
     shutil.copytree(os.path.join(_FIXTURES, "demo_20f"), run)
 
-    env = dict(os.environ, MPLBACKEND="Agg", PYTHONUNBUFFERED="1")
+    env = dict(os.environ, MPLBACKEND="Agg", PYTHONUNBUFFERED="1",
+               # the children are separate interpreters: pytest's own
+               # pythonpath setting does not reach them
+               PYTHONPATH=os.pathsep.join(filter(None, [
+                   os.path.join(_REPO, "src"), os.environ.get("PYTHONPATH")])))
     common = [str(run), "1", "1", "1"]
 
     linear = subprocess.run(
-        [sys.executable, os.path.join(_REPO, "scripts", "run_calib_linear.py"),
+        [sys.executable, "-m", "humancalib.pipeline.run_calib_linear",
          "--conf_threshold", str(exp["conf_threshold"]),
          *common, "noise_1_0", str(exp["frame_skip"]), "MyDataset"],
         cwd=_REPO, env=env, capture_output=True, text=True)
 
     ba = subprocess.run(
-        [sys.executable, os.path.join(_REPO, "scripts", "run_ba.py"),
+        [sys.executable, "-m", "humancalib.pipeline.run_ba",
          *common, str(exp["frame_skip"]), "1.", "1.", "linear_1_0",
          "MyDataset", "false", "true", str(exp["conf_threshold"]), "analytic"],
         cwd=_REPO, env=env, capture_output=True, text=True)

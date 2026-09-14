@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bundle Adjustment runner with OOM auto-retry.
 
-Wraps ``calibration/ba.py`` in a subprocess loop that increments
+Wraps ``humancalib.calibration.ba`` in a subprocess loop that increments
 ``--frame_skip`` by 5 on failure (typically OOM), up to a hard cap of 60.
 
 This file replaces the older ``scripts/ba.sh``. The positional argument
@@ -9,27 +9,25 @@ order is preserved so the calling pattern from ``calibrate.sh`` is
 unchanged.
 
 Usage:
-    python scripts/run_ba.py PREFIX AID PID GID FRAME_SKIP \\
+    python -m humancalib.pipeline.run_ba PREFIX AID PID GID FRAME_SKIP \\
         LAMBDA1 LAMBDA2 TARGET DATASET OBS_MASK SAVE_OBS_MASK [CONF_THRESHOLD]
 
 Example:
-    python scripts/run_ba.py ./data/A023_P102_G003 23 102 3 1 \\
+    python -m humancalib.pipeline.run_ba ./data/A023_P102_G003 23 102 3 1 \\
         1. 100000. linear_3_0 SynADL false false
 """
-import os
 import subprocess
 import sys
 
 MAX_FRAME_SKIP = 60
 FRAME_SKIP_STEP = 5
 
-REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BA_SCRIPT = os.path.join(REPO_ROOT, "calibration", "ba.py")
+BA_MODULE = "humancalib.calibration.ba"
 
 USAGE = (
     "[Usage] PREFIX AID PID GID FRAME_SKIP LAMBDA1 LAMBDA2 TARGET DATASET "
     "OBS_MASK SAVE_OBS_MASK [CONF_THRESHOLD]\n"
-    "[e.g.]  python scripts/run_ba.py ./data/A023_P102_G003 23 102 3 1 "
+    "[e.g.]  python -m humancalib.pipeline.run_ba ./data/A023_P102_G003 23 102 3 1 "
     "1. 100000. linear_3_0 SynADL false false"
 )
 
@@ -49,7 +47,7 @@ def main(argv):
     while True:
         print(f"Attempting Bundle Adjustment with FRAME_SKIP={current_frame_skip}...")
         cmd = [
-            sys.executable, BA_SCRIPT,
+            sys.executable, "-m", BA_MODULE,
             "--prefix", prefix,
             "--aid", aid,
             "--pid", pid,

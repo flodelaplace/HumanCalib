@@ -1,0 +1,78 @@
+# HumanCalib — Python packaging
+#
+# Two layers of dependency specification, on purpose:
+#
+#   * this file declares COMPATIBLE RANGES -- what the code needs to import and
+#     run. It is what `pip install humancalib` resolves against;
+#   * envs/calib.yaml pins EXACT versions -- what was validated end to end,
+#     including the CUDA userspace pip cannot provide. It is what reproduces a
+#     published result.
+#
+# tests/test_env_consistency.py checks that every exact pin in the environment
+# files satisfies the ranges declared here, so the two cannot quietly diverge.
+#
+# What pip alone cannot give you: GPU pose extraction. TensorFlow 2.12 has no
+# pip variant that bundles CUDA (`tensorflow[and-cuda]` starts at 2.14), so the
+# `metrabs` extra needs cudatoolkit 11.8 + cuDNN 8.9 from the system, from conda
+# (envs/calib.yaml) or from the Docker image. The core install -- linear
+# calibration, bundle adjustment, evaluation, scaling, from existing pose files
+# -- is pure pip and runs on a CPU; it is exactly what CI exercises.
+
+[build-system]
+# >=77 for the SPDX `license` string below.
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "humancalib"
+version = "0.1.0"
+description = "Multi-camera extrinsic calibration from human pose"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Florian Delaplace" }]
+# Validated on 3.10 only. The optional RTMPose backend runs on 3.8 from a source
+# checkout (envs/rtmpose.yaml, Dockerfile.rtmpose), not from this package.
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.22,<2",
+    "scipy>=1.9",
+    "matplotlib>=3.7",
+    # Only the contrib distribution: opencv-python ships the same cv2/ directory
+    # and installing both silently overwrites one with the other.
+    "opencv-contrib-python>=4.7",
+    "pycalib-simple>=2025.12.5.1",
+    "scikit-image>=0.20,<0.25",
+    # Undeclared dependency of pycalib-simple (pycalib/__init__ -> .robust).
+    "pandas>=2.0",
+    "PyYAML>=6.0",
+    "tqdm>=4.64",
+    "tomli>=2.0; python_version < '3.11'",
+    "toml>=0.10.2",
+]
+
+[project.optional-dependencies]
+# MeTRAbs pose extraction. Needs the CUDA userspace from outside pip -- see top.
+metrabs = [
+    "tensorflow>=2.12,<2.13",
+    "tensorflow-hub>=0.13",
+    # tensorflow-hub imports pkg_resources, which setuptools removed in 81.
+    "setuptools<81",
+    "imageio>=2.22",
+    "imageio-ffmpeg>=0.4",
+]
+dev = [
+    "pytest>=8",
+]
+
+[project.urls]
+Repository = "https://github.com/flodelaplace/HumanCalib"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+# Makes the package importable from a plain checkout without installing it, so
+# the suite runs the same way on CI, in the container and on a laptop.
+pythonpath = ["src"]
+testpaths = ["tests"]

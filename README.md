@@ -28,8 +28,8 @@ The pipeline processes synchronized multi-camera videos through a 7-step pipelin
 | **1. Pose Extraction** | `metrabs_inference.py` or `rtmlib_inference.py` | Detect 2D keypoints (+ direct metric 3D with MeTRAbs) in all camera views |
 | **2. Intrinsics Loading** | `create_cameras_from_toml.py` | Parse camera matrices & distortion from a Pose2Sim-compatible TOML |
 | **3. Configuration** | *(inline in calibrate.sh)* | Auto-detect number of cameras, joints, frame count; write `config.yaml` |
-| **4. 3D Lifting** | `pose/inference.py` | Lift 2D→3D with VideoPose3D *(skipped when using MeTRAbs — 3D is already available)* |
-| **5. Calibration** | `scripts/run_calib_linear.py` → `calibration/calib_linear.py` → `scripts/detect_outlier_frames.py` → `scripts/run_ba.py` → `calibration/ba.py` | Chunked linear init (Procrustes for MeTRAbs, auto reference-camera selection) → auto outlier-frame drop → linear re-run if any drops → Bundle Adjustment |
+| **4. 3D Lifting** | `src/humancalib/pose/inference.py` | Lift 2D→3D with VideoPose3D *(skipped when using MeTRAbs — 3D is already available)* |
+| **5. Calibration** | `src/humancalib/pipeline/run_calib_linear.py` → `src/humancalib/calibration/calib_linear.py` → `src/humancalib/pipeline/detect_outlier_frames.py` → `src/humancalib/pipeline/run_ba.py` → `src/humancalib/calibration/ba.py` | Chunked linear init (Procrustes for MeTRAbs, auto reference-camera selection) → auto outlier-frame drop → linear re-run if any drops → Bundle Adjustment |
 | **6. Evaluation** | `evaluate_calibration.py` | Compute Mean Reprojection Error (MRE) per camera + visualizations |
 | **7. Scaling** | `scale_scene.py` | Orient scene (gravity-aligned) and scale to metric units using person height |
 
@@ -49,7 +49,7 @@ Two pose estimation backends are supported, with fundamentally different archite
 
 We use the **`bml_movi_87`** skeleton (87 joints from the [BML MoVi](https://www.biomotionlab.ca/movi/) dataset). The full 87-joint 2D and 3D predictions flow through the entire calibration pipeline. For bone-length regularization in Bundle Adjustment, we use a **27-bone skeleton** built from the 26 "real" joints (head, thorax, pelvis, shoulders, elbows, wrists, hands, hips, knees, ankles, feet, heels, toes, backneck, sternum) — the other ~60 joints in `bml_movi_87` are virtual landmarks (clavicle, sternum sides, lbreast, lfirstmetatarsal, etc.) that MeTRAbs constructs as linear combinations of the 26 main joints; treating them as independent bone sources would be redundant and would make the system rank-deficient.
 
-These **27 bones** cover the full body including a 4-segment spine and articulated feet — significantly richer than OpenPose's 12 bones. The mapping from `bml_movi_87` to the 26-joint subset is defined in `core/skeletons.py` (`METRABS_BML87_INDICES`), and the bone topology in `METRABS_BONE` is remapped onto the 87-joint indices at runtime by `get_bone_config(87)`. A **Halpe26 conversion** of the 2D detections is also generated for backward compatibility with the scaling step.
+These **27 bones** cover the full body including a 4-segment spine and articulated feet — significantly richer than OpenPose's 12 bones. The mapping from `bml_movi_87` to the 26-joint subset is defined in `src/humancalib/core/skeletons.py` (`METRABS_BML87_INDICES`), and the bone topology in `METRABS_BONE` is remapped onto the 87-joint indices at runtime by `get_bone_config(87)`. A **Halpe26 conversion** of the 2D detections is also generated for backward compatibility with the scaling step.
 
 **Temporal smoothing:** a Savitzky-Golay filter is applied to both 2D and 3D trajectories to reduce frame-to-frame jitter on valid detections.
 
@@ -98,7 +98,7 @@ This path is still fully functional and can be useful when MeTRAbs is not availa
 
 Bundle Adjustment refines all camera rotations/translations and the 3D points by minimizing reprojection error (`scipy.optimize.least_squares`, TRF). The cost is dominated not by the iterations themselves (which are sequential and cannot be parallelized) but by **evaluating the Jacobian** — and by default SciPy estimates it with **finite differences**, which re-evaluates the (large) objective many times per iteration.
 
-The pipeline instead supplies an **exact analytic Jacobian** (`calibration/ba_jacobian.py`), enabled by default (`--ba_jac analytic`):
+The pipeline instead supplies an **exact analytic Jacobian** (`src/humancalib/calibration/ba_jacobian.py`), enabled by default (`--ba_jac analytic`):
 
 - **Reprojection term** — analytic, via the projection derivative composed with the Rodrigues derivative (`cv2.Rodrigues` supplies ∂R/∂rvec).
 - **Bone-length variance term** — analytic.
@@ -106,7 +106,7 @@ The pipeline instead supplies an **exact analytic Jacobian** (`calibration/ba_ja
 
 This removes the finite-difference eval explosion — **~10–100× fewer objective evaluations for identical accuracy**. On the demo, numeric vs analytic gave the same MRE (4.057 vs 4.058 px) while the objective was evaluated **~2940 vs ~22 times**. Validated against a numeric Jacobian (max relative error ~1e-9).
 
-Use `--ba_jac numeric` to fall back to the legacy finite-difference path (same result, slower). See also the optional robust-BA flags (`--ba_loss`, `--ba_obs_weight`, `--ba_f_scale`) in `argument.py`, which are **off by default** and preserve the current behavior unless explicitly enabled.
+Use `--ba_jac numeric` to fall back to the legacy finite-difference path (same result, slower). See also the optional robust-BA flags (`--ba_loss`, `--ba_obs_weight`, `--ba_f_scale`) in `src/humancalib/argument.py`, which are **off by default** and preserve the current behavior unless explicitly enabled.
 
 ---
 
@@ -153,7 +153,7 @@ behind each pin.
 The `metrabs_l` model (~1.1 GB) is downloaded automatically on first run from
 the authors' server at RWTH Aachen, via TensorFlow Hub. No manual download.
 
-`pose/metrabs_inference.py` pins the TF Hub cache to a **persistent** directory
+`src/humancalib/pose/metrabs_inference.py` pins the TF Hub cache to a **persistent** directory
 before TensorFlow Hub is imported:
 
 ```python
@@ -216,6 +216,29 @@ export LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH
 ```
 
 ---
+
+### Installing as a Python package
+
+The calibration itself — linear initialisation, bundle adjustment, evaluation
+and scaling, from pose files you already have — installs with pip alone and runs
+on a CPU:
+
+```bash
+pip install git+https://github.com/flodelaplace/HumanCalib
+```
+
+GPU pose extraction with MeTRAbs needs more than pip can provide. TensorFlow 2.12
+has no pip variant that bundles CUDA, so cudatoolkit 11.8 and cuDNN 8.9 have to
+come from the system, from conda, or from the Docker image. With conda:
+
+```bash
+conda env create -f envs/calib.yaml   # CUDA, cuDNN, ffmpeg and exact pins
+conda activate humancalib
+pip install --no-deps -e .            # the package itself, into that environment
+```
+
+`--no-deps` matters: the environment already pins every dependency exactly, and
+letting pip re-resolve would swap validated versions for whatever is newest.
 
 ## 2. Quick Demo
 
@@ -344,7 +367,7 @@ rm -rf output/my_session/noise_1_0/2d_joint output/my_session/noise_1_0/3d_joint
 
 ### Linear Calibration
 
-**Linear calibration** (`calibration/calib_linear.py` orchestrated by `scripts/run_calib_linear.py`) computes initial extrinsic parameters. The approach differs significantly depending on the pose engine:
+**Linear calibration** (`src/humancalib/calibration/calib_linear.py` orchestrated by `src/humancalib/pipeline/run_calib_linear.py`) computes initial extrinsic parameters. The approach differs significantly depending on the pose engine:
 
 **With MeTRAbs — Procrustes alignment:**
 Since MeTRAbs gives a metric 3D skeleton per camera, we can directly align skeletons between cameras using [Procrustes analysis](https://en.wikipedia.org/wiki/Procrustes_analysis) (Umeyama method). One camera defines the world frame; for each other camera, the algorithm finds R, t, s that align its 3D skeleton to the reference. The per-camera 3D is already in metric scale, so the Procrustes residual is typically a few mm and gives a strong starting point for BA. Triggered automatically for the 26-joint and 87-joint MeTRAbs skeletons. The 87-joint skeleton uses a remapped subset of the 27 "real" bones (`METRABS_BONE` mapped onto 87-joint indices) — the ~60 virtual joints in `bml_movi_87` are linear combinations of the 26 main joints inside MeTRAbs' regression head and would otherwise produce rank-deficient orientation constraints.
@@ -354,7 +377,7 @@ Since MeTRAbs gives a metric 3D skeleton per camera, we can directly align skele
 **With RTMPose — Collinearity constraints:**
 Uses bone orientation collinearity and coplanarity constraints from 2D projections (original method from the paper). This requires solving a larger linear system and doesn't benefit from metric 3D data, so the initial MRE is much higher.
 
-**Chunk-based processing** (`scripts/run_calib_linear.py`):
+**Chunk-based processing** (`src/humancalib/pipeline/run_calib_linear.py`):
 - Data is split into chunks of **1000 frames**
 - Each chunk is independently calibrated (with its own visibility filter and Procrustes/linear solve)
 - All chunks are evaluated by MRE using `evaluate_calibration.py`
@@ -364,7 +387,7 @@ Uses bone orientation collinearity and coplanarity constraints from 2D projectio
 
 ### Auto Outlier-Frame Drop (between linear and BA)
 
-After the linear init, `scripts/detect_outlier_frames.py` runs once to flag per-camera outlier frames whose mean reprojection error exceeds **both** an absolute threshold (`--outlier_abs_px`, default 50 px) **and** a relative one (`--outlier_x_median * median`, default 5×). Typical targets: half-image / encoding-corrupted frames where MeTRAbs still produces a plausible-looking detection that conf-threshold filters can't reject.
+After the linear init, `src/humancalib/pipeline/detect_outlier_frames.py` runs once to flag per-camera outlier frames whose mean reprojection error exceeds **both** an absolute threshold (`--outlier_abs_px`, default 50 px) **and** a relative one (`--outlier_x_median * median`, default 5×). Typical targets: half-image / encoding-corrupted frames where MeTRAbs still produces a plausible-looking detection that conf-threshold filters can't reject.
 
 For each affected camera the script:
 1. Appends the absolute frame indices to the per-video sidecar `<video>.dropped.json` (creating it if needed; pre-existing entries are preserved).
@@ -389,7 +412,7 @@ Key BA features:
 - **Live convergence plot**: a PNG is saved every 10s showing the cost reduction curve with log-scale Y axis.
 - **2-pass optimization**: after the first pass, frames with per-frame reprojection error > **2x median** are removed as outliers, then a second pass runs on the cleaned data.
 - **Convergence**: uses `ftol=xtol=gtol=1e-7` with dynamic `max_nfev` scaled by problem size (60k–80k evaluations).
-- **OOM auto-retry** (`scripts/run_ba.py`): if BA fails (e.g., out of memory), the runner automatically retries with `frame_skip += 5`, up to a maximum of 60, reducing the number of frames until BA fits in memory.
+- **OOM auto-retry** (`src/humancalib/pipeline/run_ba.py`): if BA fails (e.g., out of memory), the runner automatically retries with `frame_skip += 5`, up to a maximum of 60, reducing the number of frames until BA fits in memory.
 
 ### MeTRAbs Quality Filtering and Processing
 
@@ -449,7 +472,7 @@ After filtering, a **Savitzky-Golay temporal smoothing** is applied to both 2D a
     ltoe(24)                 rtoe(25)
 ```
 
-The 26 joints are extracted from `bml_movi_87` using `METRABS_BML87_INDICES` (defined in `core/skeletons.py`).
+The 26 joints are extracted from `bml_movi_87` using `METRABS_BML87_INDICES` (defined in `src/humancalib/core/skeletons.py`).
 
 **RTMPose / OpenPose-25** (25 joints, 12 bones):
 Standard OpenPose body-25 format with joints: Nose, Neck, RShoulder, RElbow, RWrist, LShoulder, LElbow, LWrist, MidHip, RHip, RKnee, RAnkle, LHip, LKnee, LAnkle, REye, LEye, REar, LEar, LBigToe, LSmallToe, LHeel, RBigToe, RSmallToe, RHeel.
@@ -478,60 +501,42 @@ The joint format is **auto-detected** based on the number of joints in the 2D po
 
 ```
 HumanCalib/
-├── argument.py               # CLI argument parser shared across entry points
-├── conda_linux.yaml          # Conda environment (human_calib)
+├── pyproject.toml            # Package metadata — `pip install -e .`
+├── Dockerfile                # Main image (MeTRAbs backend, MIT)
+├── Dockerfile.rtmpose        # Optional image (RTMPose + VideoPose3D, CC BY-NC 4.0)
+├── compose.yaml
 │
-├── core/                     # Shared library (formerly util.py)
-│   ├── skeletons.py          # Joint indices + bone connectivity
-│   │                         #   (OP, MeTRAbs-26, bml_movi_87) + get_bone_config
-│   ├── geometry.py           # Triangulation, projection, R/T inversion
-│   ├── poses_io.py           # JSON load/save (poses, cameras, skeletons)
-│   ├── filtering.py          # Visibility / orientation helpers (linear calib)
-│   └── gpu.py                # GPU selection helper
+├── src/humancalib/           # The Python package
+│   ├── src/humancalib/argument.py           # CLI argument parser shared across entry points
+│   ├── core/                 # Skeletons, geometry (DLT triangulation), pose/camera IO,
+│   │                         #   session file, dropped-frame sidecars, TOML loading
+│   ├── pose/                 # MeTRAbs extraction; RTMPose 2D + VideoPose3D lifting
+│   ├── calibration/          # Linear init (Procrustes) and bundle adjustment,
+│   │                         #   with its analytic Jacobian
+│   ├── postprocessing/       # MRE evaluation, metric scaling, visualisation
+│   ├── pipeline/             # The steps calibrate.sh runs, in order; each is also
+│   │                         #   `python -m humancalib.pipeline.<step>`
+│   └── tools/                # Standalone utilities, outside the pipeline
 │
-├── scripts/                  # Pipeline orchestration (entry points)
-│   ├── calibrate.sh          # Main bash orchestrator (handles conda env switching)
-│   ├── run_calib_linear.py   # Chunked linear calibration + best-chunk selection
-│   ├── detect_outlier_frames.py  # Per-camera reproj-outlier detection
-│   │                         #   (writes <video>.dropped.json sidecars + zeros JSON scores)
-│   ├── run_ba.py             # Bundle Adjustment runner with OOM auto-retry
-│   └── setup_models.sh       # VideoPose3D model download (wget + git)
+├── scripts/
+│   ├── calibrate.sh          # Pipeline orchestrator
+│   └── setup_models.sh       # VideoPose3D checkout + weights (optional backend only)
 │
-├── pose/                     # 2D detection and 3D lifting
-│   ├── metrabs_inference.py  # MeTRAbs pose extraction (bml_movi_87 → calib-26)
-│   ├── rtmlib_inference.py   # RTMPose 2D pose detection
-│   └── inference.py          # VideoPose3D 3D lifting
-│
-├── calibration/              # Extrinsic calibration core
-│   ├── calib_linear.py       # Linear calibration (Procrustes / collinearity)
-│   └── ba.py                 # Bundle Adjustment with Jacobian sparsity
-│
-├── postprocessing/           # Evaluation, scaling, visualization
-│   ├── evaluate_calibration.py  # MRE evaluation, visualization, TOML export
-│   ├── scale_scene.py        # Metric scaling and gravity alignment
-│   └── visualize_results.py  # 3D GIF rendering (auto-detects 87/26/25 joints)
-│
-├── tools/                    # One-off utilities
-│   └── create_cameras_from_toml.py  # TOML → cameras JSON converter
-│
-├── utils/                    # Helper scripts
-│   ├── convert_calib_rotation.py
-│   └── rotate_video.py
-│
-├── config/config.yaml        # Auto-generated session configuration
+├── envs/                     # Exact, validated environments: calib, rtmpose, ci
+├── docker/entrypoint.sh      # Container entry point, with GPU / mount preflight checks
+├── tests/                    # pytest suite; frozen poses run the calibration on a CPU
+├── docs/REFACTOR_PLAN.md     # Reproducibility refactor: decisions, findings, status
 ├── demo/                     # Demo dataset (4 cameras, 100 frames)
 ├── input/                    # Place your calibration sessions here
 ├── output/                   # Calibration results
-├── third_party/              # VideoPose3D submodule
-└── legacy/archive/           # Legacy / research scripts (kept for reference)
+└── third_party/              # VideoPose3D checkout, created by setup_models.sh
 ```
 
-> All scripts in `scripts/` resolve their own location via `BASH_SOURCE` and
-> `cd` to the repo root, so they can be invoked from any working directory
-> (e.g. `bash /abs/path/scripts/calibrate.sh ...`). Python entry points in
-> `pose/`, `calibration/`, `postprocessing/`, and `tools/` add the repo root
-> to `sys.path` so they can `from core import ...` and `from argument import ...`
-> regardless of CWD.
+> The pipeline is an installable package. `scripts/calibrate.sh` resolves its
+> own location and puts `src/` on `PYTHONPATH`, so a fresh clone runs from any
+> working directory without installing anything. Once installed
+> (`pip install -e .`), every step is importable and runnable as a module, e.g.
+> `python -m humancalib.pipeline.run_ba --help`.
 
 ---
 

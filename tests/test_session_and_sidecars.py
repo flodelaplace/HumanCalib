@@ -13,8 +13,8 @@ import json
 
 import pytest
 
-from core.session import SESSION_FILENAME, load_session_dir, session_ids
-from core.sidecars import (legacy_sidecar_path, read_dropped, sidecar_path,
+from humancalib.core.session import SESSION_FILENAME, load_session_dir, session_ids
+from humancalib.core.sidecars import (legacy_sidecar_path, read_dropped,
                            write_dropped)
 
 import yaml
