@@ -1,0 +1,66 @@
+name: tests
+
+# CPU only, and deliberately so. Nothing in the test suite imports TensorFlow:
+# the pose-extraction step is the only part that needs a GPU, and it could not
+# run on a public runner in reasonable time anyway. The numerical chain the
+# tests do cover -- Procrustes initialisation, the analytic bundle-adjustment
+# Jacobian, triangulation, IO -- runs fine on a CPU, which is the point of
+# freezing the demo poses as fixtures.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        shell: bash -el {0}      # -l so the micromamba environment is active
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create the CI environment
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: envs/ci.yaml
+          cache-environment: true
+          cache-downloads: true
+
+      - name: Show what was actually installed
+        run: |
+          python --version
+          python -c "import numpy, scipy, cv2; print('numpy', numpy.__version__, '| scipy', scipy.__version__, '| cv2', cv2.__version__)"
+
+      - name: Run the test suite
+        env:
+          MPLBACKEND: Agg          # no display on a runner
+          PYTHONHASHSEED: "0"
+        run: pytest tests -q --durations=10
+
+  # A second, cheap job: the shell entry points are still how the pipeline is
+  # driven, and a syntax error in them is not something the Python tests would
+  # ever catch.
+  shellcheck:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse every shell script
+        run: |
+          rc=0
+          for f in scripts/*.sh docker/*.sh; do
+            [ -e "$f" ] || continue
+            if bash -n "$f"; then
+              echo "ok   $f"
+            else
+              echo "FAIL $f"; rc=1
+            fi
+          done
+          exit $rc

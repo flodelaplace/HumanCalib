@@ -99,7 +99,16 @@ def _varbone_jac(x, bone_idx, invalid_mask, lambda2, N, J, n_cam, row0):
     bone_idx = np.asarray(bone_idx)
     B = len(bone_idx)
     xw = x.copy()
-    xw[invalid_mask] = np.nan
+    if invalid_mask is not None:
+        # Guarded, and the guard is the whole point: `xw[None] = np.nan` is not
+        # a no-op, it is indexing with a new axis, so it fills the ENTIRE array
+        # with NaN. Every bone length then became nan, `valid` was empty, and
+        # this block returned no rows at all -- a silently inert bone
+        # regulariser rather than an error. objfun_varbone guards the same
+        # argument the same way; the two halves of one computation have to
+        # agree on it. Production always passes an array (ba.py computes it
+        # from np.isnan), so this never fired there, but any direct call did.
+        xw[invalid_mask] = np.nan
     xw = xw.reshape(N, J, 3)
     rows_all, cols_all, vals_all = [], [], []
     for b in range(B):
