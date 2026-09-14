@@ -21,6 +21,8 @@ import os
 
 import yaml
 
+from humancalib.core.videos import list_videos
+
 SESSION_FILENAME = "session.yaml"
 
 VIDEO_EXTENSIONS = (".mp4", ".avi", ".mov", ".mkv", ".MP4", ".AVI")
@@ -47,11 +49,7 @@ def probe_videos(video_dir):
     """
     import cv2
 
-    videos = sorted(
-        os.path.join(video_dir, f)
-        for f in os.listdir(video_dir)
-        if f.endswith(VIDEO_EXTENSIONS)
-    )
+    videos = list_videos(video_dir)
     if not videos:
         raise FileNotFoundError(f"No video files found in {video_dir}")
 

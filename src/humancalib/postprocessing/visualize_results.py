@@ -376,7 +376,7 @@ def make_animation(X3d_world, R_w2c, t_w2c, output_path, fps=15, step=1,
     print(f"Saved: {output_path}")
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Visualize the triangulated 3D skeleton + cameras after calibration."
     )
@@ -399,7 +399,7 @@ def main():
                          help="Confidence threshold for 2D keypoints")
     parser.add_argument("--export_trc", default=None,
                          help="Export the triangulated 3D skeleton to a .trc file path")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     subset_dir = os.path.join(args.prefix, args.subset)
     calib_json = os.path.join(args.prefix, "results", f"{args.calib}.json")

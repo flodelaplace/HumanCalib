@@ -371,16 +371,37 @@ répertoire de travail arbitraire.
 
 | ID | Tâche |
 |----|-------|
-| T7.1 | `humancalib.cli` à sous-commandes ; chaque étape a déjà un `main(argv)` appelable |
-| T7.2 | Porter les 2 heredocs Python de `calibrate.sh` (lignes 259-290, 298-314) dans des modules versionnés et testables |
-| T7.3 | Donner un vrai argparse à `run_ba.py` (13 positionnels → options nommées) |
-| T7.4 | Remplacer les 3 protocoles de scraping de stdout par des valeurs de retour |
-| T7.5 | Remplacer les appels `subprocess` internes par des appels en processus — **sauf** la reprise BA après OOM (`run_ba.py:49-86`), qui a besoin d'un processus neuf |
-| T7.6 | Conserver un shim `calibrate.sh` de ~15 lignes pour que les commandes du `HOWTO.md` continuent de fonctionner |
-| T7.7 | Garder en shell **uniquement** la bascule d'environnement `conda run` — seule vraie frontière de processus |
+| T7.1 | **fait** — `humancalib run` (pipeline complet, **ligne de commande de `calibrate.sh` inchangée**, mots nus `cuda balanced` compris) et `humancalib <étape>` pour les 11 étapes ; commande `humancalib` installée par pip, et `python -m humancalib`. *La prémisse « chaque étape a déjà un `main(argv)` » était fausse* : seules 3 sur 11 en avaient un ; `calib_linear` n'avait qu'un bloc `__main__`. Toutes en ont désormais un |
+| T7.2 | **fait** — `pipeline/poses_cache.py` (vérification du cache de poses) et `pipeline/frame_mapping.py` (squelette monde en numéros absolus), testés ; la règle du cache est volontairement conservée à l'identique (plage d'images seulement, pas les intrinsèques — limite documentée dans `HOWTO.md`) |
+| T7.3 | **fait** — options nommées avec les valeurs du pipeline par défaut ; l'ancienne forme à 13 positionnels reste acceptée, dépréciée, pour ne casser aucun script existant ; boucle de reprise testée avec un exécuteur simulé |
+| T7.4 | **fait** — `evaluate_calibration.main` renvoie le MRE, `detect_outlier_frames.main` le nombre d'images écartées. Le plus fragile était dans `run_calib_linear` : le MRE de chaque chunk était le 4ᵉ mot d'une ligne contenant « Global MRE » ; reformuler ce message aurait rendu tous les chunks inévaluables et fait échouer la calibration |
+| T7.5 | **fait, avec deux exceptions de plus que prévu, assumées.** En processus : caméras, session, chunks linéaires et leur évaluation, détection d'aberrants, évaluation, mise à l'échelle ; une étape qui fait `sys.exit(≠0)` devient une `PipelineError` qui la nomme. En sous-processus : le BA (reprise OOM), **l'extraction de poses** (TensorFlow/PyTorch gardent la mémoire GPU jusqu'à la fin du processus, et MeTRAbs peut vivre dans un autre env conda) et **la visualisation** (rendu d'animation lourd, dont l'échec a toujours été toléré et ne doit pas emporter une calibration terminée) |
+| T7.6 | **fait** — 533 lignes → 5 lignes de code : `cd` à la racine du dépôt (les chemins relatifs du `HOWTO.md` en dépendent) puis `exec python -m humancalib.cli run`. Un test échoue si le shim dépasse 10 lignes de code |
+| T7.7 | **fait autrement** — même la bascule `conda run` est passée en Python (`resolve_metrabs_launcher`), où elle est testable ; le shell ne garde que `cd` et `PYTHONPATH` |
 
 **Critère d'acceptation :** les commandes documentées dans `HOWTO.md` fonctionnent à l'identique ; le
 golden-run de la Phase 5 reste vert.
+
+*Vérifié* : les trois commandes du `HOWTO.md` sont analysées mot pour mot dans `tests/test_cli.py` ; 93 tests
+verts, golden-run compris — les chunks linéaires en processus donnent les mêmes chiffres. *Exécution de bout en
+bout de la commande MeTRAbs du `HOWTO.md` via le shim : en cours de vérification.*
+
+**B8 — ordre et extensions des vidéos, découvert en portant `calibrate.sh`.** L'étape de poses numérotait les
+caméras dans l'ordre lexicographique (`sorted()`), mais `calibrate.sh` nommait les caméras — donc choisissait
+leurs intrinsèques dans le TOML — avec `sort -V`, l'ordre naturel. Identiques sur des noms à zéros (`cam01`) ou
+de même longueur, mais pas sur `cam1…cam10` : `cam1 cam2 cam10` contre `cam1 cam10 cam2`. **À partir de la
+dixième caméra, des poses étaient appariées aux intrinsèques d'une autre caméra**, sans erreur. De plus,
+`calibrate.sh`, `evaluate_calibration` et `scale_scene` ne cherchaient que `*.mp4` pour nommer les caméras alors
+que l'étape de poses lit aussi `.avi`, `.mov`, `.mkv` : ces formats, annoncés comme pris en charge par
+`HOWTO.md`, arrêtaient le pipeline à l'étape 2. Sept listes de vidéos privées remplacées par
+`core/videos.py`, dans l'ordre de l'étape de poses — pas l'ordre naturel, pour ne renuméroter aucune caméra déjà
+extraite ; et par un ensemble, car sur un système de fichiers insensible à la casse (NTFS sous `/mnt/c`),
+`*.mp4` et `*.MP4` comptaient chaque caméra deux fois. **Les sessions de l'auteur ne sont pas concernées**
+(`CAMERA01…`, numéros de série de longueur égale).
+
+**Résumé final trompeur.** Quand `--ref_frame` sortait de la plage, la mise à l'échelle était sautée mais le
+tableau final annonçait tout de même « Final TOML file generated ». Le résumé ne liste plus que les fichiers
+qui existent.
 
 ---
 
@@ -511,5 +532,5 @@ Mesures : GPU 9–12 s par caméra contre 3 min 55 s en CPU. Image ramenée de
 | 4 — Config par session | **terminée** | 2026-09-13 |
 | 5 — Tests + CI | **terminée** | 2026-09-14 |
 | 6 — Package | **terminée** | 2026-09-14 |
-| 7 — CLI Python | à faire | |
+| 7 — CLI Python | écrite, démo HOWTO en vérification | 2026-09-14 |
 | 8 — logging + docs | à faire | |

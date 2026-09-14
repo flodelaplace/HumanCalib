@@ -78,8 +78,8 @@ def calibrated(tmp_path_factory):
 
     ba = subprocess.run(
         [sys.executable, "-m", "humancalib.pipeline.run_ba",
-         *common, str(exp["frame_skip"]), "1.", "1.", "linear_1_0",
-         "MyDataset", "false", "true", str(exp["conf_threshold"]), "analytic"],
+         "--prefix", str(run), "--frame_skip", str(exp["frame_skip"]),
+         "--conf_threshold", str(exp["conf_threshold"]), "--ba_jac", "analytic"],
         cwd=_REPO, env=env, capture_output=True, text=True)
 
     return run, linear, ba

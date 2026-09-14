@@ -65,6 +65,10 @@ dev = [
     "pytest>=8",
 ]
 
+[project.scripts]
+# `humancalib run ...` takes scripts/calibrate.sh's arguments unchanged.
+humancalib = "humancalib.cli:main"
+
 [project.urls]
 Repository = "https://github.com/flodelaplace/HumanCalib"
 

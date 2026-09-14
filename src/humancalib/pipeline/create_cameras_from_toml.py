@@ -33,7 +33,7 @@ import cv2
 from humancalib.core.toml_io import load_toml
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Convertit un fichier TOML de calibration en cameras_G{gid}.json"
     )
@@ -41,7 +41,7 @@ def main():
     parser.add_argument("--output_dir", required=True, help="Dossier de sortie")
     parser.add_argument("--gid", type=int, default=1, help="Group/Scene ID")
     parser.add_argument("--cam_names", nargs='+', required=True, help="Liste des noms de base des vidéos (sans extension)")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # ---- Lire le TOML -------------------------------------------------------
     data = load_toml(args.toml)

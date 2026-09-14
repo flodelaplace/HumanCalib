@@ -32,11 +32,12 @@ import argparse
 import json
 import os
 import sys
-import glob
 
 import cv2
 import numpy as np
 from tqdm import tqdm
+
+from humancalib.core.videos import list_videos
 
 try:
     from rtmlib.visualization.draw import draw_skeleton
@@ -228,7 +229,7 @@ def process_video(video_path: str, body_model, output_op25_json: str, output_hal
     return width, height
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Extract 2D poses with RTMPose (BodyWithFeet/Halpe26) "
                     "and save in OpenPose-25 JSON format for the calibration repo."
@@ -256,14 +257,10 @@ def main():
                         help="End frame index for pose extraction (default: last frame)")
     parser.add_argument("--save_video", action="store_true",
                         help="Generate and save an overlay video of 2D pose estimation.")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # ---- collect & sort video files ----------------------------------------
-    exts = ("*.mp4", "*.avi", "*.mov", "*.mkv", "*.MP4", "*.AVI")
-    video_files = []
-    for ext in exts:
-        video_files.extend(glob.glob(os.path.join(args.video_dir, ext)))
-    video_files = sorted(video_files)
+    video_files = list_videos(args.video_dir)
 
     if len(video_files) == 0:
         print(f"ERROR: No video files found in {args.video_dir}")

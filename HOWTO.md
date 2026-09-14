@@ -11,11 +11,11 @@ This guide explains how to calibrate camera extrinsics from your own videos usin
 
 *(A ready-to-run `demo/` folder is provided: 4 synchronized videos + `Calib_scene.toml`.)*
 
-Optional but useful: a `<video>.dropped.json` sidecar next to each video, listing absolute frame indices that should be ignored everywhere (corrupted / black frames). The auto outlier-frame drop step also writes these automatically — see the main README for details.
+Optional but useful: a `<video>.dropped.json` sidecar listing absolute frame indices that should be ignored everywhere (corrupted / black frames). The auto outlier-frame drop step writes these under `<output_dir>/noise_1_0/dropped_frames/`, never into your input folder; a hand-written sidecar placed next to its video is still read and merged.
 
 ### 2. Run the full pipeline
 
-`scripts/calibrate.sh` orchestrates the 7-step pipeline (pose extraction → intrinsics loading → linear init → auto outlier-frame drop → BA → MRE evaluation → scaling).
+`scripts/calibrate.sh` runs the 7-step pipeline (pose extraction → intrinsics loading → linear init → auto outlier-frame drop → BA → MRE evaluation → scaling). It forwards to the Python CLI: once the package is installed, `humancalib run` takes exactly the same arguments, and `humancalib --help` lists the steps that can be run on their own.
 
 **Recommended: MeTRAbs path** (direct metric 3D, Procrustes init, much higher accuracy):
 
@@ -107,7 +107,7 @@ If one camera lags behind the others (e.g. MRE 9 px while the rest are at 5 px):
 
 - Look at its `MRE_visualizations/<calib>/camX_worst.png` — if the reprojected points are systematically offset, the camera's K is wrong; re-calibrate it.
 - Check the Procrustes log line for that camera in the linear init. **Low Procrustes residual (≤ ~100 mm) but high MRE ⇒ intrinsics issue** (the 3D shape from MeTRAbs is fine, the projection back to 2D is biased by a wrong K).
-- The auto-outlier drop writes per-video `<video>.dropped.json` files in your input folder — check them to see which frames were flagged.
+- The auto-outlier drop writes per-video `<video>.dropped.json` files under `<output_dir>/noise_1_0/dropped_frames/` — check them to see which frames were flagged.
 
 If the auto-selected reference camera doesn't seem right (e.g. you know cam 3 has the cleanest view of the subject), force it:
 

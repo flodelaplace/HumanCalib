@@ -240,6 +240,10 @@ pip install --no-deps -e .            # the package itself, into that environmen
 `--no-deps` matters: the environment already pins every dependency exactly, and
 letting pip re-resolve would swap validated versions for whatever is newest.
 
+Installing the package also provides a `humancalib` command. `humancalib run`
+takes exactly the arguments of `scripts/calibrate.sh`, and `humancalib --help`
+lists the steps that can be run on their own (`humancalib ba --prefix output/run1`).
+
 ## 2. Quick Demo
 
 A demo dataset (4 cameras, 100 frames) is included in `demo/`.
@@ -519,7 +523,7 @@ HumanCalib/
 │   └── tools/                # Standalone utilities, outside the pipeline
 │
 ├── scripts/
-│   ├── calibrate.sh          # Pipeline orchestrator
+│   ├── calibrate.sh          # Compatibility shim → `humancalib run`
 │   └── setup_models.sh       # VideoPose3D checkout + weights (optional backend only)
 │
 ├── envs/                     # Exact, validated environments: calib, rtmpose, ci
@@ -548,12 +552,12 @@ HumanCalib/
 | High MRE on one camera | Bad intrinsics (distortion) | Check distortion coefficients: k1/k2 should be in [-2, 2]. Values > 5 are likely wrong. |
 | BA makes MRE worse | Regularization too strong | Auto-balanced lambda should handle this. If not, check if `objfun_multiview3d` is disabled. |
 | `No valid orientations` | Too few visible frames | Lower `--conf_threshold` or use a different frame range where person is more visible. |
-| MeTRAbs import error | Wrong conda env | MeTRAbs runs in `metrabs_opensim` env; `calibrate.sh` handles this via `conda run -n metrabs_opensim`. |
+| MeTRAbs import error | TensorFlow not in the environment | MeTRAbs runs in the current environment, or in a `metrabs_opensim` conda environment if one exists. Set `HUMANCALIB_METRABS_PYTHON` to an interpreter command line to choose explicitly. |
 | OOM during BA | Too many frames | `run_ba.py` auto-retries with `frame_skip += 5` (up to max 60) to reduce memory usage. |
 | Poses not re-extracted | Cache hit | Delete `output/*/noise_1_0/2d_joint` and `3d_joint` to force re-extraction (the cache only checks frame range, not intrinsics). |
 | Same intrinsics work better than individual ones | Poor per-camera calibration | If cameras are the same model, try shared intrinsics as baseline. |
 | One camera much higher MRE than others | Wrong intrinsics for that camera | Look at its Procrustes residual in the linear log — if it's low (≤ 100 mm) but its MRE is high, the K matrix (focal/principal point) is the bottleneck. The auto reference-camera selection avoids using a problematic camera as world frame. |
-| Half-image / corrupted frames inflate MRE | Encoding artifacts | Auto outlier-frame drop catches these; sidecar `<video>.dropped.json` files are written automatically. To pre-flag known frames, hand-edit the sidecar before the first run. |
+| Half-image / corrupted frames inflate MRE | Encoding artifacts | Auto outlier-frame drop catches these; sidecar `<video>.dropped.json` files are written automatically under `<output_dir>/noise_1_0/dropped_frames/`. To pre-flag known frames, hand-edit the sidecar before the first run. |
 
 ---
 

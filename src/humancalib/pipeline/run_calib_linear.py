@@ -23,13 +23,14 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import sys
+import traceback
+
+from humancalib.calibration import calib_linear
+from humancalib.postprocessing import evaluate_calibration
 
 CHUNK_SIZE = 1000  # process 1000 frames at a time (visibility filter selects best within)
 
-CALIB_MODULE = "humancalib.calibration.calib_linear"
-EVAL_MODULE = "humancalib.postprocessing.evaluate_calibration"
 
 
 def parse_args(argv):
@@ -92,8 +93,7 @@ def map_video_frames_to_indices(skeleton_file, req_start, req_end):
 
 def run_chunk(args, frame_start, frame_end, chunk_id, total_chunks):
     print(f"\n--- Processing Chunk {chunk_id}/{total_chunks} (Frames {frame_start}-{frame_end}) ---")
-    cmd = [
-        sys.executable, "-m", CALIB_MODULE,
+    chunk_argv = [
         "--prefix", args.prefix,
         "--aid", str(args.aid),
         "--pid", str(args.pid),
@@ -107,31 +107,37 @@ def run_chunk(args, frame_start, frame_end, chunk_id, total_chunks):
         "--conf_threshold", str(args.conf_threshold),
     ]
     if args.ref_cam is not None:
-        cmd.extend(["--ref_cam", str(args.ref_cam)])
-    subprocess.run(cmd, check=False)
+        chunk_argv.extend(["--ref_cam", str(args.ref_cam)])
+    # A chunk that fails is skipped, as it was when this ran in a subprocess
+    # whose exit code nobody checked -- but it is now said, with the traceback,
+    # instead of vanishing. The best-chunk selection below simply never sees it.
+    try:
+        calib_linear.main(chunk_argv)
+    except SystemExit as err:
+        if err.code not in (0, None):
+            print(f"WARNING: chunk {chunk_id} exited with {err.code}; skipping it.", file=sys.stderr)
+    except Exception:
+        print(f"WARNING: chunk {chunk_id} failed; skipping it.", file=sys.stderr)
+        traceback.print_exc()
 
 
 def evaluate_chunk(args, chunk_id):
-    """Run evaluate_calibration on one chunk and return its Global MRE (or None)."""
-    cmd = [
-        sys.executable, "-m", EVAL_MODULE,
-        "--prefix", args.prefix,
-        "--calib", f"chunks/linear_chunk_{chunk_id}",
-        "--conf_threshold", str(args.conf_threshold),
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    print(result.stdout)
-    if result.stderr:
-        print(result.stderr, file=sys.stderr)
-    for line in result.stdout.splitlines():
-        if "Global MRE" in line:
-            parts = line.split()
-            # Expect "  -> Global MRE: 12.345 pixels" — MRE is the 4th token
-            try:
-                return float(parts[3])
-            except (IndexError, ValueError):
-                return None
-    return None
+    """Global MRE of one chunk's calibration, or None if it cannot be evaluated.
+
+    Read from the evaluation's return value. It used to run in a subprocess
+    whose stdout was searched for "Global MRE" and split on whitespace to take
+    the fourth token -- so rewording that message, or a warning landing on the
+    same line, would have made every chunk silently unevaluable and aborted the
+    calibration with "Could not determine the best calibration chunk".
+    """
+    try:
+        return evaluate_calibration.main([
+            "--prefix", args.prefix,
+            "--calib", f"chunks/linear_chunk_{chunk_id}",
+            "--conf_threshold", str(args.conf_threshold),
+        ])
+    except SystemExit:
+        return None
 
 
 def derive_final_name(target):

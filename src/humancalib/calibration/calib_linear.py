@@ -394,8 +394,9 @@ def main_linear(
     return R_w2c_est, t_w2c_est, p3d_w_est, e, CAMID, K
 
 
-if __name__ == "__main__":
-    args = parse_args()
+def main(argv=None):
+    """Run one linear calibration -- one chunk -- from command-line options."""
+    args = parse_args(argv)
     PREFIX = args.prefix + "/" + args.target
     AID = args.aid
     PID = args.pid
@@ -449,3 +450,7 @@ if __name__ == "__main__":
         print("Calibration failed for this chunk, no file saved.")
 
     print(" ")
+
+
+if __name__ == "__main__":
+    main()

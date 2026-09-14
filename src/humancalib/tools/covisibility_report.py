@@ -25,7 +25,6 @@ Usage:
         --min_covis 50
 """
 import argparse
-import glob
 import os
 import sys
 
@@ -34,6 +33,7 @@ import numpy as np
 
 from humancalib.core import load_poses, load_eldersim_camera
 from humancalib.core.sidecars import read_dropped
+from humancalib.core.videos import list_videos
 
 
 def parse_args():
@@ -81,11 +81,7 @@ def load_dropped(prefix, subset, video_dir, camid):
     """
     if not video_dir:
         return {}, {}
-    exts = ("*.mp4", "*.avi", "*.mov", "*.mkv", "*.MP4", "*.AVI")
-    videos = []
-    for ext in exts:
-        videos.extend(glob.glob(os.path.join(video_dir, ext)))
-    videos = sorted(videos)
+    videos = list_videos(video_dir)
     if len(videos) != len(camid):
         print(f"  WARN: {len(videos)} videos vs {len(camid)} cams — skipping sidecar drops.")
         return {}, {}

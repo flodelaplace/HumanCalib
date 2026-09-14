@@ -26,7 +26,6 @@ Usage:
 import argparse
 import os
 import sys
-import glob
 import re
 
 import cv2
@@ -44,6 +43,7 @@ except ImportError:  # Python <= 3.10
 from humancalib.core import load_poses, load_eldersim_camera
 from humancalib.core.geometry import triangulate_dlt
 from humancalib.core.session import session_ids
+from humancalib.core.videos import camera_names, list_videos
 
 def triangulate_skeleton(p2d_all, s2d_all, K, R_w2c, t_w2c, conf_threshold=0.5):
     """Triangulate 2D joints from every camera into a world-frame skeleton.
@@ -177,7 +177,9 @@ def export_to_toml(input_toml_path, output_toml_path, R_w2c, t_w2c, cam_names):
     print(f"\nSuccessfully exported final calibration to: {output_toml_path}")
 
 
-def main():
+def main(argv=None):
+    """Evaluate a calibration. Returns the global MRE in pixels, or None when
+    only exporting a TOML -- so callers read a value instead of parsing stdout."""
     parser = argparse.ArgumentParser(description="Calculates MRE and handles calibration file operations.")
     parser.add_argument("--prefix", required=True, help="Path to the session folder")
     parser.add_argument("--calib", required=True, help="Name of the calibration JSON file")
@@ -190,7 +192,7 @@ def main():
     parser.add_argument("--input_toml", default=None, help="Path to the input TOML file to use as a template")
     parser.add_argument("--export_toml", default=None, help="Path to save the final calibrated TOML file")
     parser.add_argument("--conf_threshold", type=float, default=0.5, help="Confidence threshold for 2D keypoints")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.visualize and not args.video_dir:
         parser.error("--video_dir is required when --visualize is set.")
@@ -212,10 +214,9 @@ def main():
     if args.export_toml:
         if not args.video_dir: # We need video_dir to get the cam_names in order
              parser.error("--video_dir is required for TOML export to determine camera name order.")
-        video_files = sorted(glob.glob(os.path.join(args.video_dir, "*.MP4")) + glob.glob(os.path.join(args.video_dir, "*.mp4")))
-        cam_names = [os.path.splitext(os.path.basename(f))[0] for f in video_files]
+        cam_names = camera_names(args.video_dir)
         export_to_toml(args.input_toml, args.export_toml, R_w2c, t_w2c, cam_names)
-        sys.exit(0) # Exit after exporting
+        return None  # export only: no MRE computed
 
     # --- MRE Calculation and Visualization Logic ---
     aid, pid, gid = session_ids(subset_dir, args.prefix)
@@ -255,7 +256,7 @@ def main():
         print("\nGenerating visualizations...")
         vis_dir = os.path.join(args.prefix, "results", "MRE_visualizations", args.calib)
         os.makedirs(vis_dir, exist_ok=True)
-        video_files = sorted(glob.glob(os.path.join(args.video_dir, "*.MP4")) + glob.glob(os.path.join(args.video_dir, "*.mp4")))
+        video_files = list_videos(args.video_dir)
 
         for c, cam_id in enumerate(CAMID):
             frame_errors = np.nanmean(np.where(valid_mask[c], all_errors[c], np.nan), axis=1)
@@ -278,6 +279,9 @@ def main():
                     cv2.imwrite(out_path, vis_img)
                     print(f"  Saved: {out_path}")
             cap.release()
+
+    return float(global_mre)
+
 
 if __name__ == "__main__":
     main()

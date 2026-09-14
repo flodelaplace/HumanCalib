@@ -32,6 +32,7 @@ import numpy as np
 from humancalib.core import load_poses
 from humancalib.core.geometry import triangulate_dlt
 from humancalib.core.session import session_ids
+from humancalib.core.videos import camera_names
 from humancalib.postprocessing.evaluate_calibration import export_to_toml
 
 # Keypoint indices in Halpe26 (used with RTMPose)
@@ -82,7 +83,7 @@ def get_3d_keypoint(p2d_all, s2d_all, K, R_w2c, t_w2c, frame_idx, joint_idx, con
     return None if np.isnan(X).any() else X
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description="Scales and reorients a scene to metric units.")
     parser.add_argument("--prefix", required=True, help="Path to the session folder")
     parser.add_argument("--calib", required=True, help="Name of the best calibration JSON file")
@@ -95,7 +96,7 @@ def main():
     parser.add_argument("--conf_threshold", type=float, default=0.5, help="Confidence threshold for 2D keypoints")
     parser.add_argument("--pose_engine", default="rtmpose", choices=["rtmpose", "metrabs"],
                         help="Pose engine used: determines joint format for scaling")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # --- Select joint format based on pose engine ---
     # Auto-detect: check if 2d_joint has 87 joints (full bml_movi_87)
@@ -249,8 +250,7 @@ def main():
     if args.export_toml:
         if not args.video_dir:
             parser.error("--video_dir is required for TOML export.")
-        video_files = sorted(glob.glob(os.path.join(args.video_dir, "*.MP4")) + glob.glob(os.path.join(args.video_dir, "*.mp4")))
-        cam_names = [os.path.splitext(os.path.basename(f))[0] for f in video_files]
+        cam_names = camera_names(args.video_dir)
         export_to_toml(args.input_toml, args.export_toml, R_w2c_new, t_w2c_scaled, cam_names)
 
 if __name__ == "__main__":

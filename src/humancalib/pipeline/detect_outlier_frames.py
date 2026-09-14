@@ -19,7 +19,6 @@ Usage:
         --abs_px 50 --x_median 5
 """
 import argparse
-import glob
 import json
 import os
 import sys
@@ -30,9 +29,10 @@ import numpy as np
 from humancalib.postprocessing.evaluate_calibration import triangulate_skeleton, reproject_points
 from humancalib.core import load_poses, load_eldersim_camera
 from humancalib.core.sidecars import write_dropped
+from humancalib.core.videos import list_videos
 
 
-def parse_args():
+def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--prefix", required=True)
@@ -45,7 +45,7 @@ def parse_args():
     p.add_argument("--abs_px", type=float, default=50.0)
     p.add_argument("--x_median", type=float, default=5.0)
     p.add_argument("--conf_threshold", type=float, default=0.5)
-    return p.parse_args()
+    return p.parse_args(argv)
 
 
 def load_camera_poses(prefix, subset, aid, pid, gid, n_cams):
@@ -110,8 +110,9 @@ def zero_scores_in_json(json_path, dropped_frames):
     return n_changed
 
 
-def main():
-    args = parse_args()
+def main(argv=None):
+    """Detect and drop outlier frames. Returns how many frames were newly dropped."""
+    args = parse_args(argv)
 
     calib_path = os.path.join(args.prefix, "results", f"{args.calib}.json")
     CAMID, K, R_w2c, t_w2c, _ = load_eldersim_camera(calib_path)
@@ -125,11 +126,7 @@ def main():
     frame_errors = per_frame_reproj_errors(p2d, s2d, X3d, K, R_w2c, t_w2c, args.conf_threshold)
     outliers = detect_outliers(frame_errors, args.abs_px, args.x_median)
 
-    exts = ("*.mp4", "*.avi", "*.mov", "*.mkv", "*.MP4", "*.AVI")
-    video_files = []
-    for ext in exts:
-        video_files.extend(glob.glob(os.path.join(args.video_dir, ext)))
-    video_files = sorted(video_files)
+    video_files = list_videos(args.video_dir)
     if len(video_files) != n_cams:
         print(f"ERROR: found {len(video_files)} videos in {args.video_dir} "
               f"but calib has {n_cams} cams", file=sys.stderr)
@@ -163,6 +160,7 @@ def main():
                 zero_scores_in_json(jp, bad_frames)
 
     print(f"NEW_DROPS={total_added}")
+    return total_added
 
 
 if __name__ == "__main__":

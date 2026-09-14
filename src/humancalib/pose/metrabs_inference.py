@@ -38,11 +38,11 @@ warnings.filterwarnings('ignore')              # silence pkg_resources deprecati
 import argparse
 import json
 import sys
-import glob
 
 from humancalib.core.models import METRABS_L_URL
 from humancalib.core.toml_io import load_toml
 from humancalib.core.sidecars import read_dropped
+from humancalib.core.videos import list_videos
 
 import numpy as np
 import cv2
@@ -317,7 +317,7 @@ def save_skeleton_w(filepath, frame_indices, poses3d):
         json.dump(out, f, indent=2, ensure_ascii=True)
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Extract 2D+3D poses with MeTRAbs (bml_movi_87) for multi-camera calibration."
     )
@@ -332,14 +332,10 @@ def main():
     parser.add_argument("--end_frame", type=int, default=None, help="End frame index")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size for inference")
     parser.add_argument("--skeleton", default="bml_movi_87", help="MeTRAbs skeleton name")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # Collect and sort video files
-    exts = ("*.mp4", "*.avi", "*.mov", "*.mkv", "*.MP4", "*.AVI")
-    video_files = []
-    for ext in exts:
-        video_files.extend(glob.glob(os.path.join(args.video_dir, ext)))
-    video_files = sorted(video_files)
+    video_files = list_videos(args.video_dir)
 
     if not video_files:
         print(f"ERROR: No video files found in {args.video_dir}")
