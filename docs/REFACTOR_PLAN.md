@@ -536,10 +536,19 @@ chercher les bibliothèques dans le répertoire courant — est éliminée.
 réglages inconnus ; toutes les mesures du jour donnent 4,03 à 4,06 px. Remplacé par les valeurs mesurées, avec
 leurs conditions.
 
-**Reste à faire** (connexion requise, prévu le soir même) : l'option B en natif pour de vrai
-(`envs/calib.yaml` ≈ 3 Go, en forçant l'environnement neuf, car la machine de l'auteur possède
-`metrabs_opensim`, prioritaire), et l'option C (`pip install git+…` depuis `main`) dans un conteneur Python
-vierge, y compris sans `libGL`.
+**Option B testée pour de vrai, en natif** (environnement neuf `humancalib-optb-test`, lanceur forcé sur
+lui car la machine de l'auteur possède `metrabs_opensim`) : `conda env create -f envs/calib.yaml` sans erreur,
+démo du README `RC=0`, **`Compute device: GPU`**, MRE 4,035 px après BA, TOML final généré, commande
+`humancalib` fonctionnelle après `pip install --no-deps -e .`. Ce résultat **dépend du correctif de cette
+branche** : sur `main`, la même installation ferait tourner MeTRAbs sur CPU.
+
+**Option C testée dans un `python:3.10-slim` vierge** (`pip install git+…` depuis `main`) : l'installation
+réussit, les dépendances de `pyproject.toml` se résolvent depuis PyPI — ce qui n'avait jamais été vérifié, toutes
+les installations précédentes utilisant `--no-deps`. **Mais sans `libgl1` et `libglib2.0-0`, même
+`humancalib --help` échoue** (`ImportError: libGL.so.1`) : la CLI importe `humancalib.core`, qui importe
+OpenCV. Avec ces deux paquets, tout s'importe. Documenté dans l'option C et le dépannage. Passer à
+`opencv-contrib-python-headless` éviterait la dépendance, mais `pycalib-simple` exige la variante non headless :
+les deux distributions finiraient installées dans le même `cv2/`, précisément le conflit déjà documenté.
 
 ---
 

@@ -91,6 +91,14 @@ pip install "git+https://github.com/flodelaplace/HumanCalib"
 humancalib --help
 ```
 
+On a minimal Linux system — a server, a slim container — OpenCV also needs two
+system libraries. Without them even `humancalib --help` fails with
+`ImportError: libGL.so.1`:
+
+```bash
+sudo apt-get install libgl1 libglib2.0-0
+```
+
 This installs the `humancalib` package and command (Python ≥ 3.10): linear
 calibration, bundle adjustment, evaluation and scaling run on a CPU, as
 individual steps (`humancalib ba --prefix output/my_session`) or from Python.
@@ -532,6 +540,7 @@ HumanCalib/
 | `ERROR: /output is not writable by uid ...` | `output/` owned by another user, e.g. root after an earlier run | Create `.env` as in [Option A](#option-a--docker-recommended), or fix the ownership of `output/`. |
 | `ERROR: this container can see a GPU, but cannot load the CUDA runtime` | `LD_LIBRARY_PATH` overridden at run time | Append to it instead of replacing it; the message shows the value to use. |
 | `the RTMPose backend is not installed in this environment` | `--pose_engine rtmpose` (the native default) without that backend | Pass `--pose_engine metrabs`, or use the RTMPose image or environment. |
+| `ImportError: libGL.so.1: cannot open shared object file` | Minimal Linux system without OpenCV's system libraries | `sudo apt-get install libgl1 libglib2.0-0` |
 
 ---
 
