@@ -194,6 +194,13 @@ def test_the_environments_cuda_runtime_reaches_the_gpu_steps(tmp_path):
     assert again["LD_LIBRARY_PATH"] == lib, "added twice"
 
 
+def test_empty_loader_path_entries_are_dropped():
+    """An empty entry would make the loader search the current directory."""
+    env = cli.child_env(environ={"LD_LIBRARY_PATH": "/a::/b:"}, isdir=lambda _: False,
+                        exists=lambda _: False)
+    assert env["LD_LIBRARY_PATH"] == os.pathsep.join(["/a", "/b"])
+
+
 def test_no_cuda_runtime_means_the_loader_path_is_left_alone(tmp_path):
     env = cli.child_env(environ={}, isdir=lambda _: False, prefix=str(tmp_path))
     assert "LD_LIBRARY_PATH" not in env

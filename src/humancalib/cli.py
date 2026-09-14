@@ -184,9 +184,6 @@ def child_env(environ=None, isdir=os.path.isdir, prefix=None, exists=os.path.exi
     # path. Only where it exists: prepending it unconditionally shadowed the
     # driver stubs the NVIDIA container runtime injects.
     wsl = "/usr/lib/wsl/lib"
-    current = env.get("LD_LIBRARY_PATH", "")
-    if isdir(wsl) and wsl not in current.split(os.pathsep):
-        env["LD_LIBRARY_PATH"] = os.pathsep.join(p for p in (wsl, current) if p)
 
     # The CUDA runtime installed by envs/calib.yaml lives in the environment's
     # lib/, which is NOT on the loader path: `conda activate` does not add it --
@@ -197,9 +194,20 @@ def child_env(environ=None, isdir=os.path.isdir, prefix=None, exists=os.path.exi
     # starts, which is why it is done here. Added only when that runtime is
     # actually present, and never twice: the Docker image sets it already.
     lib = os.path.join(sys.prefix if prefix is None else prefix, "lib")
-    current = env.get("LD_LIBRARY_PATH", "")
-    if exists(os.path.join(lib, "libcudart.so.11.0")) and lib not in current.split(os.pathsep):
-        env["LD_LIBRARY_PATH"] = os.pathsep.join(p for p in (lib, current) if p)
+
+    # Empty components are dropped, not preserved: an empty entry makes the
+    # loader search the current directory. Libraries this process imports leave
+    # them behind -- opencv prepends its own directory to an empty variable and
+    # a trailing separator remains.
+    paths = [p for p in env.get("LD_LIBRARY_PATH", "").split(os.pathsep) if p]
+    if isdir(wsl) and wsl not in paths:
+        paths.insert(0, wsl)
+    if exists(os.path.join(lib, "libcudart.so.11.0")) and lib not in paths:
+        paths.insert(0, lib)
+    if paths:
+        env["LD_LIBRARY_PATH"] = os.pathsep.join(paths)
+    else:
+        env.pop("LD_LIBRARY_PATH", None)
     return env
 
 
