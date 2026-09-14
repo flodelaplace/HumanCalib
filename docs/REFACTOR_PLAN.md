@@ -329,7 +329,7 @@ plus ; `input/` montable en lecture seule ; `git status` reste propre après ex�
 | ID | Tâche |
 |----|-------|
 | T5.1 | Figer les JSON de poses de la démo comme fixtures → toute la chaîne numérique testable **sans GPU ni téléchargement de modèle** |
-| T5.2 | Test golden-run : linéaire → BA → évaluation sur `demo/`, MRE dans une tolérance |
+| T5.2 | Test golden-run : linéaire → BA → évaluation sur `demo/`, MRE dans une tolérance. **Tolérances mesurées le 2026-09-14** en rejouant la calibration du run natif du 2026-05-11 sur poses figées, dans le conteneur : l'étape **linéaire est reproduite au bit près** (rotation 0,000°, translation 1,4e-12 sur ~6073) — donc testable à 1e-9. Le **BA ne l'est pas** : 0,011° de rotation et 2e-4 en translation relative, parce que `least_squares` (TRF) suit un chemin d'itérations différent au moindre epsilon et s'arrête ailleurs dans le même bassin. Un test d'égalité stricte sur le BA serait instable ; viser ~0,05° et 1e-3 relatif |
 | T5.3 | `procrustes_align` (`calib_linear.py:134`) — recouvrement de `(R,t,s)` connus à 1e-9, cas de réflexion inclus (`:155-156`) |
 | T5.4 | **Jacobienne analytique vs différences finies** (`ba_jacobian.py:151`) — c'est le code le plus récent et le plus risqué, activé **par défaut** (`argument.py:74`) |
 | T5.5 | Cohérence de triangulation (force la déduplication T3.5) |
@@ -420,13 +420,40 @@ exécuter la démo. C'est le point de sortie minimal si le chantier doit s'arrê
 
 ---
 
+## 5 bis. Validation du 2026-09-14 — ce que le conteneur a révélé
+
+`docker compose run calib demo` s'exécute de bout en bout sur GPU, 7 étapes,
+`DEMO_RC=0`, MRE **4,050 px** pour `linear_1_0_ba` contre 7,998 px pour `linear_1_0`.
+Fichiers de sortie appartenant à l'utilisateur hôte, pas à root. Critères
+d'acceptation des Phases 1 et 2 tenus.
+
+Construire l'image depuis zéro a mis au jour **six défauts réels** qu'une
+installation native vieille de plusieurs mois masquait. Trois n'auraient jamais
+planté — ils auraient seulement mal fonctionné, ce qui est pire :
+
+| # | Défaut | Symptôme pour un nouvel arrivant | Correctif |
+|---|--------|----------------------------------|-----------|
+| 1 | `pandas` non déclaré par `pycalib-simple` (`pycalib/__init__` → `.robust`) | `ModuleNotFoundError` sur `import pycalib` | ajouté au bloc **pip** (pas conda : sinon numpy conda écrase numpy pip) |
+| 2 | `setuptools` ≥ 81 a supprimé `pkg_resources`, que `tensorflow-hub` importe inconditionnellement | chemin MeTRAbs inimportable | `setuptools=80.9.0`. Échéance connue : l'API est vouée à disparaître |
+| 3 | `scale_scene.py` importait son voisin en nom nu | exécutable en script, non importable en module | qualifié `postprocessing.evaluate_calibration` |
+| 4 | **`LD_LIBRARY_PATH` absent** : TF ne trouvait pas libcudart/libcudnn dans l'env conda | **pipeline entier sur CPU, ~20× plus lent, sans un message** | `ENV LD_LIBRARY_PATH` + le device annoncé à chaque run + l'entrypoint refuse de démarrer dans ce cas |
+| 5 | **`bc` absent d'Ubuntu minimal** (`calibrate.sh`) | **la sélection de la meilleure calibration ne se faisait plus** — substitution vide, test jamais déclenché | remplacé par `awk`, présent dans la base |
+| 6 | **Regex sur le nom du dossier de sortie**, dupliquée dans 3 scripts de post-traitement | avertissement alarmant à chaque exécution normale ; renommer un dossier changeait les fichiers lus | lecture du fichier de session (achève T4.4, close à tort dans `calibrate.sh` seulement) |
+
+Mesures : GPU 9–12 s par caméra contre 3 min 55 s en CPU. Image ramenée de
+12,2 à 10,4 Go en sortant 902 Mo de cache pip vers un montage BuildKit.
+
+**Reproductibilité numérique** — voir T5.2 pour les tolérances mesurées.
+
+---
+
 ## 6. Suivi
 
 | Phase | État | Date |
 |-------|------|------|
 | 0 — Assainissement publication | **terminée** | 2026-09-13 |
-| 1 — Bugs + envs épinglés | en cours | 2026-09-13 |
-| 2 — Docker | écrite, `docker build` en cours de vérification | 2026-09-13 |
+| 1 — Bugs + envs épinglés | **terminée** | 2026-09-14 |
+| 2 — Docker | **terminée** | 2026-09-14 |
 | 3 — Nettoyage | **terminée** | 2026-09-13 |
 | 4 — Config par session | **terminée** | 2026-09-13 |
 | 5 — Tests + CI | à faire | |

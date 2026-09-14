@@ -110,9 +110,15 @@ config/config.yaml
 # Accidentally committed empty file, removed from the index
 conda
 
-# Allow all files in the demo folder
-!demo/
-!demo/**/*
+# Allow all files in the demo folder.
+#
+# Anchored with a leading slash, and that matters: a bare `demo/` matches a
+# directory of that name at ANY depth, so it also re-included output/demo/ and
+# defeated the `output/*` rule above. A demo run whose output directory happens
+# to be called `demo` -- which is exactly what the container's `demo` shortcut
+# writes -- then got committed, 43 files and 42 MB of generated JSON.
+!/demo/
+!/demo/**
 
 # ── Misc junk ───────────────────────────────────────────────
 *.pub
