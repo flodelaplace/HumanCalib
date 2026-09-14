@@ -23,6 +23,7 @@ import csv
 import datetime
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -52,6 +53,37 @@ def calibration_command(engine, video_dir, work, metrabs_python):
             "-v", f"{RTMPOSE_MODELS_VOLUME}:/models/torch",
             RTMPOSE_IMAGE, "/input", "/output/input/Calib_scene.toml", "/output/rtmpose", "cuda",
             "--pose_engine", "rtmpose"], dict(os.environ)
+
+
+def wait_for(path, minutes):
+    """True once `path` is reachable, polling for up to `minutes`.
+
+    An external drive that drops out is not a calibration failure: recording
+    every remaining trial as failed would turn one unplugged cable into a
+    night of false results. The batch waits, then stops."""
+    deadline = time.time() + 60 * minutes
+    while True:
+        try:
+            if os.path.isdir(path) and os.listdir(path) is not None:
+                return True
+        except OSError:
+            pass
+        if time.time() >= deadline:
+            return False
+        log.warning(f"{path} is not reachable; waiting...")
+        time.sleep(30)
+
+
+def local_video_copy(video_dir, dest):
+    """Copy a trial's videos to local disk for the Docker run.
+
+    Bind-mounting a Windows drive (drvfs) into a container is slow, and its
+    permission semantics break file copies inside the pipeline."""
+    os.makedirs(dest, exist_ok=True)
+    for name in sorted(os.listdir(video_dir)):
+        if name.lower().endswith((".mp4", ".avi", ".mov", ".mkv")):
+            shutil.copyfile(os.path.join(video_dir, name), os.path.join(dest, name))
+    return dest
 
 
 def run_logged(argv, log_path, env=None):
@@ -87,12 +119,17 @@ def main(argv=None):
     parser.add_argument("--engines", nargs="+", default=["metrabs", "rtmpose"], choices=["metrabs", "rtmpose"])
     parser.add_argument("--metrabs_python", default=sys.executable,
                         help="Python of the environment with TensorFlow (default: this one)")
+    parser.add_argument("--wait_minutes", type=float, default=20,
+                        help="how long to wait for an unreachable dataset drive before stopping")
     args = parser.parse_args(argv)
 
     status = os.path.join(args.work_root, "batch_status.csv")
     os.makedirs(args.work_root, exist_ok=True)
     for participant in args.participants:
         for trial in args.trials:
+            if not wait_for(args.root, args.wait_minutes):
+                log.error(f"dataset root unreachable for {args.wait_minutes} min: stopping the batch")
+                return 2
             work = os.path.join(args.work_root, f"{participant}_{trial}")
             base = {"participant": participant, "trial": trial}
             try:
@@ -107,10 +144,15 @@ def main(argv=None):
                 row = {**base, "engine": engine}
                 ba = os.path.join(work, engine, "results", "linear_1_0_ba.json")
                 if not os.path.isfile(ba):
-                    argv_, env = calibration_command(engine, meta["video_dir"], work, args.metrabs_python)
+                    video_dir = meta["video_dir"]
+                    if engine == "rtmpose":
+                        video_dir = local_video_copy(video_dir, os.path.join(work, "_videos"))
+                    argv_, env = calibration_command(engine, video_dir, work, args.metrabs_python)
                     log.info(f"{participant}_{trial} [{engine}]: calibrating...")
                     t0, started = time.time(), _now()
                     rc = run_logged(argv_, os.path.join(work, f"{engine}_run.log"), env)
+                    if engine == "rtmpose":
+                        shutil.rmtree(os.path.join(work, "_videos"), ignore_errors=True)
                     ok = rc == 0 and os.path.isfile(ba)
                     append_status(status, {**row, "started": started, "step": "calibrate",
                                            "status": "ok" if ok else "failed",
