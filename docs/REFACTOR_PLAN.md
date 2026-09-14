@@ -383,8 +383,10 @@ répertoire de travail arbitraire.
 golden-run de la Phase 5 reste vert.
 
 *Vérifié* : les trois commandes du `HOWTO.md` sont analysées mot pour mot dans `tests/test_cli.py` ; 93 tests
-verts, golden-run compris — les chunks linéaires en processus donnent les mêmes chiffres. *Exécution de bout en
-bout de la commande MeTRAbs du `HOWTO.md` via le shim : en cours de vérification.*
+verts, golden-run compris — les chunks linéaires en processus donnent les mêmes chiffres. Exécution de bout en
+bout, dans l'image, de la commande MeTRAbs du `HOWTO.md` **mot pour mot** via le shim — chemins relatifs `demo` et `demo/Calib_scene.toml`, mots nus `cuda balanced` — seul le dossier de sortie étant dirigé vers le volume monté : `RC=0` en 244 s, `Compute device: GPU`, 7 étapes, MRE **4,034 px** (BA) / 8,091 px (linéaire), TOML final et TRC générés. **Critère tenu.** L'écart avec la démo de la Phase 6 (4,057 / 8,214) vient de la ré-extraction des poses sur GPU, non déterministe : le golden-run, sur poses figées, est inchangé.
+
+**Trouvé par ce test d'acceptation — un piège présent depuis la Phase 2.** Le premier essai a échoué en 2 s sur `unrecognized arguments`. Le raccourci `demo` de `docker/entrypoint.sh` avalait le premier mot d'une commande et ajoutait le reste après ses propres arguments ; or les trois commandes du `HOWTO.md` commencent par un dossier vidéo nommé `demo` (`demo demo/Calib_scene.toml …`). Toute commande documentée collée dans Docker échouait, et l'ancien `calibrate.sh` aurait échoué de même. `demo` n'est plus le raccourci que s'il n'est suivi d'aucun argument positionnel.
 
 **B8 — ordre et extensions des vidéos, découvert en portant `calibrate.sh`.** L'étape de poses numérotait les
 caméras dans l'ordre lexicographique (`sorted()`), mais `calibrate.sh` nommait les caméras — donc choisissait
@@ -532,5 +534,5 @@ Mesures : GPU 9–12 s par caméra contre 3 min 55 s en CPU. Image ramenée de
 | 4 — Config par session | **terminée** | 2026-09-13 |
 | 5 — Tests + CI | **terminée** | 2026-09-14 |
 | 6 — Package | **terminée** | 2026-09-14 |
-| 7 — CLI Python | écrite, démo HOWTO en vérification | 2026-09-14 |
+| 7 — CLI Python | **terminée** | 2026-09-14 |
 | 8 — logging + docs | à faire | |

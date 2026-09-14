@@ -114,6 +114,16 @@ case "${1:-}" in
         exec "${PYTHON}" "$@"
         ;;
     demo)
+        if [ -n "${2:-}" ] && [ "${2#-}" = "${2}" ]; then
+            # Not the shortcut. HOWTO.md's commands begin with a video folder
+            # that is literally called `demo` -- `demo demo/Calib_scene.toml
+            # ...` -- and this branch used to swallow that first word and
+            # append the rest after its own arguments, so every documented
+            # command failed with "unrecognized arguments". `demo` followed by
+            # a positional argument is a pipeline command like any other.
+            preflight
+            exec bash "${REPO_ROOT}/scripts/calibrate.sh" "$@"
+        fi
         shift
         preflight
         # Same invocation as the README quick demo, with the output redirected
