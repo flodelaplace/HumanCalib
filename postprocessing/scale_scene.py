@@ -30,14 +30,16 @@ import re
 
 import numpy as np
 
-# Add repo root for util import (script lives in postprocessing/);
-# sibling evaluate_calibration is found automatically since Python adds the
-# script's own directory to sys.path.
+# Add repo root so the package imports below resolve when this file is run as
+# a script. The sibling used to be imported bare, as `evaluate_calibration`,
+# which only worked because Python puts a script's own directory on sys.path --
+# so the module was runnable but not importable, and `import
+# postprocessing.scale_scene` failed. Qualifying it works both ways.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 from core import load_poses
-from evaluate_calibration import export_to_toml
+from postprocessing.evaluate_calibration import export_to_toml
 
 # Keypoint indices in Halpe26 (used with RTMPose)
 HALPE26_HEAD = 17

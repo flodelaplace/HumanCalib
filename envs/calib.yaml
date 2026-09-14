@@ -31,6 +31,14 @@ dependencies:
   - python=3.10.20
   - pip=26.0.1
 
+  # Pinned below 81, which is where setuptools removed `pkg_resources`.
+  # tensorflow-hub imports it unconditionally at package import
+  # (tensorflow_hub/__init__.py, _ensure_tf_install), so a newer setuptools
+  # makes the entire MeTRAbs path unimportable -- ModuleNotFoundError before a
+  # single frame is read. Nothing here pins setuptools otherwise, so the
+  # resolver would happily take the latest.
+  - setuptools=80.9.0
+
   # CUDA userspace for TensorFlow 2.12. The host only needs a driver >= 525.
   # cuDNN 8.9.7 is the conda-forge build; TF 2.12 requires >= 8.6.
   - cudatoolkit=11.8.0
@@ -78,9 +86,29 @@ dependencies:
       - pycalib-simple==2025.12.5.1
       - scikit-image==0.24.0
 
+      # pandas is an UNDECLARED dependency of pycalib-simple: pycalib/__init__
+      # imports .robust, which imports pandas at module scope. Nothing in its
+      # metadata says so, so a clean install fails on `import pycalib` while a
+      # long-lived development environment works, because something else
+      # brought pandas in years ago. Found by building the container.
+      #
+      # It belongs here rather than in the conda section: conda's pandas would
+      # drag in conda's numpy, which overwrites pip's files while both
+      # dist-info records survive -- the exact shadowing described above.
+      - pandas==2.0.3
+
       # --- MeTRAbs / TensorFlow ---
       - tensorflow==2.12.0
       - tensorflow-hub==0.16.1
+
+      # tensorflow 2.12 declares `jax>=0.3.15` with no upper bound, and jax
+      # pulls jaxlib -- together about 300 MB that nothing in this pipeline
+      # calls. Unpinned they drift with every rebuild, which is the one thing
+      # this file exists to prevent, so they are frozen at what was validated.
+      # They cannot simply be dropped: pip would reinstall them to satisfy
+      # tensorflow's own metadata.
+      - jax==0.4.30
+      - jaxlib==0.4.30
 
       # --- config, IO, progress ---
       #

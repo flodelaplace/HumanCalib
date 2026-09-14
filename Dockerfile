@@ -65,12 +65,14 @@ ENV MAMBA_REMOTE_MAX_RETRIES=5 \
 # Copied on its own, before the source tree: editing a Python file must not
 # invalidate the layer that takes twenty minutes to build.
 COPY envs/calib.yaml /tmp/calib.yaml
-# The package cache is a BuildKit cache mount, so the downloaded tarballs
-# survive a failed build and never enter an image layer -- which is why
-# there is no `micromamba clean` here: cleaning would throw away exactly
-# what makes the next attempt cheap, and the mount is not part of the
-# image regardless.
+# Both package caches are BuildKit cache mounts: the tarballs survive a
+# failed build and never enter an image layer. Hence no `micromamba clean`
+# -- cleaning would throw away exactly what makes the next attempt cheap,
+# and the mount is not part of the image either way. The pip mount matters
+# on its own: pip's HTTP cache was adding 902 MB of downloaded wheels to
+# the finished image, where nothing would ever read them again.
 RUN --mount=type=cache,target=/opt/conda/pkgs,sharing=locked \
+    --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     micromamba create -y -f /tmp/calib.yaml \
     && find /opt/conda/envs -follow -type f -name '*.a' -delete \
     && rm -f /tmp/calib.yaml
