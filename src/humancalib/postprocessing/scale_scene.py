@@ -85,6 +85,39 @@ def get_3d_keypoint(p2d_all, s2d_all, K, R_w2c, t_w2c, frame_idx, joint_idx, con
     return None if np.isnan(X).any() else X
 
 
+def joint_layout(prefix, subset, pose_engine):
+    """Where the 2D poses are, and which joints are the head, heels and feet.
+
+    MeTRAbs files hold either the full bml_movi_87 skeleton or the 26-joint
+    calib26 subset, told apart by their joint count; RTMPose files are Halpe26.
+    """
+    detect_dir = os.path.join(prefix, subset, "2d_joint")
+    n_joints = 0
+    if os.path.isdir(detect_dir):
+        sample = sorted(glob.glob(os.path.join(detect_dir, "*.json")))
+        if sample:
+            with open(sample[0]) as f:
+                d = json.load(f)
+            if d["data"]:
+                n_joints = len(d["data"][0]["skeleton"][0]["score"])
+
+    if pose_engine == "metrabs" and n_joints == 87:
+        return {"name": "bml_movi_87", "n_joints": n_joints, "joint_dir": detect_dir,
+                "head": BML87_HEAD, "l_heel": BML87_L_HEEL, "r_heel": BML87_R_HEEL,
+                "feet": [BML87_L_HEEL, BML87_R_HEEL, BML87_L_TOE, BML87_R_TOE,
+                         BML87_L_FOO, BML87_R_FOO, BML87_L_FIFTHMET, BML87_R_FIFTHMET]}
+    if pose_engine == "metrabs":
+        return {"name": "calib26", "n_joints": n_joints, "joint_dir": detect_dir,
+                "head": CALIB26_HEAD, "l_heel": CALIB26_L_HEEL, "r_heel": CALIB26_R_HEEL,
+                "feet": [CALIB26_L_HEEL, CALIB26_R_HEEL, CALIB26_L_TOE, CALIB26_R_TOE,
+                         CALIB26_L_FOO, CALIB26_R_FOO]}
+    return {"name": "halpe26", "n_joints": n_joints,
+            "joint_dir": os.path.join(prefix, subset, "2d_joint_halpe26"),
+            "head": HALPE26_HEAD, "l_heel": HALPE26_L_HEEL, "r_heel": HALPE26_R_HEEL,
+            "feet": [HALPE26_L_HEEL, HALPE26_R_HEEL, HALPE26_L_BIG_TOE,
+                     HALPE26_R_BIG_TOE, HALPE26_L_SMALL_TOE, HALPE26_R_SMALL_TOE]}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Scales and reorients a scene to metric units.")
     parser.add_argument("--prefix", required=True, help="Path to the session folder")
@@ -100,43 +133,12 @@ def main(argv=None):
                         help="Pose engine used: determines joint format for scaling")
     args = parser.parse_args(argv)
 
-    # --- Select joint format based on pose engine ---
-    # Auto-detect: check if 2d_joint has 87 joints (full bml_movi_87)
-    _detect_dir = os.path.join(args.prefix, args.subset, "2d_joint")
-    _n_joints_detected = 0
-    if os.path.isdir(_detect_dir):
-        _sample = sorted(glob.glob(os.path.join(_detect_dir, "*.json")))
-        if _sample:
-            import json as _json
-            with open(_sample[0]) as _f:
-                _d = _json.load(_f)
-                if _d["data"]:
-                    _n_joints_detected = len(_d["data"][0]["skeleton"][0]["score"])
-
-    if args.pose_engine == "metrabs" and _n_joints_detected == 87:
-        joint_dir = os.path.join(args.prefix, args.subset, "2d_joint")
-        HEAD_IDX = BML87_HEAD
-        L_HEEL_IDX = BML87_L_HEEL
-        R_HEEL_IDX = BML87_R_HEEL
-        foot_kp_indices = [BML87_L_HEEL, BML87_R_HEEL, BML87_L_TOE, BML87_R_TOE,
-                           BML87_L_FOO, BML87_R_FOO, BML87_L_FIFTHMET, BML87_R_FIFTHMET]
-        log.info(f"  Using MeTRAbs bml_movi_87 joints for scaling ({_n_joints_detected} joints)")
-    elif args.pose_engine == "metrabs":
-        joint_dir = os.path.join(args.prefix, args.subset, "2d_joint")
-        HEAD_IDX = CALIB26_HEAD
-        L_HEEL_IDX = CALIB26_L_HEEL
-        R_HEEL_IDX = CALIB26_R_HEEL
-        foot_kp_indices = [CALIB26_L_HEEL, CALIB26_R_HEEL, CALIB26_L_TOE, CALIB26_R_TOE,
-                           CALIB26_L_FOO, CALIB26_R_FOO]
-        log.info(f"  Using MeTRAbs calib26 joints for scaling ({_n_joints_detected} joints)")
-    else:
-        joint_dir = os.path.join(args.prefix, args.subset, "2d_joint_halpe26")
-        HEAD_IDX = HALPE26_HEAD
-        L_HEEL_IDX = HALPE26_L_HEEL
-        R_HEEL_IDX = HALPE26_R_HEEL
-        foot_kp_indices = [HALPE26_L_HEEL, HALPE26_R_HEEL, HALPE26_L_BIG_TOE,
-                           HALPE26_R_BIG_TOE, HALPE26_L_SMALL_TOE, HALPE26_R_SMALL_TOE]
-    halpe26_dir = joint_dir  # used below for loading poses
+    layout = joint_layout(args.prefix, args.subset, args.pose_engine)
+    if args.pose_engine == "metrabs":
+        log.info(f"  Using MeTRAbs {layout['name']} joints for scaling ({layout['n_joints']} joints)")
+    halpe26_dir = layout["joint_dir"]  # used below for loading poses
+    HEAD_IDX, L_HEEL_IDX, R_HEEL_IDX = layout["head"], layout["l_heel"], layout["r_heel"]
+    foot_kp_indices = layout["feet"]
     calib_json_path = os.path.join(args.prefix, "results", f"{args.calib}.json")
 
     with open(calib_json_path, 'r') as f:

@@ -1,0 +1,222 @@
+# Protocole d'évaluation de HumanCalib
+
+Document de travail pour l'article et la thèse. Il fixe **avant** de regarder les
+résultats ce qui est mesuré, comment, et avec quels paramètres, pour qu'aucun
+réglage ne soit ajusté a posteriori sur les données de validation.
+
+Code : `src/humancalib/evaluation/` (lecteurs de calibrations gold, métriques,
+pilotes par dataset), tests : `tests/test_eval_*.py`. Résultats :
+`D:\FLO\Calibration dataset\<Dataset>\<essai>\` (hors dépôt).
+
+---
+
+## 1. Questions
+
+| # | Question | Niveau |
+|---|---|---|
+| Q1 | Quelle est la justesse géométrique des extrinsèques estimés, face à une calibration de laboratoire ? | Géométrie |
+| Q2 | Quel est l'effet de cette calibration sur la cinématique articulaire et les paramètres spatio-temporels obtenus avec Pose2Sim ? | Aval |
+| Q3 | Quelle est la fidélité : dispersion entre plusieurs enregistrements du même dispositif ? | Fidélité |
+| Q4 | Qu'apportent les deux moteurs (MeTRAbs + Procrustes vs RTMPose + VideoPose3D), et à quoi le résultat est-il sensible (image de référence pour l'échelle, type de mouvement) ? | Sensibilité |
+
+La littérature de calibration à partir de l'humain (Takahashi 2018, Lee 2022,
+CasCalib, Xu 2021, Pätzold 2022, HSfM, Kineo, Yang 2026) s'arrête aux erreurs de
+pose de caméra ou au MPJPE, sur des jeux de vision (Human3.6M, Panoptic,
+EgoHumans) ou synthétiques. Aucune n'évalue la cinématique biomécanique ni ne
+compare à une calibration de laboratoire de biomécanique ; aucune ne sépare
+erreur de forme et erreur d'échelle, ni ne mesure la verticale. Le seul
+précédent sur l'effet d'une erreur de calibration sur les angles est Pose2Sim
+Part 1 (Pagnon et al. 2021 : ~1 cm de perturbation → < 0,5°), en simulation.
+
+## 2. Données
+
+| Dataset | Caméras | Vidéo | Gold | Qualité du gold | Référence cinématique |
+|---|---|---|---|---|---|
+| **BioCV** | 9 | 1920×1080, 200 fps, synchro matérielle | Mire de cercles + BA, alignée mocap, par participant | Bonne | `.mot` gold (`_RESULTS/_GOLD_BIOCV`), c3d |
+| **LBMC** | 9 Miqus | 1088×1920 (portrait), 60 fps | QTM baguette (σ 0,19 mm), TOML Pose2Sim | Très bonne | c3d (IK à faire) |
+| **IMOVE-23** | 10 Miqus | 1920×1080, 100 fps, marche ~130 s | QTM XML, 13 sessions | Bonne | `ik.mot` |
+| **OpenCap** | 5 iPhone | 720×1280 (portrait), 60 fps | Damier au mur, intrinsèques génériques | Faible | `.mot` mocap |
+
+Exclus : **Toulouse** (aucune calibration ni intrinsèque), **Fukuchi** (pas de vidéo).
+
+Pièges de conversion identifiés (chaque lecteur a un test) :
+
+* **BioCV** : le bloc 3×3 de la matrice monde→caméra vaut s·R (s ≈ 0,998). La
+  caméra est lue comme `[R | t/s]`, qui projette à l'identique. On utilise
+  `calibrationUpdate/` (alignement mocap raffiné).
+* **LBMC** : distorsions vraisemblablement divisées par 64 à la conversion
+  depuis QTM — à trancher par reprojection des marqueurs avant usage.
+* **IMOVE-23, OpenCap** : k3 ≠ 0 (fort sur IMOVE 22/23), non représentable dans
+  un TOML Pose2Sim à 4 coefficients : le writer refuse plutôt que de tronquer.
+* **Orientation** : vidéos portrait (LBMC, OpenCap) et vues tournées (IMOVE) —
+  la taille d'image doit correspondre aux intrinsèques.
+
+**Validation de chaque lecteur** avant tout résultat : reprojection de points
+3D connus avec la calibration lue, comparée aux projections fournies par le
+dataset. BioCV P03, caméra 08, points d'axes ±1 m de `markers2D` : écart
+0,35–1,9 px (une erreur de convention donnerait des centaines de pixels).
+
+## 3. Principe d'isolation
+
+* **Entrée de HumanCalib** : les vidéos et les **intrinsèques gold**. Seuls les
+  extrinsèques sont estimés, ce qui est la contribution évaluée.
+* **Convention commune** (`evaluation/rig.py`) : `x_cam = R·X + t`, monde→caméra,
+  mètres, centre `C = −Rᵀt`. Toute calibration est convertie à la lecture.
+* **Aval** : même vidéo, mêmes détections 2D, mêmes images, même configuration
+  Pose2Sim ; seul le fichier de calibration change. Toute différence est
+  imputable à la calibration.
+
+## 4. Exécution de HumanCalib (paramètres figés)
+
+* Valeurs par défaut du pipeline : `frame_skip 10`, `conf_threshold 0.5`,
+  détection automatique des images aberrantes, caméra de référence automatique,
+  jacobienne analytique. Aucun réglage par essai.
+* Deux moteurs : `metrabs` et `rtmpose` (RTMPose + VideoPose3D).
+* Échelle : stature fournie par le dataset. Image de référence : règle
+  automatique n'utilisant que les détections de HumanCalib (jamais le gold) —
+  l'image où le plus de caméras voient tête et talons avec confiance, départagée
+  par la confiance moyenne. Sa sensibilité est mesurée (§8).
+* **Un échec compte** : le taux de réussite est un résultat. Un essai qui
+  échoue n'est pas relancé avec d'autres paramètres ; s'il l'est pour une
+  raison technique (panne, disque), c'est consigné.
+
+## 5. Niveau 1 — géométrie
+
+Notations : `d(R) = arccos((tr R − 1)/2)` ; Rᵢ monde→caméra ; Cᵢ centre.
+Verticale : HumanCalib `−y` (repère OpenCV, y vers le bas) ; BioCV, LBMC `+z`.
+
+**Principal — invariant à la similitude, sans alignement.** Pour chaque paire (i, j) :
+
+* erreur de rotation relative : `d( (R̂ᵢR̂ⱼᵀ)(RᵢRⱼᵀ)ᵀ )` ;
+* erreur de direction de translation relative, dans le repère de la caméra i :
+  `∠( R̂ᵢ(Ĉⱼ−Ĉᵢ), Rᵢ(Cⱼ−Cᵢ) )`.
+
+Rapportés en médiane et maximum, AUC à 1/2/5/10° de max(rotation, direction),
+et médiane par caméra. Les C(C−1)/2 paires ne sont pas indépendantes (6C−7
+degrés de liberté) : **pas de test statistique sur les paires**.
+
+**Secondaire — ce que HumanCalib estime à partir de la personne.**
+
+* Échelle : médiane des rapports de base `‖Ĉⱼ−Ĉᵢ‖ / ‖Cⱼ−Cᵢ‖` (et facteur
+  d'Umeyama). Écart à 1 en %.
+* Verticale : angle entre la verticale estimée et la verticale gold, comparées
+  via la rotation de jauge estimée **à partir des seules orientations**
+  (moyenne chordale de RᵢᵀR̂ᵢ).
+* Forme : écart des rapports de base à leur médiane (%) ; erreurs de position
+  et d'orientation après similitude 7 ddl (Umeyama), en leave-one-out.
+* **Erreur absolue de bout en bout** : position (mm) et orientation (°) par
+  caméra après alignement **4 ddl** (lacet autour de la verticale + translation,
+  échelle fixée à 1), en leave-one-out. L'erreur d'échelle et de verticale y
+  restent, volontairement.
+
+Pourquoi pas une similitude 7 ddl comme mesure principale : elle absorbe
+l'échelle, qui est justement estimée par la méthode ; et, sur 4 à 10 centres,
+elle répartit l'erreur d'une caméra sur les autres (d'où le leave-one-out).
+Pourquoi pas la base en mm comme invariant : elle ne l'est pas sous similitude,
+elle mélange forme et échelle.
+
+**Supplémentaire.** MRE en pixels (critère de convergence du BA, pas mesure de
+justesse — Lee 2025 et Pätzold 2022 montrent des classements inversés).
+
+## 6. Niveau 1 bis — erreur 3D induite par la calibration
+
+* Marqueurs mocap (repère gold) projetés avec la calibration gold → 2D sans
+  bruit → triangulés avec la calibration estimée → erreur 3D en mm (moyenne,
+  95ᵉ centile), après alignement 4 ddl puis 7 ddl ; erreur sur les distances
+  inter-marqueurs (invariante au rigide).
+* Longueur connue : BioCV `calib_00/*.grids` (mire de cercles, pas 78,5 mm),
+  LBMC damier (60 mm), triangulés avec la calibration estimée.
+
+## 7. Niveau 2 — aval (Pose2Sim)
+
+Deux exécutions Pose2Sim identiques (détection 2D, association, triangulation,
+filtrage, augmentation, mise à l'échelle et IK OpenSim) : calibration gold vs
+calibration HumanCalib.
+
+* **Mesure principale** : différence appariée HumanCalib − gold, par degré de
+  liberté ; biais et RMSE ; plan sagittal séparé des plans frontal et
+  transverse.
+* Contexte : chacune face au `.mot` de référence (MAE brut et cMAE, le modèle
+  Pose2Sim n'étant pas celui du gold).
+* Spatio-temporel (marche) : longueur et largeur de pas, vitesse — sensibles à
+  l'échelle, contrairement aux angles.
+* Écart-type des longueurs de segments triangulés (avant IK) : indicateur
+  secondaire seulement.
+
+Les erreurs indépendantes s'ajoutent en variance, avec une covariance non
+nulle a priori : on ne soustrait pas « erreur HumanCalib − erreur gold » ; on
+rapporte la différence appariée directe.
+
+## 8. Niveau 3 — fidélité et sensibilité
+
+* **Fidélité** : plusieurs enregistrements d'un même dispositif non déplacé.
+  BioCV : une calibration par participant pour tous ses essais ; IMOVE : sujets
+  partageant une calibration ({4,5,6}, {7,9,10}, {11,12,13}, {15,16,17}). Biais
+  = moyenne face au gold ; précision = dispersion entre calibrations.
+  Relancer la même séquence ne mesure que le non-déterminisme GPU de la pose
+  (MRE 4,03–4,06 px observée) : fait une fois, pour le chiffrer.
+* **Moteurs** : MeTRAbs vs RTMPose + VideoPose3D sur les mêmes essais.
+* **Image de référence** : échelle et verticale recalculées sur plusieurs images
+  valides du même essai.
+* **Type de mouvement** : marche, course, saut sur place (CMJ), tapis (LBMC).
+* Optionnel si le temps le permet : sous-ensembles de caméras, durée.
+
+## 9. Statistiques
+
+* **Unité : le sujet** (essais imbriqués). Jamais les images mises en commun
+  (autocorrélation ; limites d'agrément artificiellement serrées).
+* Description : médiane, intervalle interquartile, intervalles de confiance
+  bootstrap par sujet.
+* Bland-Altman avec mesures répétées (Bland & Altman 2007) sur les sorties
+  cinématiques.
+* Équivalence : borne fixée a priori et justifiée (erreur de mesure du système
+  à marqueurs, changement minimal détectable, ordre de grandeur de Pose2Sim
+  Part 1), pas les seuils de McGinley et al. 2009, qui portent sur la fiabilité
+  inter-séances et non sur la validité. Avec peu de sujets, intervalles de
+  confiance plutôt que tests.
+
+## 10. Plan d'expérience
+
+À confirmer après le premier essai (temps de calcul mesuré) :
+
+| Dataset | Sujets | Essais | Moteurs | Calibrations |
+|---|---|---|---|---|
+| BioCV | 6 (sans errata) | 3 WALK + 2 RUN + 1 CMJ | 2 | 72 |
+| IMOVE-23 | 6, dont deux groupes à calibration partagée | marche (fenêtres de passage) | 2 | ~24 |
+| LBMC | 2 | gait, sit-stand, mmh | 2 | 12 |
+| OpenCap | 5 | walking | 2 | 10 |
+
+BioCV P08 (sauts d'images) et P04 (WALK_05 absent) sont évités en premier choix.
+
+## 11. Arborescence des résultats
+
+```
+D:\FLO\Calibration dataset\<Dataset>\<Participant>_<Essai>\
+  input\Calib_scene.toml     intrinsèques gold (entrée HumanCalib)
+  gold\Calib_gold.toml       calibration gold complète (Pose2Sim)
+  gold\meta.json             provenance, stature
+  metrabs\  rtmpose\         sorties HumanCalib par moteur
+  eval\                      métriques (JSON/CSV)
+```
+
+## 12. Références vérifiées
+
+* Lee et al., Extrinsic Camera Calibration From a Moving Person, RA-L 2022, 10.1109/LRA.2022.3192629
+* Takahashi et al., Human Pose as Calibration Pattern, CVPRW 2018
+* Pätzold, Bultmann, Behnke, GCPR 2022, arXiv 2209.07393
+* Lee, Nishino, Nobuhara 2025, arXiv 2502.12546
+* Yang et al. 2026, arXiv 2604.17567 ; Kineo, arXiv 2510.24464 ; HSfM, CVPR 2025, arXiv 2412.17806 ; CasCalib, arXiv 2405.06845 ; Xu et al., CVPR 2021, arXiv 2104.08568
+* Pagnon et al., Pose2Sim Part 1, Sensors 2021, 10.3390/s21196530 ; Part 2, Sensors 2022, 10.3390/s22072712
+* Uhlrich et al., OpenCap, PLoS Comput Biol 2023, 10.1371/journal.pcbi.1011462
+* Kanko et al., J Biomech 2021, 10.1016/j.jbiomech.2021.110665 et 10.1016/j.jbiomech.2021.110414
+* Needham et al., J Biomech 2022, 10.1016/j.jbiomech.2022.111338
+* McGinley et al., Gait Posture 2009, 10.1016/j.gaitpost.2008.09.003
+* Bland & Altman, J Biopharm Stat 2007, 10.1080/10543400701329422
+* Zhang & Scaramuzza, trajectory evaluation, IROS 2018 ; Umeyama, TPAMI 1991, 10.1109/34.88573
+* Challis & Kerwin, J Biomech 1992, 10.1016/0021-9290(92)90040-8
+
+## 13. Journal
+
+| Date | Étape |
+|---|---|
+| 2026-09-14 | Protocole rédigé. Lecteur BioCV validé par reprojection. Premier essai BioCV P03_WALK_01 (MeTRAbs) lancé. |
