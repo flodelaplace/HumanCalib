@@ -30,6 +30,11 @@ import numpy as np
 import cv2
 from scipy.optimize import linear_sum_assignment
 
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+from core.geometry import triangulate_dlt
+
 N_KPT = 26
 
 
@@ -70,13 +75,13 @@ def load_calib(path):
 
 
 def triangulate(Ps, pts, ws):
-    A = []
-    for P, (x, y), w in zip(Ps, pts, ws):
-        A.append(w * (x * P[2] - P[0]))
-        A.append(w * (y * P[2] - P[1]))
-    _, _, Vt = np.linalg.svd(np.array(A))
-    X = Vt[-1]
-    return X / X[3]
+    """Confidence-weighted DLT, as a homogeneous 4-vector for reproj().
+
+    Kept unguarded on purpose: the outlier-rejection loop below reprojects this
+    and drops the worst view, and it relies on a degenerate solution producing
+    a large residual rather than a NaN.
+    """
+    return triangulate_dlt(pts, Ps, ws, as_homogeneous=True)
 
 
 def reproj(P, X):

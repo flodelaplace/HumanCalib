@@ -38,6 +38,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 from core import load_poses
+from core.geometry import triangulate_dlt
 from core.session import session_ids
 from postprocessing.evaluate_calibration import export_to_toml
 
@@ -84,16 +85,9 @@ def get_3d_keypoint(p2d_all, s2d_all, K, R_w2c, t_w2c, frame_idx, joint_idx, con
     Ps_all = [K[c] @ np.hstack([R_w2c[c], t_w2c[c].reshape(3, 1)]) for c in range(C)]
     Ps_vis = [Ps_all[c] for c, is_vis in enumerate(vis_mask) if is_vis]
 
-    rows = []
-    for pt, P in zip(pts_vis, Ps_vis):
-        x, y = pt
-        rows.append(x * P[2] - P[0])
-        rows.append(y * P[2] - P[1])
-    A = np.array(rows)
-    _, _, Vt = np.linalg.svd(A)
-    Xh = Vt[-1]
-
-    return Xh[:3] / Xh[3] if abs(Xh[3]) > 1e-10 else None
+    # None rather than NaN, because every caller here tests `is None`.
+    X = triangulate_dlt(pts_vis, Ps_vis)
+    return None if np.isnan(X).any() else X
 
 
 def main():

@@ -46,6 +46,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 from core import load_poses, load_eldersim_camera
+from core.geometry import triangulate_dlt
 from core.session import session_ids
 
 def triangulate_skeleton(p2d_all, s2d_all, K, R_w2c, t_w2c, conf_threshold=0.5):
@@ -73,17 +74,7 @@ def triangulate_skeleton(p2d_all, s2d_all, K, R_w2c, t_w2c, conf_threshold=0.5):
             
             pts_vis = p2d_all[vis_mask, n, j]
             Ps_vis = [Ps_all[c] for c, is_vis in enumerate(vis_mask) if is_vis]
-
-            rows = []
-            for pt, P in zip(pts_vis, Ps_vis):
-                x, y = pt
-                rows.append(x * P[2] - P[0])
-                rows.append(y * P[2] - P[1])
-            A = np.array(rows)
-            _, _, Vt = np.linalg.svd(A)
-            Xh = Vt[-1]
-            if abs(Xh[3]) > 1e-10:
-                X3d[n, j] = Xh[:3] / Xh[3]
+            X3d[n, j] = triangulate_dlt(pts_vis, Ps_vis)
     return X3d
 
 def reproject_points(X3d_world, K, R_w2c, t_w2c):

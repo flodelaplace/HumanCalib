@@ -23,7 +23,7 @@ from .skeletons import (
 )
 from .geometry import (
     z_test_w2c,
-    triangulate_point, triangulate_with_conf,
+    triangulate_dlt, triangulate_point, triangulate_with_conf,
     project, project_cv2,
 )
 # NOTE: constraint_mat / constraint_mat_from_single_view are internals of
@@ -66,6 +66,7 @@ __all__ = [
     "BML87_BONE_SUB",
     "get_bone_config",
     "z_test_w2c",
+    "triangulate_dlt",
     "triangulate_point",
     "triangulate_with_conf",
     "project",

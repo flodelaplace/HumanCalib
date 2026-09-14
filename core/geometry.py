@@ -54,6 +54,56 @@ def constraint_mat(p_stack, proj_mat_stack):
     return A, b
 
 
+def triangulate_dlt(points_2d, projections, weights=None, as_homogeneous=False):
+    """Homogeneous DLT triangulation of one point, solved by SVD.
+
+    Args:
+        points_2d: (M, 2) observations of the same point in M views.
+        projections: (M, 3, 4) camera projection matrices, same order.
+        weights: optional (M,) per-view weights. A uniform weight changes
+            nothing -- scaling every row alike leaves the null vector alone --
+            so this only matters when the views are weighted unequally.
+        as_homogeneous: return the 4-vector normalised to X[3] == 1, without
+            the near-zero guard, for callers that reproject it directly.
+
+    Returns:
+        (3,) world point, or NaN if fewer than two views or the solution is at
+        infinity. With ``as_homogeneous``, a (4,) vector instead.
+
+    This replaces three byte-equivalent copies of the same eight lines --
+    evaluate_calibration.triangulate_skeleton, scale_scene.get_3d_keypoint and
+    fix_person_association.triangulate. They were proven identical under noise
+    before being merged (tests/test_triangulation.py); merging triangulation by
+    inspection is how you change published 3D points without anything failing.
+
+    Note that ``core.triangulate_point`` is NOT the same estimator and is not
+    merged here. It solves the inhomogeneous system, fixing the homogeneous
+    coordinate to 1 rather than taking the smallest singular vector, so on
+    noisy observations it lands somewhere slightly different by construction.
+    """
+    pts = np.asarray(points_2d, dtype=float).reshape(-1, 2)
+    Ps = np.asarray(projections, dtype=float)
+
+    if len(pts) < 2:
+        return np.full(4 if as_homogeneous else 3, np.nan)
+
+    w = np.ones(len(pts)) if weights is None else np.asarray(weights, dtype=float)
+
+    rows = []
+    for (x, y), P, wi in zip(pts, Ps, w):
+        rows.append(wi * (x * P[2] - P[0]))
+        rows.append(wi * (y * P[2] - P[1]))
+
+    _, _, Vt = np.linalg.svd(np.array(rows))
+    Xh = Vt[-1]
+
+    if as_homogeneous:
+        return Xh / Xh[3]
+    if abs(Xh[3]) < 1e-10:
+        return np.full(3, np.nan)
+    return Xh[:3] / Xh[3]
+
+
 def triangulate_point(p_stack, proj_mat_stack, confs=None):
     A, b = constraint_mat(p_stack, proj_mat_stack)
     if confs is None:
