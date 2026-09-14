@@ -260,7 +260,10 @@ def main(argv):
     log.info(f"  -> Chunk ID: {best_chunk_id}")
     log.info(f"  -> MRE: {best_mre} pixels")
     log.info(f"  -> Copying {best_chunk_file} to {final_file}")
-    shutil.copy(best_chunk_file, final_file)
+    # copyfile, not copy: copy also copies permission bits, which external
+    # drives mounted without POSIX permissions (exFAT/NTFS under WSL) refuse
+    # with "Operation not permitted" -- after the whole pose extraction.
+    shutil.copyfile(best_chunk_file, final_file)
 
 
 if __name__ == "__main__":

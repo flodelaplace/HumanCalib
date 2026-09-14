@@ -156,7 +156,7 @@ def main(argv=None):
             row.update({k: s[k] for k in ("scale_ratio_median", "gravity_deg", "abs4dof_pos_mm_median",
                                           "abs4dof_rot_deg_median")})
             if f == chosen:
-                shutil.copy(path, os.path.join(out, "calibration_scaled.json"))
+                shutil.copyfile(path, os.path.join(out, "calibration_scaled.json"))
                 final = compare_rigs(load_humancalib(path, gold), gold, UP_HUMANCALIB, up_gold)
         sensitivity.append(row)
 
