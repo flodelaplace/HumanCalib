@@ -92,22 +92,44 @@ def main():
         json.dump(out, f, indent=2, ensure_ascii=True)
     print(f"\nSaved: {cam_path}")
 
-    # ---- Sauvegarder skeleton_w_G{gid}.json (placeholder) -------------------
-    joint_files = glob.glob(os.path.join(args.output_dir, "2d_joint", "*.json"))
-    n_frames = 100
-    if joint_files:
-        with open(sorted(joint_files)[0]) as jf:
-            jdata = json.load(jf)
-            n_frames = len(jdata["data"])
-
-    skel_out = {
-        "skeleton": np.zeros((n_frames, 25, 3), dtype=np.float64).tolist(),
-        "frame_indices": list(range(1, n_frames + 1)),
-    }
+    # ---- skeleton_w_G{gid}.json ---------------------------------------------
+    #
+    # Only a placeholder, and only when nothing real is there. The MeTRAbs step
+    # writes a genuine world skeleton before this script runs; overwriting it
+    # threw that away on every run. Nothing reads the coordinates today
+    # (load_eldersim returns them as p3d_w, which calib_linear discards and ba
+    # slices but never uses), so this mattered less than it looks -- but the
+    # file has to exist for load_eldersim, and the RTMPose backend writes none.
+    #
+    # The frame indices are 0-based, matching the pose files. They used to
+    # start at 1, and load_eldersim intersects the two index lists
+    # (core/poses_io.py), so frame 0 was discarded from every calibration
+    # without a word. See B7 in docs/REFACTOR_PLAN.md for the measured effect.
     skel_path = os.path.join(args.output_dir, f"skeleton_w_G{args.gid:03d}.json")
-    with open(skel_path, "w") as f:
-        json.dump(skel_out, f, indent=2, ensure_ascii=True)
-    print(f"Saved: {skel_path} (placeholder, {n_frames} frames)")
+    if os.path.exists(skel_path):
+        print(f"Kept:  {skel_path} (already written by the pose step)")
+    else:
+        joint_files = glob.glob(os.path.join(args.output_dir, "2d_joint", "*.json"))
+        n_frames = 100
+        frame_indices = None
+        if joint_files:
+            with open(sorted(joint_files)[0]) as jf:
+                jdata = json.load(jf)
+            n_frames = len(jdata["data"])
+            # Take the pose files' own indices rather than assuming a range:
+            # dropped frames leave gaps, and an assumed range would reintroduce
+            # exactly the mismatch this replaces.
+            frame_indices = [int(fr["frame_index"]) for fr in jdata["data"]]
+        if frame_indices is None:
+            frame_indices = list(range(n_frames))
+
+        skel_out = {
+            "skeleton": np.zeros((n_frames, 25, 3), dtype=np.float64).tolist(),
+            "frame_indices": frame_indices,
+        }
+        with open(skel_path, "w") as f:
+            json.dump(skel_out, f, indent=2, ensure_ascii=True)
+        print(f"Saved: {skel_path} (placeholder, {n_frames} frames)")
 
 if __name__ == "__main__":
     main()

@@ -420,6 +420,51 @@ exécuter la démo. C'est le point de sortie minimal si le chantier doit s'arrê
 
 ---
 
+## 5 ter. B7 — le squelette monde est écrasé par un placeholder décalé (2026-09-14)
+
+Découvert en construisant la fixture du golden-run (T5.1), parce que
+l'intersection des indices d'images y était **vide** — ce qui a obligé à
+comprendre pourquoi elle ne l'est pas en production.
+
+**Mécanisme.** L'étape 1 (MeTRAbs) écrit `skeleton_w_G001.json` : la 3D de la
+caméra 1, indices d'images 0…N-1. L'étape 2
+(`tools/create_cameras_from_toml.py:95-110`) **l'écrase** par un placeholder de
+zéros, `np.zeros((n_frames, 25, 3))`, avec `frame_indices = range(1, n+1)`.
+Vérifié identique sur le run natif du 2026-05-11 et sur celui du conteneur.
+
+**Conséquence.** `core/poses_io.py:100` fait
+`functools.reduce(np.intersect1d, [frames, *f2d_all])`. Avec `[1…N]` contre
+`[0…N-1]`, l'intersection vaut `[1…N-1]` : **l'image 0 est écartée de chaque
+calibration**, silencieusement. Un second effet, latent : sur des images non
+contiguës l'intersection serait vide.
+
+Le contenu du placeholder — les zéros — est **inoffensif** : `p3d_w` est
+ignoré par `calib_linear.py:271,275`, et `ba.py:584` le charge dans `sp3d_w`,
+le tranche ligne 600, puis ne s'en sert jamais. Seuls les indices comptent.
+
+`scripts/run_calib_linear.py:172` s'en sert aussi pour
+`map_video_frames_to_indices`, donc `--start_frame`/`--end_frame` exprimés en
+numéros de trame vidéo sont décalés d'une unité.
+
+**Impact numérique, mesuré** sur la fixture (20 images, donc 1 perdue sur 20) :
+MRE 5,175 → 5,121 px, rotations caméras déplacées de 0,31° (linéaire) et 0,20°
+(BA), translations de 2e-3 relatif. Sur 100 images la perte est de 1 % au lieu
+de 5 %, donc l'effet attendu est plus proche de 0,05–0,1°.
+
+**Statut : corrigé le 2026-09-14 (décision D4).** Le placeholder n'écrase plus
+un squelette réel déjà écrit, et ses indices sont repris **des fichiers de
+poses eux-mêmes** plutôt que d'une plage supposée — une plage supposée
+réintroduirait le même décalage dès qu'une image est écartée. Les valeurs de
+référence du golden-run ont été régénérées ; l'ampleur du déplacement est
+désormais mesurée à chaque exécution du test au lieu d'être subie.
+
+**D4 — chiffres publiés.** Corriger déplace les résultats déjà publiés
+(~0,05–0,1° attendu sur 100 images). Retenu quand même : un article décrivant
+un pipeline reproductible ne devrait pas embarquer un décalage connu, et le
+golden-run rend l'écart mesurable plutôt qu'invisible.
+
+---
+
 ## 5 bis. Validation du 2026-09-14 — ce que le conteneur a révélé
 
 `docker compose run calib demo` s'exécute de bout en bout sur GPU, 7 étapes,
