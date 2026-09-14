@@ -29,7 +29,8 @@ def test_howto_metrabs_command():
     assert cfg.start_frame is None and cfg.end_frame is None
 
 
-def test_howto_rtmpose_command_keeps_the_historical_default_engine():
+def test_howto_rtmpose_command_keeps_the_historical_default_engine(monkeypatch):
+    monkeypatch.delenv("HUMANCALIB_DEFAULT_ENGINE", raising=False)
     cfg = cli.parse_run_args(["demo", "demo/Calib_scene.toml", "output/demo_rtmpose",
                               "cuda", "balanced", "--height", "1.78", "--ref_frame", "5"])
     assert cfg.pose_engine == "rtmpose"
@@ -46,6 +47,15 @@ def test_howto_real_world_command():
 
 
 # --- command-line compatibility details --------------------------------------------------
+
+def test_each_docker_image_can_declare_its_own_default_engine(monkeypatch):
+    """Omitting --pose_engine must pick the backend the image actually contains."""
+    monkeypatch.setenv("HUMANCALIB_DEFAULT_ENGINE", "metrabs")
+    assert cli.parse_run_args(["v", "c.toml", "o"]).pose_engine == "metrabs"
+    monkeypatch.setenv("HUMANCALIB_DEFAULT_ENGINE", "nonsense")
+    assert cli.parse_run_args(["v", "c.toml", "o"]).pose_engine == "rtmpose"
+    assert cli.parse_run_args(["v", "c.toml", "o", "--pose_engine", "metrabs"]).pose_engine == "metrabs"
+
 
 def test_bare_device_and_mode_words_are_accepted_anywhere_after_the_paths():
     cfg = cli.parse_run_args(["v", "c.toml", "o", "--frame_skip", "5", "performance", "cpu"])
@@ -126,6 +136,7 @@ def test_preflight_names_the_missing_input(tmp_path):
 
 
 def test_preflight_points_rtmpose_users_to_metrabs_when_the_backend_is_absent(tmp_path, monkeypatch):
+    monkeypatch.delenv("HUMANCALIB_DEFAULT_ENGINE", raising=False)
     (tmp_path / "v").mkdir()
     (tmp_path / "v" / "cam01.mp4").write_bytes(b"")
     (tmp_path / "c.toml").write_text("")

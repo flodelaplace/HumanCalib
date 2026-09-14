@@ -107,6 +107,10 @@ ENV PATH=/opt/conda/envs/humancalib/bin:${PATH} \
 # is replaced by a direct call. `-u` keeps tqdm's progress bars live.
 ENV HUMANCALIB_METRABS_PYTHON="/opt/conda/envs/humancalib/bin/python -u"
 
+# The only pose backend in this image. Without it, a command omitting
+# --pose_engine would default to rtmpose, which this image does not contain.
+ENV HUMANCALIB_DEFAULT_ENGINE=metrabs
+
 # --- Runtime settings -------------------------------------------------------
 #
 # MPLBACKEND=Agg   : there is no display; without it matplotlib picks an

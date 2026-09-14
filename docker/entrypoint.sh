@@ -19,7 +19,8 @@ HumanCalib — multi-camera extrinsic calibration from human pose
       --pose_engine metrabs --height 1.78 --ref_frame 5
 
 Commands:
-  demo              Run the bundled 4-camera demo, writing to /output/demo
+  demo              Run the bundled 4-camera demo with this image's pose engine,
+                    writing to /output/demo (/output/demo_rtmpose in the RTMPose image)
   shell             Interactive bash inside the environment
   python ...        Run the environment's interpreter
   --help            This message
@@ -89,13 +90,19 @@ preflight() {
         exit 1
     fi
 
-    # Model cache. Not mounting it costs a 708 MB download per container.
-    local cache="${TFHUB_CACHE_DIR:-/models/tfhub}"
+    # Model cache. Not mounting it costs a fresh model download per container.
+    # Which cache depends on the image's engine: it used to warn about the
+    # 708 MB MeTRAbs model even in the RTMPose image, which never downloads it.
+    local cache size
+    if [ "${HUMANCALIB_DEFAULT_ENGINE:-metrabs}" = "metrabs" ]; then
+        cache="${TFHUB_CACHE_DIR:-/models/tfhub}"; size="~708 MB MeTRAbs model"
+    else
+        cache="${TORCH_HOME:-/models/torch}"; size="RTMPose/RTMDet models"
+    fi
     if ! mountpoint -q "${cache}" 2>/dev/null; then
         if [ ! -d "${cache}" ] || [ -z "$(ls -A "${cache}" 2>/dev/null)" ]; then
-            echo "  NOTE: ${cache} is empty and not a mounted volume; the pose" >&2
-            echo "        model will be downloaded (~708 MB) and lost when this" >&2
-            echo "        container exits." >&2
+            echo "  NOTE: ${cache} is empty and not a mounted volume; the ${size}" >&2
+            echo "        will be downloaded and lost when this container exits." >&2
         fi
     fi
 }
@@ -127,13 +134,18 @@ case "${1:-}" in
         shift
         preflight
         # Same invocation as the README quick demo, with the output redirected
-        # to the mounted volume. Extra arguments are appended, so
-        # `demo --ba_jac numeric` works.
+        # to the mounted volume and the engine this image contains. Extra
+        # arguments are appended, so `demo --ba_jac numeric` works.
+        ENGINE="${HUMANCALIB_DEFAULT_ENGINE:-metrabs}"
+        DEMO_OUT=/output/demo
+        if [ "${ENGINE}" != "metrabs" ]; then
+            DEMO_OUT="/output/demo_${ENGINE}"
+        fi
         exec bash "${REPO_ROOT}/scripts/calibrate.sh" \
             "${REPO_ROOT}/demo" \
             "${REPO_ROOT}/demo/Calib_scene.toml" \
-            /output/demo \
-            --pose_engine metrabs \
+            "${DEMO_OUT}" \
+            --pose_engine "${ENGINE}" \
             --height 1.78 \
             --ref_frame 5 \
             "$@"

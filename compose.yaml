@@ -79,6 +79,8 @@ services:
     volumes:
       - ./input:/input:ro
       - ./output:/output
+      # RTMPose/RTMDet ONNX models downloaded by rtmlib, reused across runs.
+      - humancalib-rtmpose-models:/models/torch
     environment:
       - OMP_NUM_THREADS=${OMP_NUM_THREADS:-4}
       - CUDA_VISIBLE_DEVICES
@@ -86,3 +88,4 @@ services:
 
 volumes:
   humancalib-models:
+  humancalib-rtmpose-models:

@@ -47,6 +47,7 @@ VP3D_MODEL = "pretrained_h36m_detectron_coco.bin"
 LAMBDA1 = LAMBDA2 = 1.0
 
 DEVICES = ("cuda", "cpu")
+ENGINES = ("rtmpose", "metrabs")
 MODES = ("lightweight", "balanced", "performance")
 RULE = "━" * 62
 
@@ -84,8 +85,10 @@ def build_run_parser():
                    help="Output folder (default: ./data/session_<timestamp>)")
     p.add_argument("--device", choices=DEVICES, default="cuda")
     p.add_argument("--mode", choices=MODES, default="balanced", help="RTMPose model size")
-    p.add_argument("--pose_engine", choices=("rtmpose", "metrabs"), default="rtmpose",
-                   help="metrabs is recommended; rtmpose is the default for compatibility")
+    p.add_argument("--pose_engine", choices=ENGINES, default=default_engine(),
+                   help="metrabs is recommended. Default: rtmpose, as calibrate.sh had it, "
+                        "unless HUMANCALIB_DEFAULT_ENGINE says otherwise -- each Docker "
+                        "image sets it to the one backend it contains")
     p.add_argument("--height", type=float, default=None, help="Subject height in metres")
     p.add_argument("--ref_frame", type=int, default=None,
                    help="Absolute frame where the subject stands straight")
@@ -101,6 +104,19 @@ def build_run_parser():
     p.add_argument("--ref_cam", type=int, default=None)
     p.add_argument("--ba_jac", choices=("analytic", "numeric"), default="analytic")
     return p
+
+
+def default_engine(environ=None):
+    """The pose engine used when --pose_engine is not given.
+
+    rtmpose, as calibrate.sh always defaulted, so documented commands keep their
+    meaning. Each Docker image contains exactly one backend and declares it in
+    HUMANCALIB_DEFAULT_ENGINE; without that, a command that omits the flag failed
+    in the main image, which has no RTMPose, and in the RTMPose image, which has
+    no TensorFlow.
+    """
+    value = (os.environ if environ is None else environ).get("HUMANCALIB_DEFAULT_ENGINE", "")
+    return value if value in ENGINES else "rtmpose"
 
 
 def parse_run_args(argv):

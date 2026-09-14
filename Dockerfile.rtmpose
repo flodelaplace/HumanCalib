@@ -95,15 +95,23 @@ ENV LD_LIBRARY_PATH=/opt/conda/envs/humancalib-rtmpose/lib
 ENV PATH=/opt/conda/envs/humancalib-rtmpose/bin:${PATH} \
     HUMANCALIB_PYTHON=/opt/conda/envs/humancalib-rtmpose/bin/python
 
+# The only pose backend in this image: no TensorFlow, so no MeTRAbs.
+ENV HUMANCALIB_DEFAULT_ENGINE=rtmpose
+
+# TORCH_HOME: rtmlib downloads its RTMPose/RTMDet ONNX models to
+# $TORCH_HOME/hub, falling back to ~/.cache/rtmlib -- and HOME is /tmp here,
+# so without this every container would download them again. compose.yaml
+# mounts a volume at this path.
 ENV HOME=/tmp \
+    TORCH_HOME=/models/torch \
     MPLBACKEND=Agg \
     MPLCONFIGDIR=/tmp/matplotlib \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     OMP_NUM_THREADS=4
 
-RUN mkdir -p /input /output /tmp/matplotlib \
-    && chmod -R 0777 /output /tmp/matplotlib
+RUN mkdir -p /input /output /models/torch /tmp/matplotlib \
+    && chmod -R 0777 /output /models /tmp/matplotlib
 
 WORKDIR /opt/humancalib
 COPY . /opt/humancalib
