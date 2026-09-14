@@ -9,8 +9,9 @@
 #   VideoPose3D is licensed CC BY-NC 4.0 (non-commercial), and the pretrained
 #   weights downloaded here were trained on Human3.6M, which is restricted to
 #   academic use. HumanCalib itself is MIT-licensed, but ANY use of this
-#   optional backend inherits those restrictions. The MeTRAbs backend is not
-#   affected. See README.md for details.
+#   optional backend inherits those restrictions. The default MeTRAbs
+#   backend is not an unrestricted alternative: its pretrained model is also
+#   licensed for non-commercial use only. See README.md, section Licensing.
 # ---------------------------------------------------------------------------
 set -euo pipefail
 

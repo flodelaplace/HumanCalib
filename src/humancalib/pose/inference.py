@@ -1,4 +1,6 @@
 import os, sys
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 
 # VideoPose3D is not a package: it is a pinned git checkout under third_party/
 # (scripts/setup_models.sh), and its modules import each other as `common.*`,
@@ -245,7 +247,7 @@ def save_animation(prediction, x2d_coco, width, height, input_video_path, viz_ou
         viewport=(width, height),
         input_video_skip=1,
     )
-    print("save_animation")
+    log.info("save_animation")
 
 
 def inference_main(
@@ -282,6 +284,7 @@ def inference_main(
 
 
 if __name__ == "__main__":
+    setup_logging()
 
     args = argument.parse_args()
     
@@ -290,7 +293,7 @@ if __name__ == "__main__":
         try:
             select_gpu()
         except Exception as e:
-            print(f"Warning: GPU selection failed ({e}). Falling back to CPU mode.")
+            log.warning(f"GPU selection failed ({e}). Falling back to CPU mode.")
             use_cuda = False
     
     PREFIX = args.prefix + "/" + args.target
@@ -307,7 +310,7 @@ if __name__ == "__main__":
     model = f"./model/{args.model}"
 
     for cid in camera_ids:
-        print(f"############# - CAMID : {cid}")
+        log.info(f"############# - CAMID : {cid}")
         input_video_path = (
             args.prefix + f"/videos/A{AID:03d}_P{PID:03d}_G{GID:03d}_C{cid:03d}.mp4"
         )

@@ -1,13 +1,19 @@
 # syntax=docker/dockerfile:1
 #
-# HumanCalib — main image (MeTRAbs backend, MIT-licensed path only)
+# HumanCalib — main image (MeTRAbs backend)
 #
 #   docker build -t humancalib .
 #   docker compose run --rm calib demo
 #
-# The optional RTMPose + VideoPose3D backend is a separate image, because it
-# carries a non-commercial licence that must not silently attach itself to the
-# default one. See Dockerfile.rtmpose.
+# The optional RTMPose + VideoPose3D backend is a separate image: it bakes in
+# VideoPose3D's CC BY-NC 4.0 code and weights, on a legacy Python 3.8 stack.
+# See Dockerfile.rtmpose.
+#
+# Licensing, stated plainly. HumanCalib's code is MIT, but the pretrained
+# MeTRAbs model this image downloads at run time is licensed for NON-COMMERCIAL
+# use only, because of the licences of its training data (MeTRAbs README).
+# This image holds no model weights by default; built with BAKE_MODELS=1 it
+# does, and inherits that restriction. See the README's Licensing section.
 
 # --- Base -------------------------------------------------------------------
 #
@@ -138,6 +144,8 @@ RUN mkdir -p /models/tfhub /input /output /tmp/matplotlib \
 #
 # Only src/humancalib/core/models.py is copied at this point: the URL is the sole input, so
 # the slow download layer is not invalidated by unrelated source edits.
+# A baked image contains the MeTRAbs weights, which are for non-commercial use
+# only: check that before publishing or sharing such an image.
 ARG BAKE_MODELS=0
 COPY src/humancalib/core/models.py /tmp/models.py
 RUN if [ "${BAKE_MODELS}" = "1" ]; then \
@@ -172,5 +180,5 @@ ENTRYPOINT ["/opt/humancalib/docker/entrypoint.sh"]
 CMD ["--help"]
 
 LABEL org.opencontainers.image.title="HumanCalib" \
-      org.opencontainers.image.description="Multi-camera extrinsic calibration from human pose" \
+      org.opencontainers.image.description="Multi-camera extrinsic calibration from human pose. The MeTRAbs model it downloads is licensed for non-commercial use only." \
       org.opencontainers.image.licenses="MIT"

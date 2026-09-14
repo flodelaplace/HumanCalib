@@ -13,10 +13,12 @@
 #   together with pretrained weights trained on Human3.6M, whose licence
 #   restricts use to academic research.
 #
-#   HumanCalib itself is MIT. The main image (Dockerfile) is MeTRAbs-only and
-#   carries none of these restrictions. It exists as a separate image for
-#   exactly this reason: a non-commercial dependency must not attach itself to
-#   the default one by accident.
+#   HumanCalib's own code is MIT. The main image is NOT an unrestricted
+#   alternative, though: the pretrained MeTRAbs model it downloads at run time
+#   is also licensed for non-commercial use only, because of its training
+#   data. This image is separate because it bakes in CC BY-NC 4.0 code and
+#   weights on a legacy Python 3.8 stack -- not because the default is free
+#   of such terms.
 #
 #   By building or running this image you accept those upstream terms.
 # =============================================================================

@@ -1,25 +1,27 @@
-"""Convertit un fichier de calibration TOML en faisant une rotation de 90deg
+"""Rotate a TOML calibration file by 90 degrees.
 
 Usage:
   python -m humancalib.tools.convert_calib_rotation --in in.toml --out out.toml --dir cw
 
 Options for --dir: cw (clockwise 90 deg), ccw (counter-clockwise 90 deg)
 
-Fonctionnalités:
- - inverse la taille (size)
- - met à jour la matrice intrinsèque `matrix`
- - met à jour `distortions` (OpenCV: [k1,k2,p1,p2])
- - préserve les autres champs
- - supporte plusieurs caméras dans le TOML
+What it does:
+ - swaps the image size
+ - updates the intrinsic matrix `matrix`
+ - updates `distortions` (OpenCV: [k1,k2,p1,p2])
+ - preserves every other field
+ - handles several cameras in one TOML
 
-Ce script suppose que la clé des caméras est un tableau de tables ou un dictionnaire
-contenant pour chaque caméra les champs: name, size, matrix, distortions, etc.
+Cameras are expected either as an array of tables or as a table of tables, each
+carrying fields such as name, size, matrix and distortions.
 """
 import argparse
 import toml
 import copy
 import sys
 from pathlib import Path
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 
 
 def rotate_intrinsics(matrix, size, direction):
@@ -87,13 +89,13 @@ def process_camera(cam, direction):
             cam['matrix'] = new_mat
             cam['size'] = [float(new_size[0]), float(new_size[1])]
         except Exception as e:
-            print(f"Warning: failed to rotate intrinsics for camera {cam.get('name','?')}: {e}")
+            log.warning(f"failed to rotate intrinsics for camera {cam.get('name','?')}: {e}")
 
     if 'distortions' in cam:
         try:
             cam['distortions'] = rotate_distortions(cam['distortions'], direction)
         except Exception as e:
-            print(f"Warning: failed to rotate distortions for camera {cam.get('name','?')}: {e}")
+            log.warning(f"failed to rotate distortions for camera {cam.get('name','?')}: {e}")
 
     return cam
 
@@ -109,7 +111,7 @@ def main():
     in_path = Path(args.infile)
     out_path = Path(args.outfile)
     if not in_path.exists():
-        print(f"Input file {in_path} not found", file=sys.stderr)
+        log.error(f"Input file {in_path} not found")
         sys.exit(2)
 
     data = toml.load(str(in_path))
@@ -136,17 +138,18 @@ def main():
         data['cameras'] = newcams
 
     if not modified:
-        print("No camera entries found to modify. Make sure TOML contains 'matrix' or 'size' fields.")
+        log.info("No camera entries found to modify. Make sure TOML contains 'matrix' or 'size' fields.")
 
     if args.dry_run:
-        print(toml.dumps(data))
+        log.info(toml.dumps(data))
     else:
         toml_string = toml.dumps(data)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(toml_string)
-        print(f"Wrote rotated calibration to {out_path}")
+        log.info(f"Wrote rotated calibration to {out_path}")
 
 
 if __name__ == '__main__':
+    setup_logging()
     main()
 

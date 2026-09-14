@@ -23,6 +23,8 @@ switch.
 import argparse
 import subprocess
 import sys
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 
 MAX_FRAME_SKIP = 60
 FRAME_SKIP_STEP = 5
@@ -65,8 +67,8 @@ def parse(argv):
     """Parse named options, or translate the deprecated positional form."""
     argv = list(argv)
     if len(argv) >= 11 and not argv[0].startswith("-"):
-        print("NOTE: positional arguments to run_ba are deprecated; "
-              "use named options (--prefix, --frame_skip, ...).", file=sys.stderr)
+        log.error("NOTE: positional arguments to run_ba are deprecated; "
+              "use named options (--prefix, --frame_skip, ...).")
         named = []
         for key, value in zip(_LEGACY_ORDER, argv):
             named += [f"--{key}", value]
@@ -102,19 +104,18 @@ def run(opts, runner=subprocess.run):
     """
     frame_skip = opts.frame_skip
     while True:
-        print(f"Attempting Bundle Adjustment with FRAME_SKIP={frame_skip}...", flush=True)
+        log.info(f"Attempting Bundle Adjustment with FRAME_SKIP={frame_skip}...")
         if runner(ba_command(opts, frame_skip)).returncode == 0:
-            print(f"Bundle Adjustment successful with FRAME_SKIP={frame_skip}.", flush=True)
+            log.info(f"Bundle Adjustment successful with FRAME_SKIP={frame_skip}.")
             return frame_skip
 
-        print("WARN: Bundle Adjustment failed. This might be due to an out-of-memory error.",
-              flush=True)
+        log.warning("Bundle Adjustment failed. This might be due to an out-of-memory error.")
         previous = frame_skip
         frame_skip += FRAME_SKIP_STEP
         if frame_skip > MAX_FRAME_SKIP:
             raise BundleAdjustmentFailed(
                 f"Bundle Adjustment failed even with FRAME_SKIP up to {previous}.")
-        print(f"Retrying with a larger frame skip: {frame_skip}...\n", flush=True)
+        log.info(f"Retrying with a larger frame skip: {frame_skip}...\n")
 
 
 def main(argv=None):
@@ -122,9 +123,10 @@ def main(argv=None):
     try:
         return run(opts)
     except BundleAdjustmentFailed as err:
-        print(f"ERROR: {err} Aborting.", file=sys.stderr)
+        log.error(f"{err} Aborting.")
         sys.exit(1)
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

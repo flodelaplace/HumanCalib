@@ -19,6 +19,8 @@ File format, unchanged::
 """
 import json
 import os
+from humancalib.core.log import get_logger
+log = get_logger(__name__)
 
 SIDECAR_DIRNAME = "dropped_frames"
 
@@ -55,12 +57,10 @@ def read_dropped(output_dir, subset, video_path, warn_legacy=True):
     if os.path.exists(old_path):
         legacy = _read_indices(old_path)
         if legacy and warn_legacy:
-            print(
-                f"  NOTE: reading legacy sidecar next to the video "
+            log.info(f"  NOTE: reading legacy sidecar next to the video "
                 f"({os.path.basename(old_path)}, {len(legacy)} indices). New "
                 f"drops are written to {SIDECAR_DIRNAME}/ under the output "
-                f"directory; move it there to keep the input folder read-only."
-            )
+                f"directory; move it there to keep the input folder read-only.")
         indices |= legacy
     return indices
 

@@ -22,6 +22,8 @@ import os
 import yaml
 
 from humancalib.core.videos import list_videos
+from humancalib.core.log import get_logger
+log = get_logger(__name__)
 
 SESSION_FILENAME = "session.yaml"
 
@@ -76,12 +78,10 @@ def probe_videos(video_dir):
     _, width, height, fps = probed[0]
     odd = [n for n, w, h, _ in probed if (w, h) != (width, height)]
     if odd:
-        print(
-            f"  WARNING: frame size differs across cameras; using {width}x{height} "
-            f"from {probed[0][0]}. Different: {', '.join(odd)}"
-        )
+        log.warning(f"frame size differs across cameras; using {width}x{height} "
+            f"from {probed[0][0]}. Different: {', '.join(odd)}")
     if fps <= 0:
-        print(f"  WARNING: could not read frame rate from {probed[0][0]}, assuming 30")
+        log.warning(f"could not read frame rate from {probed[0][0]}, assuming 30")
         fps = 30.0
 
     return {"width": width, "height": height, "frame_rate": fps}
@@ -158,7 +158,7 @@ def session_ids(subset_dir, prefix=None):
         match = re.search(r"A(\d+)_P(\d+)_G(\d+)",
                           os.path.basename(os.path.normpath(prefix)))
         if match:
-            print("  NOTE: no session file; session IDs read from the directory "
+            log.info("  NOTE: no session file; session IDs read from the directory "
                   "name (pre-refactor result folder).")
             return int(match.group(1)), int(match.group(2)), int(match.group(3))
 

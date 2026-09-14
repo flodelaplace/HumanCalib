@@ -23,6 +23,8 @@ Usage:
 # --- Silence TensorFlow startup noise ------------------------------------
 # These MUST be set BEFORE `import tensorflow` / `import tensorflow_hub`.
 import os
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'       # hide TF INFO/WARNING (keep ERROR+)
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'      # silence the oneDNN custom-ops notice
 # Persistent TF-Hub cache: without this, tfhub.load() caches to /tmp/tfhub_modules,
@@ -107,7 +109,7 @@ def get_intrinsics_from_toml(toml_path, cam_names):
     dist_list = []
     for cam_name in cam_names:
         if cam_name not in data:
-            print(f"ERROR: Section '[{cam_name}]' not found in {toml_path}")
+            log.error(f"Section '[{cam_name}]' not found in {toml_path}")
             sys.exit(1)
         sec = data[cam_name]
         K = np.array(sec["matrix"], dtype=np.float64)
@@ -175,17 +177,17 @@ def process_video(video_path, model, skeleton, intrinsic_matrix, output_dir, sub
     sf = start_frame if start_frame is not None else 0
     ef = end_frame if end_frame is not None else total_frames - 1
     if sf > ef or sf < 0 or ef >= total_frames:
-        print(f"ERROR: Invalid frame range ({sf} to {ef}) for {video_path}")
+        log.error(f"Invalid frame range ({sf} to {ef}) for {video_path}")
         return [], [], [], []
 
     n_frames = ef - sf + 1
-    print(f"  Video: {os.path.basename(video_path)} ({imshape[1]}x{imshape[0]}, frames {sf}-{ef})")
+    log.info(f"  Video: {os.path.basename(video_path)} ({imshape[1]}x{imshape[0]}, frames {sf}-{ef})")
 
     # Deterministic list of frames to treat as missing (black / corrupted).
     dropped_set = read_dropped(output_dir, subset, video_path)
     if dropped_set:
         in_range = sum(1 for i in dropped_set if sf <= i <= ef)
-        print(f"  Sidecar: {in_range}/{len(dropped_set)} dropped indices in range [{sf},{ef}]")
+        log.info(f"  Sidecar: {in_range}/{len(dropped_set)} dropped indices in range [{sf},{ef}]")
 
     # Generator that yields frames one by one (no bulk RAM allocation)
     def frame_generator():
@@ -258,9 +260,9 @@ def process_video(video_path, model, skeleton, intrinsic_matrix, output_dir, sub
             all_confidences.append(conf)
 
     if n_drop > 0:
-        print(f"  Filtered {n_drop}/{n_frames} frames via sidecar")
+        log.info(f"  Filtered {n_drop}/{n_frames} frames via sidecar")
     if n_dark > 0:
-        print(f"  Filtered {n_dark}/{n_frames} dark frames (brightness fallback)")
+        log.info(f"  Filtered {n_dark}/{n_frames} dark frames (brightness fallback)")
 
     return frame_indices, all_poses3d, all_poses2d, all_confidences
 
@@ -338,19 +340,19 @@ def main(argv=None):
     video_files = list_videos(args.video_dir)
 
     if not video_files:
-        print(f"ERROR: No video files found in {args.video_dir}")
+        log.error(f"No video files found in {args.video_dir}")
         sys.exit(1)
 
-    print(f"Found {len(video_files)} video(s):")
+    log.info(f"Found {len(video_files)} video(s):")
     for i, v in enumerate(video_files):
-        print(f"  [{i+1}] {os.path.basename(v)}")
+        log.info(f"  [{i+1}] {os.path.basename(v)}")
 
     # Get camera names (same logic as calibrate.sh)
     cam_names = [os.path.splitext(os.path.basename(v))[0] for v in video_files]
 
     # Load intrinsics from TOML
     K_list, dist_list = get_intrinsics_from_toml(args.calib_toml, cam_names)
-    print(f"\nLoaded intrinsics for {len(K_list)} cameras from {args.calib_toml}")
+    log.info(f"\nLoaded intrinsics for {len(K_list)} cameras from {args.calib_toml}")
 
     # Say plainly which device this will run on. Falling back to CPU is not an
     # error and TensorFlow does it silently, so the only symptom is that a
@@ -359,20 +361,20 @@ def main(argv=None):
     # libraries are not on the loader path (LD_LIBRARY_PATH).
     _gpus = tf.config.list_physical_devices('GPU')
     if _gpus:
-        print(f"\nCompute device: GPU ({len(_gpus)} visible to TensorFlow)", flush=True)
+        log.info(f"\nCompute device: GPU ({len(_gpus)} visible to TensorFlow)")
     else:
-        print("\nCompute device: CPU — no GPU visible to TensorFlow. Inference will "
+        log.info("\nCompute device: CPU — no GPU visible to TensorFlow. Inference will "
               "be roughly 15x slower.\n  If this machine has a GPU, the CUDA runtime "
-              "libraries are not on the loader path.", flush=True)
+              "libraries are not on the loader path.")
 
     # Load MeTRAbs model (this takes 30-60s: model loading + TF graph compilation)
-    print(f"\nLoading MeTRAbs model (skeleton={args.skeleton}) — please wait...", flush=True)
+    log.info(f"\nLoading MeTRAbs model (skeleton={args.skeleton}) — please wait...")
     model = tfhub.load(METRABS_L_URL)
-    print("Model loaded. Running warmup inference...", flush=True)
+    log.info("Model loaded. Running warmup inference...")
     # Warmup: first call triggers TF graph compilation (slow), subsequent calls are fast
     _dummy = np.zeros((1, 256, 256, 3), dtype=np.uint8)
     model.detect_poses_batched(tf.constant(_dummy), skeleton=args.skeleton)
-    print("Warmup done. Starting pose extraction.\n", flush=True)
+    log.info("Warmup done. Starting pose extraction.\n")
 
     # Create output directories
     out_2d_dir = os.path.join(args.output_dir, args.subset_name, "2d_joint")
@@ -388,7 +390,7 @@ def main(argv=None):
         cid = cam_idx
         base_name = f"A{args.aid:03d}_P{args.pid:03d}_G{args.gid:03d}_C{cid:03d}.json"
 
-        print(f"\n[Camera {cid}]")
+        log.info(f"\n[Camera {cid}]")
 
         # MeTRAbs only consumes the intrinsic matrix; lens distortion is handled
         # separately by undistort_points() on the predicted 2D keypoints below.
@@ -401,7 +403,7 @@ def main(argv=None):
         )
 
         if not frame_indices:
-            print(f"  WARNING: No frames processed for camera {cid}")
+            log.warning(f"No frames processed for camera {cid}")
             continue
 
         # Temporal smoothing (Savitzky-Golay) to reduce frame-to-frame jitter
@@ -417,7 +419,7 @@ def main(argv=None):
                     poses3d_raw[i] = smoothed_3d[vi]
                     poses2d_raw[i] = smoothed_2d[vi]
                     vi += 1
-            print(f"  Applied Savitzky-Golay smoothing ({len(valid_3d)} frames)")
+            log.info(f"  Applied Savitzky-Golay smoothing ({len(valid_3d)} frames)")
 
         # Convert to full 87-joint format, Halpe26 for scaling compatibility
         full87_2d_list = []
@@ -431,7 +433,7 @@ def main(argv=None):
 
         has_distortion = np.any(dist != 0)
         if has_distortion:
-            print(f"  Undistorting 2D keypoints (dist={dist[:4]}...)")
+            log.info(f"  Undistorting 2D keypoints (dist={dist[:4]}...)")
 
         # Get image dimensions for per-joint quality scoring
         _reader = imageio.get_reader(video_path, 'ffmpeg')
@@ -483,21 +485,21 @@ def main(argv=None):
             os.path.join(out_2d_dir, base_name),
             frame_indices, full87_2d_list, scores_2d_list
         )
-        print(f"  Saved {len(frame_indices)} bml_movi_87 2D frames (87 joints) -> {out_2d_dir}/{base_name}")
+        log.info(f"  Saved {len(frame_indices)} bml_movi_87 2D frames (87 joints) -> {out_2d_dir}/{base_name}")
 
         # Save 3D (full 87-joint bml_movi_87)
         save_json(
             os.path.join(out_3d_dir, base_name),
             frame_indices, full87_3d_list, scores_3d_list
         )
-        print(f"  Saved {len(frame_indices)} bml_movi_87 3D frames (87 joints) -> {out_3d_dir}/{base_name}")
+        log.info(f"  Saved {len(frame_indices)} bml_movi_87 3D frames (87 joints) -> {out_3d_dir}/{base_name}")
 
         # Save Halpe26 2D (for scale_scene.py)
         save_json(
             os.path.join(out_halpe26_dir, base_name),
             frame_indices, halpe26_2d_list, scores_halpe26_list
         )
-        print(f"  Saved {len(frame_indices)} Halpe26 2D frames -> {out_halpe26_dir}/{base_name}")
+        log.info(f"  Saved {len(frame_indices)} Halpe26 2D frames -> {out_halpe26_dir}/{base_name}")
 
         # Store first camera's 3D for skeleton_w
         if skeleton_w_data is None:
@@ -507,16 +509,17 @@ def main(argv=None):
     if skeleton_w_data is not None:
         skel_path = os.path.join(args.output_dir, args.subset_name, f"skeleton_w_G{args.gid:03d}.json")
         save_skeleton_w(skel_path, skeleton_w_data[0], skeleton_w_data[1])
-        print(f"\nSaved skeleton_w -> {skel_path}")
+        log.info(f"\nSaved skeleton_w -> {skel_path}")
 
-    print("\n" + "=" * 60)
-    print("MeTRAbs pose extraction complete!")
-    print(f"Output: {args.output_dir}/{args.subset_name}/")
-    print(f"  2d_joint/        : bml_movi_87 2D poses (87 joints)")
-    print(f"  3d_joint/        : bml_movi_87 3D poses (87 joints)")
-    print(f"  2d_joint_halpe26/: Halpe26 2D poses (for scaling)")
-    print("=" * 60)
+    log.info("\n" + "=" * 60)
+    log.info("MeTRAbs pose extraction complete!")
+    log.info(f"Output: {args.output_dir}/{args.subset_name}/")
+    log.info(f"  2d_joint/        : bml_movi_87 2D poses (87 joints)")
+    log.info(f"  3d_joint/        : bml_movi_87 3D poses (87 joints)")
+    log.info(f"  2d_joint_halpe26/: Halpe26 2D poses (for scaling)")
+    log.info("=" * 60)
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

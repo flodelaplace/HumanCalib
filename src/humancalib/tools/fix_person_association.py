@@ -25,12 +25,14 @@ Usage:
         --project "/path/to/pose2sim_project" \\
         --pose_dir pose-associated --out_dir pose-associated-fixed
 """
-import argparse, ast, glob, json, os, re, sys
+import argparse, ast, glob, json, os, re
 import numpy as np
 import cv2
 from scipy.optimize import linear_sum_assignment
 
 from humancalib.core.geometry import triangulate_dlt
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 
 N_KPT = 26
 
@@ -126,7 +128,7 @@ def main():
     base = os.path.join(args.project, args.pose_dir)
     posedirs = sorted([d for d in os.listdir(base) if os.path.isdir(os.path.join(base, d))])
     if len(posedirs) != C:
-        print(f"WARN: {len(posedirs)} pose dirs vs {C} calib cameras", file=sys.stderr)
+        log.warning(f"{len(posedirs)} pose dirs vs {C} calib cameras")
     # map camera index -> pose dir by serial prefix
     cam_dir = []
     for c in cams:
@@ -140,8 +142,8 @@ def main():
     for fi in probe:
         for ci in range(C):
             NS = max(NS, len(json.load(open(files[ci][fi])).get('people', [])))
-    print(f"Cameras: {C}  Frames: {nfr} (processing {len(frames)})  Subjects: {NS}")
-    print(f"conf>{args.conf_threshold}, reproj_gate {args.reproj_gate}px, {args.iterations} passes\n")
+    log.info(f"Cameras: {C}  Frames: {nfr} (processing {len(frames)})  Subjects: {NS}")
+    log.info(f"conf>{args.conf_threshold}, reproj_gate {args.reproj_gate}px, {args.iterations} passes\n")
 
     out_base = os.path.join(args.project, args.out_dir)
     if not args.dry_run:
@@ -242,20 +244,21 @@ def main():
                 fn = os.path.basename(files[ci][fi])
                 json.dump(out, open(os.path.join(out_base, cam_dir[ci], fn), 'w'))
 
-    print("Per-subject reprojection (mean px)   BEFORE -> AFTER")
+    log.info("Per-subject reprojection (mean px)   BEFORE -> AFTER")
     for s in range(NS):
         b = np.mean(err_before[s]) if err_before[s] else float('nan')
         a = np.mean(err_after[s]) if err_after[s] else float('nan')
         flag = "  *FIXED*" if (err_before[s] and err_after[s] and b - a > 15) else ""
-        print(f"  Subj {s}:  {b:7.1f} -> {a:7.1f}{flag}")
+        log.info(f"  Subj {s}:  {b:7.1f} -> {a:7.1f}{flag}")
     allb = [e for v in err_before.values() for e in v]
     alla = [e for v in err_after.values() for e in v]
-    print(f"\n  GLOBAL mean:  {np.mean(allb):.1f} -> {np.mean(alla):.1f} px   "
+    log.info(f"\n  GLOBAL mean:  {np.mean(allb):.1f} -> {np.mean(alla):.1f} px   "
           f"median {np.median(allb):.1f} -> {np.median(alla):.1f} px")
-    print(f"  Reassigned (subject,camera) cells: {n_changed}/{n_cells} ({100*n_changed/max(n_cells,1):.1f}%)")
+    log.info(f"  Reassigned (subject,camera) cells: {n_changed}/{n_cells} ({100*n_changed/max(n_cells,1):.1f}%)")
     if not args.dry_run:
-        print(f"\n  Corrected poses written to: {out_base}")
+        log.info(f"\n  Corrected poses written to: {out_base}")
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

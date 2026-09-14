@@ -99,8 +99,7 @@ input/*
 output/*
 !output/.gitkeep
 
-# ── Allow specific config & demo files ──────────────────────
-!conda_linux.yaml
+# ── Allow specific demo files ───────────────────────────────
 
 # config/config.yaml is runtime state, rewritten on every run.
 # Untracked since the reproducibility refactor; removed entirely in T4.1

@@ -9,6 +9,8 @@
 #   VideoPose3D is CC BY-NC 4.0 (non-commercial) and its pretrained weights
 #   were trained on Human3.6M, which is restricted to academic use. HumanCalib
 #   itself is MIT, but any use of THIS backend inherits those restrictions.
+#   The default MeTRAbs backend is no exception: its pretrained model is also
+#   licensed for non-commercial use only.
 # ---------------------------------------------------------------------------
 #
 #   conda env create -f envs/rtmpose.yaml

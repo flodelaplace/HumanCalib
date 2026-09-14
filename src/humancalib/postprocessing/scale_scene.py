@@ -34,6 +34,8 @@ from humancalib.core.geometry import triangulate_dlt
 from humancalib.core.session import session_ids
 from humancalib.core.videos import camera_names
 from humancalib.postprocessing.evaluate_calibration import export_to_toml
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 
 # Keypoint indices in Halpe26 (used with RTMPose)
 HALPE26_HEAD = 17
@@ -118,7 +120,7 @@ def main(argv=None):
         R_HEEL_IDX = BML87_R_HEEL
         foot_kp_indices = [BML87_L_HEEL, BML87_R_HEEL, BML87_L_TOE, BML87_R_TOE,
                            BML87_L_FOO, BML87_R_FOO, BML87_L_FIFTHMET, BML87_R_FIFTHMET]
-        print(f"  Using MeTRAbs bml_movi_87 joints for scaling ({_n_joints_detected} joints)")
+        log.info(f"  Using MeTRAbs bml_movi_87 joints for scaling ({_n_joints_detected} joints)")
     elif args.pose_engine == "metrabs":
         joint_dir = os.path.join(args.prefix, args.subset, "2d_joint")
         HEAD_IDX = CALIB26_HEAD
@@ -126,7 +128,7 @@ def main(argv=None):
         R_HEEL_IDX = CALIB26_R_HEEL
         foot_kp_indices = [CALIB26_L_HEEL, CALIB26_R_HEEL, CALIB26_L_TOE, CALIB26_R_TOE,
                            CALIB26_L_FOO, CALIB26_R_FOO]
-        print(f"  Using MeTRAbs calib26 joints for scaling ({_n_joints_detected} joints)")
+        log.info(f"  Using MeTRAbs calib26 joints for scaling ({_n_joints_detected} joints)")
     else:
         joint_dir = os.path.join(args.prefix, args.subset, "2d_joint_halpe26")
         HEAD_IDX = HALPE26_HEAD
@@ -152,7 +154,7 @@ def main(argv=None):
     for cid in CAMID:
         fpath = os.path.join(halpe26_dir, f"A{aid:03d}_P{pid:03d}_G{gid:03d}_C{cid:03d}.json")
         if not os.path.exists(fpath):
-            print(f"ERROR: Halpe26 pose file not found: {fpath}", file=sys.stderr)
+            log.error(f"Halpe26 pose file not found: {fpath}")
             sys.exit(1)
         frames, p2d, s2d = load_poses(fpath)
         min_frames = min(min_frames, len(frames))
@@ -164,17 +166,17 @@ def main(argv=None):
     s2d_all = np.array([s[:min_frames].reshape(min_frames, num_joints) for s in s2d_list])
 
     # --- Triangulate Foot and Head Keypoints ---
-    print(f"Triangulating keypoints for frame {args.frame_idx}...")
+    log.info(f"Triangulating keypoints for frame {args.frame_idx}...")
     foot_points_3d = [get_3d_keypoint(p2d_all, s2d_all, K, R_w2c_orig, t_w2c_orig, args.frame_idx, idx, args.conf_threshold) for idx in foot_kp_indices]
     foot_points_3d = [p for p in foot_points_3d if p is not None]
 
     if len(foot_points_3d) < 3:
-        print(f"ERROR: Not enough foot keypoints ({len(foot_points_3d)}) to define a plane. Try a different frame.", file=sys.stderr)
+        log.error(f"Not enough foot keypoints ({len(foot_points_3d)}) to define a plane. Try a different frame.")
         sys.exit(1)
 
     head_3d = get_3d_keypoint(p2d_all, s2d_all, K, R_w2c_orig, t_w2c_orig, args.frame_idx, HEAD_IDX, args.conf_threshold)
     if head_3d is None:
-        print("ERROR: Could not triangulate head. Cannot calculate scale.", file=sys.stderr)
+        log.error("Could not triangulate head. Cannot calculate scale.")
         sys.exit(1)
 
     # --- 1. Define New Coordinate System ---
@@ -234,7 +236,7 @@ def main(argv=None):
     measured_height = abs(head_3d_new[1])
     
     scale_factor = args.height / measured_height
-    print(f"Calculated scale factor: {scale_factor:.4f}")
+    log.info(f"Calculated scale factor: {scale_factor:.4f}")
 
     t_w2c_scaled = t_w2c_new * scale_factor
 
@@ -245,7 +247,7 @@ def main(argv=None):
     }
     with open(output_calib_path, "w") as f:
         json.dump(out_data, f, indent=2)
-    print(f"\nSaved final oriented and scaled calibration to: {output_calib_path}")
+    log.info(f"\nSaved final oriented and scaled calibration to: {output_calib_path}")
 
     if args.export_toml:
         if not args.video_dir:
@@ -254,4 +256,5 @@ def main(argv=None):
         export_to_toml(args.input_toml, args.export_toml, R_w2c_new, t_w2c_scaled, cam_names)
 
 if __name__ == "__main__":
+    setup_logging()
     main()

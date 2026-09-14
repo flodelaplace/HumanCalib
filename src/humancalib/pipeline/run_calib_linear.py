@@ -24,10 +24,11 @@ import os
 import re
 import shutil
 import sys
-import traceback
 
 from humancalib.calibration import calib_linear
 from humancalib.postprocessing import evaluate_calibration
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 
 CHUNK_SIZE = 1000  # process 1000 frames at a time (visibility filter selects best within)
 
@@ -86,13 +87,17 @@ def map_video_frames_to_indices(skeleton_file, req_start, req_end):
         if req_end is not None:
             j = next((i for i, v in enumerate(fi) if int(v) > req_end), None)
             re_idx = (len(fi) - 1) if j is None else (j - 1)
-    except Exception:
+    except (TypeError, ValueError) as err:
+        # Was `except Exception: return None, None`: the caller then reported
+        # only that the mapping failed, never why. Narrowed to what malformed
+        # frame indices can actually raise, and the reason is kept.
+        log.warning(f"invalid frame_indices in {skeleton_file}: {err}")
         return None, None
     return rs, re_idx
 
 
 def run_chunk(args, frame_start, frame_end, chunk_id, total_chunks):
-    print(f"\n--- Processing Chunk {chunk_id}/{total_chunks} (Frames {frame_start}-{frame_end}) ---")
+    log.info(f"\n--- Processing Chunk {chunk_id}/{total_chunks} (Frames {frame_start}-{frame_end}) ---")
     chunk_argv = [
         "--prefix", args.prefix,
         "--aid", str(args.aid),
@@ -115,10 +120,9 @@ def run_chunk(args, frame_start, frame_end, chunk_id, total_chunks):
         calib_linear.main(chunk_argv)
     except SystemExit as err:
         if err.code not in (0, None):
-            print(f"WARNING: chunk {chunk_id} exited with {err.code}; skipping it.", file=sys.stderr)
+            log.warning(f"chunk {chunk_id} exited with {err.code}; skipping it.")
     except Exception:
-        print(f"WARNING: chunk {chunk_id} failed; skipping it.", file=sys.stderr)
-        traceback.print_exc()
+        log.warning(f"chunk {chunk_id} failed; skipping it.", exc_info=True)
 
 
 def evaluate_chunk(args, chunk_id):
@@ -158,10 +162,10 @@ def main(argv):
     os.makedirs(chunk_results_dir, exist_ok=True)
 
     # 1. Determine MIN_FRAMES across cameras
-    print("Finding the minimum number of frames across all cameras...")
+    log.info("Finding the minimum number of frames across all cameras...")
     min_frames = find_min_frames(json_dir)
     if min_frames is None:
-        print(f"ERROR: no JSON files found in {json_dir}", file=sys.stderr)
+        log.error(f"no JSON files found in {json_dir}")
         sys.exit(1)
 
     # 2. Map video-frame numbers → JSON indices if needed
@@ -177,16 +181,16 @@ def main(argv):
                 args.prefix, args.target, f"skeleton_w_G{args.gid:03d}.json"
             )
             if os.path.isfile(skeleton_file):
-                print(f"Mapping requested video-frame numbers to JSON indices using {skeleton_file}...")
+                log.info(f"Mapping requested video-frame numbers to JSON indices using {skeleton_file}...")
                 rs, re_idx = map_video_frames_to_indices(skeleton_file, req_start, req_end)
                 if rs is not None and re_idx is not None and rs >= 0 and re_idx >= 0:
-                    print(f"Mapped start -> {rs}, end -> {re_idx} (JSON indices)")
+                    log.info(f"Mapped start -> {rs}, end -> {re_idx} (JSON indices)")
                     req_start = rs
                     req_end = re_idx
                 else:
-                    print("WARNING: could not map requested video-frame numbers to JSON indices. Falling back to index clamping.")
+                    log.warning("could not map requested video-frame numbers to JSON indices. Falling back to index clamping.")
             else:
-                print(f"WARNING: skeleton file {skeleton_file} not found; cannot map video-frame numbers to JSON indices.")
+                log.warning(f"skeleton file {skeleton_file} not found; cannot map video-frame numbers to JSON indices.")
 
     # 3. Resolve and clamp range
     if req_start is not None and req_end is not None:
@@ -199,24 +203,19 @@ def main(argv):
         calib_start, calib_end = 0, min_frames - 1
 
     if calib_start < 0:
-        print(f"WARNING: start frame {calib_start} < 0. Clamping to 0.")
+        log.warning(f"start frame {calib_start} < 0. Clamping to 0.")
         calib_start = 0
     max_idx = min_frames - 1
     if calib_end > max_idx:
-        print(f"WARNING: end frame {calib_end} > available frames ({max_idx}). Clamping to {max_idx}.")
+        log.warning(f"end frame {calib_end} > available frames ({max_idx}). Clamping to {max_idx}.")
         calib_end = max_idx
 
     total_frames = calib_end - calib_start + 1
     if total_frames <= 0:
-        print(
-            f"ERROR: Invalid frame range after clamping ({calib_start} to {calib_end}).",
-            file=sys.stderr,
-        )
+        log.error(f"Invalid frame range after clamping ({calib_start} to {calib_end}).")
         sys.exit(1)
-    print(
-        f"Processing frames from {calib_start} to {calib_end} ({total_frames} total) "
-        f"in chunks of {CHUNK_SIZE}..."
-    )
+    log.info(f"Processing frames from {calib_start} to {calib_end} ({total_frames} total) "
+        f"in chunks of {CHUNK_SIZE}...")
 
     # 4. Run calibration per chunk
     n_chunks = (total_frames + CHUNK_SIZE - 1) // CHUNK_SIZE
@@ -226,7 +225,7 @@ def main(argv):
         run_chunk(args, f_start, f_end, i, n_chunks)
 
     # 5. Evaluate each chunk and find the best (lowest MRE)
-    print("\n--- Evaluating all chunks to find the best calibration ---")
+    log.info("\n--- Evaluating all chunks to find the best calibration ---")
     chunk_files = glob.glob(os.path.join(chunk_results_dir, "linear_chunk_*.json"))
 
     def chunk_id_of(path):
@@ -252,20 +251,18 @@ def main(argv):
 
     # 6. Copy the best chunk's output to the final result
     if best_chunk_id is None:
-        print(
-            "ERROR: Could not determine the best calibration chunk. No final file was created.",
-            file=sys.stderr,
-        )
+        log.error("Could not determine the best calibration chunk. No final file was created.")
         sys.exit(1)
 
     final_name = derive_final_name(args.target)  # ex: linear_1_0
     final_file = os.path.join(results_dir, f"{final_name}.json")
-    print("\n--- Best result found ---")
-    print(f"  -> Chunk ID: {best_chunk_id}")
-    print(f"  -> MRE: {best_mre} pixels")
-    print(f"  -> Copying {best_chunk_file} to {final_file}")
+    log.info("\n--- Best result found ---")
+    log.info(f"  -> Chunk ID: {best_chunk_id}")
+    log.info(f"  -> MRE: {best_mre} pixels")
+    log.info(f"  -> Copying {best_chunk_file} to {final_file}")
     shutil.copy(best_chunk_file, final_file)
 
 
 if __name__ == "__main__":
+    setup_logging()
     main(sys.argv[1:])

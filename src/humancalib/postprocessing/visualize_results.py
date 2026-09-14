@@ -1,11 +1,11 @@
 """
 visualize_results.py
 ---------------------
-Visualisation frame par frame du squelette 3D triangulé + position des caméras
-à partir des résultats de calibration extrinsèque.
+Frame-by-frame visualisation of the triangulated 3D skeleton and the camera
+positions, from the results of an extrinsic calibration.
 
 Usage:
-    python visualize_results.py \
+    python -m humancalib.postprocessing.visualize_results \
         --prefix   ./data/A001_P001_G001 \
         --subset   noise_1_0 \
         --calib    linear_1_0_ba \
@@ -21,6 +21,8 @@ import os
 
 import numpy as np
 import matplotlib
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -61,7 +63,7 @@ METRABS_NAMES = list(METRABS_KEY)
 
 def export_to_trc(X3d_world, output_path, fps=30.0):
     """
-    Exporte les coordonnées 3D au format .trc (pour OpenSim / Mokka)
+    Export the 3D coordinates as a .trc file (for OpenSim / Mokka).
     """
     import os
     N, J, _ = X3d_world.shape
@@ -97,7 +99,7 @@ def export_to_trc(X3d_world, output_path, fps=30.0):
                 else:
                     f.write(f"{pt[0]:.5f}\t{pt[1]:.5f}\t{pt[2]:.5f}\t")
             f.write("\n")
-    print(f"Saved TRC file to: {output_path}")
+    log.info(f"Saved TRC file to: {output_path}")
 
 BONE_COLOR  = "#f94e3e"
 CAM_COLOR   = ["#2196F3", "#4CAF50", "#FF9800", "#9C27B0",
@@ -105,7 +107,7 @@ CAM_COLOR   = ["#2196F3", "#4CAF50", "#FF9800", "#9C27B0",
 
 
 def draw_camera(ax, R_w2c, t_w2c, color, label, scale=0.15):
-    """Dessine une pyramide représentant une caméra dans le repère monde."""
+    """Draw a pyramid representing a camera in the world frame."""
     C = (-R_w2c.T @ t_w2c.reshape(3, 1)).flatten()
     
     w, h, f = 0.8, 0.6, 1.0
@@ -137,7 +139,7 @@ def make_animation(X3d_world, R_w2c, t_w2c, output_path, fps=15, step=1,
                    floor_at_zero=False, K=None, p2d_all=None, s2d_all=None,
                    conf_threshold=0.5):
     """
-    Génère un GIF/MP4 animé avec le squelette triangulé + les caméras.
+    Render an animated GIF/MP4 of the triangulated skeleton and the cameras.
 
     floor_at_zero: when True, clamps the vertical-axis lower bound to 0
     (used for the FINAL oriented+scaled viz where the calibration places
@@ -193,7 +195,7 @@ def make_animation(X3d_world, R_w2c, t_w2c, output_path, fps=15, step=1,
         skel_min = np.array([np.inf, np.inf, np.inf])
         skel_max = np.array([-np.inf, -np.inf, -np.inf])
 
-    # Bounding box pour les caméras (inclusions strictes avec min/max)
+    # Bounding box of the cameras (strict min/max inclusion)
     cam_plot = np.copy(cam_positions)
     cam_plot[:, 0] = cam_positions[:, 0]
     cam_plot[:, 1] = cam_positions[:, 2]
@@ -246,6 +248,8 @@ def make_animation(X3d_world, R_w2c, t_w2c, output_path, fps=15, step=1,
     try:
         ax.dist = 8.0
     except Exception:
+        # Purely cosmetic, and deliberately tolerated: Axes3D.dist is deprecated in
+        # recent matplotlib. A framing tweak must never abort a rendering.
         pass
 
     method_labels = {
@@ -351,7 +355,7 @@ def make_animation(X3d_world, R_w2c, t_w2c, output_path, fps=15, step=1,
             p0, p1 = pts_plot[j0], pts_plot[j1]
             if not (np.isnan(p0).any() or np.isnan(p1).any()):
                 line = art3d.Line3D([p0[0], p1[0]], [p0[1], p1[1]], [p0[2], p1[2]],
-                                    color=BONE_COLOR, linewidth=3, alpha=1.0) # Traits plus épais
+                                    color=BONE_COLOR, linewidth=3, alpha=1.0) # thicker lines
                 ax.add_line(line)
 
         # Draw cameras
@@ -359,7 +363,7 @@ def make_animation(X3d_world, R_w2c, t_w2c, output_path, fps=15, step=1,
             color = cam_colors[i % len(cam_colors)]
             draw_camera(ax, R, t, color=color, label=f"Cam{i+1}", scale=scale)
 
-    print(f"Rendering {len(frames_to_render)} frames...")
+    log.info(f"Rendering {len(frames_to_render)} frames...")
     ani = animation.FuncAnimation(fig, draw_frame,
                                   frames=frames_to_render,
                                   interval=1000 // fps,
@@ -373,7 +377,7 @@ def make_animation(X3d_world, R_w2c, t_w2c, output_path, fps=15, step=1,
         ani.save(output_path, writer="ffmpeg", fps=fps,
                  extra_args=["-vcodec", "libx264", "-pix_fmt", "yuv420p"])
     plt.close(fig)
-    print(f"Saved: {output_path}")
+    log.info(f"Saved: {output_path}")
 
 
 def main(argv=None):
@@ -413,16 +417,16 @@ def main(argv=None):
     
     camera_ids = session["camera_ids"]
 
-    print(f"Dataset    : {args.dataset}")
-    print(f"Subset     : {subset_dir}")
-    print(f"Calibration: {calib_json}")
-    print(f"Cameras    : {camera_ids}")
+    log.info(f"Dataset    : {args.dataset}")
+    log.info(f"Subset     : {subset_dir}")
+    log.info(f"Calibration: {calib_json}")
+    log.info(f"Cameras    : {camera_ids}")
 
     CAMID, K, R_w2c, t_w2c, _dist = load_eldersim_camera(calib_json)
     R_w2c = np.array(R_w2c)
     t_w2c = np.array(t_w2c)
     K      = np.array(K)
-    print(f"Loaded calibration for {len(CAMID)} cameras")
+    log.info(f"Loaded calibration for {len(CAMID)} cameras")
 
     p2d_list, s2d_list = [], []
     min_frames = 999999
@@ -439,11 +443,11 @@ def main(argv=None):
     p2d_all = np.array(p2d_list)
     s2d_all = np.array(s2d_list)
     N = p2d_all.shape[1]
-    print(f"Frames     : {N} (truncated to shortest video)")
+    log.info(f"Frames     : {N} (truncated to shortest video)")
 
-    print("Triangulating 3D skeleton in world frame...")
+    log.info("Triangulating 3D skeleton in world frame...")
     X3d_world = triangulate_skeleton(p2d_all, s2d_all, K, R_w2c, t_w2c, args.conf_threshold)
-    print(f"X3d_world shape: {X3d_world.shape}")
+    log.info(f"X3d_world shape: {X3d_world.shape}")
 
     if args.export_trc:
         dataset_fps = session.get("frame_rate", 30.0)
@@ -454,7 +458,7 @@ def main(argv=None):
     if step == 0:
         step = max(1, N // args.max_frames)
         if step > 1:
-            print(f"Auto-step: rendering 1/{step} frames ({N // step}/{N} total)")
+            log.info(f"Auto-step: rendering 1/{step} frames ({N // step}/{N} total)")
 
     make_animation(X3d_world, R_w2c, t_w2c,
                    output_path=args.output,
@@ -466,4 +470,5 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

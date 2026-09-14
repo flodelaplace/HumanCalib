@@ -28,12 +28,15 @@ import argparse
 import datetime
 import importlib
 import importlib.util
+import logging
 import os
 import shlex
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 
 # Vestigial dataset identifiers: they only shape artefact file names. See
 # docs/REFACTOR_PLAN.md (T4.4).
@@ -285,7 +288,7 @@ def format_summary(scores, best, output_dir, scaling_requested):
 
 
 def _header(title):
-    print(f"\n{RULE}\n{title}\n{RULE}", flush=True)
+    log.info(f"\n{RULE}\n{title}\n{RULE}")
 
 
 def preflight(cfg):
@@ -323,32 +326,32 @@ def run_pipeline(cfg):
     frames = ((["--start_frame", str(cfg.start_frame)] if cfg.start_frame is not None else [])
               + (["--end_frame", str(cfg.end_frame)] if cfg.end_frame is not None else []))
 
-    print("\n╔" + "═" * 62 + "╗")
-    print("║          Extrinsic Camera Calibration Pipeline               ║")
-    print("╠" + "═" * 62 + "╣")
-    print(f"║  Video Dir  : {vd}")
-    print(f"║  Calib TOML : {cfg.calib_toml}")
-    print(f"║  Output Dir : {out}")
-    print(f"║  Pose Engine: {cfg.pose_engine}")
-    print(f"║  Device     : {cfg.device}         Mode: {cfg.mode}")
-    print(f"║  Frame Skip : {cfg.frame_skip}             Conf Threshold: {cfg.conf_threshold}")
+    log.info("\n╔" + "═" * 62 + "╗")
+    log.info("║          Extrinsic Camera Calibration Pipeline               ║")
+    log.info("╠" + "═" * 62 + "╣")
+    log.info(f"║  Video Dir  : {vd}")
+    log.info(f"║  Calib TOML : {cfg.calib_toml}")
+    log.info(f"║  Output Dir : {out}")
+    log.info(f"║  Pose Engine: {cfg.pose_engine}")
+    log.info(f"║  Device     : {cfg.device}         Mode: {cfg.mode}")
+    log.info(f"║  Frame Skip : {cfg.frame_skip}             Conf Threshold: {cfg.conf_threshold}")
     if cfg.start_frame is not None:
-        print(f"║  Calib Range: Frames {cfg.start_frame} to {cfg.end_frame}")
+        log.info(f"║  Calib Range: Frames {cfg.start_frame} to {cfg.end_frame}")
     if cfg.height is not None:
-        print(f"║  Scaling    : Height={cfg.height}m, Ref Frame={cfg.ref_frame}")
-    print("╚" + "═" * 62 + "╝", flush=True)
+        log.info(f"║  Scaling    : Height={cfg.height}m, Ref Frame={cfg.ref_frame}")
+    log.info("╚" + "═" * 62 + "╝")
     os.makedirs(out, exist_ok=True)
 
     # 1. Pose extraction ------------------------------------------------------------------
     rng = f"  -> frame range: {cfg.start_frame or 0} to {cfg.end_frame if cfg.end_frame is not None else '<end>'}"
     if cfg.pose_engine == "metrabs":
         _header("[1/7] Extracting 2D+3D poses with MeTRAbs (replaces steps 1+4)...")
-        print(rng)
+        log.info(rng)
         cached = poses_are_cached(out, SUBSET, cfg.start_frame, cfg.end_frame)
         if cached:
-            print(f"  -> Found existing poses: {cached.n_cameras} cameras, {cached.n_frames} frames "
+            log.info(f"  -> Found existing poses: {cached.n_cameras} cameras, {cached.n_frames} frames "
                   f"({cached.start}-{cached.end})")
-            print("  -> Skipping MeTRAbs inference (reusing cached results)")
+            log.info("  -> Skipping MeTRAbs inference (reusing cached results)")
         else:
             run_process("extract-metrabs", resolve_metrabs_launcher() + [
                 "-m", "humancalib.pose.metrabs_inference",
@@ -356,7 +359,7 @@ def run_pipeline(cfg):
                 *ids, "--subset_name", SUBSET, "--batch_size", "8", *frames], env)
     else:
         _header("[1/7] Extracting 2D poses with RTMPose...")
-        print(rng)
+        log.info(rng)
         run_process("extract-rtmpose", [
             sys.executable, "-u", "-m", "humancalib.pose.rtmlib_inference",
             "--video_dir", vd, "--output_dir", out, *ids, "--subset_name", SUBSET,
@@ -372,7 +375,7 @@ def run_pipeline(cfg):
     if cfg.start_frame is not None and cfg.end_frame is not None:
         _header("[2.5] Creating frame mapping file...")
         path = write_frame_mapping(out, SUBSET, GID, cfg.start_frame, cfg.end_frame)
-        print(f"  -> Compatible mapping file created: {path}")
+        log.info(f"  -> Compatible mapping file created: {path}")
 
     # 3. Session ------------------------------------------------------------------------------
     _header("[3/7] Updating configuration...")
@@ -392,7 +395,7 @@ def run_pipeline(cfg):
 
     # 5. Calibration ----------------------------------------------------------------------------
     _header("[5/7] Extrinsic calibration...")
-    print("  → Running linear calibration by chunks...")
+    log.info("  → Running linear calibration by chunks...")
     linear_argv = (["--conf_threshold", str(cfg.conf_threshold)]
                    + (["--ref_cam", str(cfg.ref_cam)] if cfg.ref_cam is not None else [])
                    + [out, str(AID), str(PID), str(GID), SUBSET, str(cfg.frame_skip), DATASET])
@@ -404,16 +407,16 @@ def run_pipeline(cfg):
                             "Bundle adjustment not attempted; see the linear step's output above.")
 
     if cfg.auto_outlier_drop:
-        print("\n  → Detecting outlier frames (per camera)...")
+        log.info("\n  → Detecting outlier frames (per camera)...")
         new_drops = run_step("outliers", detect_outlier_frames.main, [
             "--prefix", out, "--subset", SUBSET, *ids, "--calib", "linear_1_0",
             "--video_dir", vd, "--abs_px", str(cfg.outlier_abs_px),
             "--x_median", str(cfg.outlier_x_median), "--conf_threshold", str(cfg.conf_threshold)])
         if new_drops:
-            print(f"\n  → Re-running linear calibration on cleaned data ({new_drops} outliers dropped)...")
+            log.info(f"\n  → Re-running linear calibration on cleaned data ({new_drops} outliers dropped)...")
             run_step("linear", run_calib_linear.main, linear_argv)
 
-    print("  → Bundle Adjustment (linear)...")
+    log.info("  → Bundle Adjustment (linear)...")
     run_step("ba", run_ba.main, [
         "--prefix", out, "--frame_skip", str(cfg.frame_skip),
         "--lambda1", str(LAMBDA1), "--lambda2", str(LAMBDA2), "--target", "linear_1_0",
@@ -432,13 +435,13 @@ def run_pipeline(cfg):
             *(["--start_frame", str(cfg.start_frame)] if cfg.start_frame is not None else [])])
         if mre is not None:
             scores[calib] = float(mre)
-        print(f"  → 3D Visualization for {calib}...")
+        log.info(f"  → 3D Visualization for {calib}...")
         if run_process("visualize", [
                 sys.executable, "-m", "humancalib.postprocessing.visualize_results",
                 "--prefix", out, "--subset", SUBSET, "--calib", calib, "--dataset", DATASET,
                 "--output", os.path.join(out, "results", "camera", f"visu_3d_{calib}.gif"),
                 "--conf_threshold", str(cfg.conf_threshold)], env, check=False) != 0:
-            print(f"  ⚠ Visu {calib} failed")
+            log.warning(f"Visu {calib} failed")
     best = best_calibration(scores)
 
     # 7. Scaling ----------------------------------------------------------------------------------
@@ -447,14 +450,14 @@ def run_pipeline(cfg):
         _header("[7/7] Scaling, Orientation and Final Visualization...")
         mapped = map_ref_frame(cfg.ref_frame, cfg.start_frame, cfg.end_frame)
         if mapped is None:
-            print(f"\n⚠ ERROR: --ref_frame {cfg.ref_frame} is outside the calibration range")
-            print(f"         [--start_frame {cfg.start_frame}, --end_frame "
+            log.error(f"--ref_frame {cfg.ref_frame} is outside the calibration range")
+            log.info(f"         [--start_frame {cfg.start_frame}, --end_frame "
                   f"{cfg.end_frame if cfg.end_frame is not None else '<end>'}].")
-            print("         --ref_frame expects an ABSOLUTE video frame number within the")
-            print("         cropped range. Scaling skipped -- linear and BA calibrations are saved.")
+            log.info("         --ref_frame expects an ABSOLUTE video frame number within the")
+            log.info("         cropped range. Scaling skipped -- linear and BA calibrations are saved.")
         else:
             if cfg.start_frame is not None:
-                print(f"  -> Reference frame re-mapped from {cfg.ref_frame} to index {mapped} "
+                log.info(f"  -> Reference frame re-mapped from {cfg.ref_frame} to index {mapped} "
                       "to match cropped data.")
             run_step("scale", scale_scene.main, [
                 "--prefix", out, "--calib", best, "--height", str(cfg.height),
@@ -465,7 +468,7 @@ def run_pipeline(cfg):
 
             final = f"{best}_oriented_scaled"
             if os.path.isfile(os.path.join(out, "results", f"{final}.json")):
-                print("  → Final visualization...")
+                log.info("  → Final visualization...")
                 run_process("visualize", [
                     sys.executable, "-m", "humancalib.postprocessing.visualize_results",
                     "--prefix", out, "--subset", SUBSET, "--calib", final, "--dataset", DATASET,
@@ -473,7 +476,7 @@ def run_pipeline(cfg):
                     "--export_trc", os.path.join(out, "results", "3d_skeleton_FINAL.trc"),
                     "--conf_threshold", str(cfg.conf_threshold)], env)
 
-    print(format_summary(scores, best, out, scaling_requested))
+    log.info(format_summary(scores, best, out, scaling_requested))
     return 0
 
 
@@ -483,15 +486,30 @@ def _usage():
     width = max(len(k) for k in STEPS)
     steps = "\n".join(f"  {k:<{width}}  {desc}" for k, (_, desc) in STEPS.items())
     return (
-        "usage: humancalib run VIDEO_DIR CALIB_TOML [OUTPUT_DIR] [cuda|cpu] "
+        "usage: humancalib [--verbose|--quiet] run VIDEO_DIR CALIB_TOML [OUTPUT_DIR] [cuda|cpu] "
         "[lightweight|balanced|performance] [options]\n"
         "       humancalib STEP [step options]\n\n"
-        "  run  the full pipeline (humancalib run --help for its options)\n\n"
+        "  run  the full pipeline (humancalib run --help for its options)\n"
+        "  --verbose / --quiet  more detail, or only problems (or HUMANCALIB_LOG_LEVEL)\n\n"
         f"Steps, each runnable on its own:\n{steps}\n")
 
 
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
+
+    # --verbose / --quiet before the command, or anywhere in `humancalib run`.
+    # The level is exported to HUMANCALIB_LOG_LEVEL, so steps running in their
+    # own process follow it too.
+    level = None
+    while argv and argv[0] in ("-v", "--verbose", "-q", "--quiet"):
+        level = logging.DEBUG if argv.pop(0) in ("-v", "--verbose") else logging.WARNING
+    if argv[:1] == ["run"]:
+        for flag, flag_level in (("--verbose", logging.DEBUG), ("--quiet", logging.WARNING)):
+            while flag in argv:
+                argv.remove(flag)
+                level = flag_level
+    setup_logging(level)
+
     if not argv or argv[0] in ("-h", "--help", "help"):
         print(_usage())
         return 0
@@ -505,7 +523,7 @@ def main(argv=None):
         try:
             return run_pipeline(parse_run_args(rest))
         except PipelineError as err:
-            print(f"\nERROR: {err}", file=sys.stderr)
+            log.error(f"{err}")
             return 1
 
     if command not in STEPS:

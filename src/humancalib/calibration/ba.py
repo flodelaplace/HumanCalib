@@ -11,7 +11,9 @@ import humancalib.core as core
 from humancalib.core import session as core_session
 from humancalib.argument import parse_args
 import matplotlib
-matplotlib.use("Agg") # Mode sans interface graphique pour éviter les bugs sous WSL
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
+matplotlib.use("Agg")  # headless backend: there is no display (e.g. under WSL)
 import matplotlib.pyplot as plt
 from humancalib.core import project_cv2
 
@@ -253,7 +255,7 @@ def build_jac_sparsity(C, N, J, ss2d_work, ss3d, bone_idx, invalid_mask, conf_th
     S = coo_matrix((np.ones(len(r), dtype=np.int8), (r, c)),
                    shape=(n_residuals, n_params))
     density = S.nnz / max(n_residuals * n_params, 1)
-    print(f"  Jacobian sparsity: {n_residuals} residuals x {n_params} params, "
+    log.info(f"  Jacobian sparsity: {n_residuals} residuals x {n_params} params, "
           f"density={density:.6f}, nnz={S.nnz}")
     return S.tocsc()
 
@@ -316,11 +318,11 @@ def _run_ba(K, R_w2c, t_w2c, x_all, sp2d_flat, ss2d, sp3d, ss3d, bone_idx,
     pbar.close()
     elapsed = time.time() - start_time
     m, s = divmod(int(elapsed), 60)
-    print(f"  BA converged in {eval_count[0]} evaluations, {m}m{s:02d}s "
+    log.info(f"  BA converged in {eval_count[0]} evaluations, {m}m{s:02d}s "
           f"(final cost: {best_cost:.2f})")
     if plot_path:
         _save_cost_plot(cost_history, plot_path, elapsed, eval_count[0])
-        print(f"  Cost curve: {plot_path}")
+        log.info(f"  Cost curve: {plot_path}")
 
     return from_theta(res["x"], C)
 
@@ -338,16 +340,16 @@ def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
         bone_idx = core.OP_BONE
 
     if loss != "linear" or obs_weight_mode != "none":
-        print(f"  Robust BA: loss={loss}, f_scale={f_scale}, "
+        log.info(f"  Robust BA: loss={loss}, f_scale={f_scale}, "
               f"obs_weight={obs_weight_mode}")
 
     cost_history = []
     ss2d_work = ss2d.copy()
 
     for iteration in range(n_iterations):
-        print(f"\n{'='*50}")
-        print(f"  BA Iteration {iteration + 1}/{n_iterations}")
-        print(f"{'='*50}")
+        log.info(f"\n{'='*50}")
+        log.info(f"  BA Iteration {iteration + 1}/{n_iterations}")
+        log.info(f"{'='*50}")
 
         # Triangulate 3D points
         x_all = core.triangulate_with_conf(sp2d, ss2d_work, K, R_w2c, t_w2c, (ss2d_work > conf_threshold))
@@ -383,7 +385,7 @@ def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
                     (px[:, :, 1] < border_margin) | (px[:, :, 1] > H - border_margin))
             obs_weight = (~near).astype(np.float64)         # C x (N*J), 0 at border
             kept = obs_weight.sum() / obs_weight.size
-            print(f"  declip: kept {100*kept:.1f}% of joint observations "
+            log.info(f"  declip: kept {100*kept:.1f}% of joint observations "
                   f"(margin {border_margin:.0f}px)")
         else:
             obs_weight = None
@@ -392,14 +394,14 @@ def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
                        (ss2d_work > conf_threshold).reshape((C, N * J)),
                        ss2d_work.reshape((C, N * J)))
         nll_energy = np.sum(e_nll**2)
-        print(f"  Mean NLL: {np.mean(e_nll**2):.4f}")
+        log.info(f"  Mean NLL: {np.mean(e_nll**2):.4f}")
 
         e_v3d = objfun_var3d(R_w2c, sp3d, (ss3d > 0), bone_idx)
-        print(f"  Mean 3D variance: {np.mean(e_v3d**2):.6f}")
+        log.info(f"  Mean 3D variance: {np.mean(e_v3d**2):.6f}")
 
         e_bone = objfun_varbone(x_all.reshape(N, J, 3), bone_idx, invalid_mask)
         bone_energy = np.sum(e_bone**2)
-        print(f"  Mean bone-length variance: {np.mean(e_bone**2):.6f}")
+        log.info(f"  Mean bone-length variance: {np.mean(e_bone**2):.6f}")
 
         # Auto-balance lambda2: bone term should be ~10% of NLL
         # If bone variance is negligible (e.g. with MeTRAbs metric 3D), disable
@@ -409,22 +411,22 @@ def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
             lambda2 = np.sqrt(target_ratio * nll_energy / bone_energy)
             # Cap to avoid extreme values when bone_energy is tiny
             lambda2 = min(lambda2, 1000.0)
-            print(f"  Auto-balanced lambda2: {lambda2:.4f} "
+            log.info(f"  Auto-balanced lambda2: {lambda2:.4f} "
                   f"(NLL={nll_energy:.0f}, bone={bone_energy:.0f})")
         else:
             lambda2 = 0.0
-            print(f"  Bone variance negligible ({bone_energy:.6f}), "
+            log.info(f"  Bone variance negligible ({bone_energy:.6f}), "
                   f"disabling bone regularization (lambda2=0)")
 
         # Build Jacobian sparsity pattern (only needed for the finite-diff path;
         # the analytic Jacobian supplies exact structure itself).
         jac_sp = None
         if jac_mode != "analytic":
-            print("  Building Jacobian sparsity pattern...")
+            log.info("  Building Jacobian sparsity pattern...")
             t0 = time.time()
             jac_sp = build_jac_sparsity(C, N, J, ss2d_work, ss3d, bone_idx,
                                         invalid_mask, conf_threshold)
-            print(f"  Sparsity built in {time.time()-t0:.1f}s")
+            log.info(f"  Sparsity built in {time.time()-t0:.1f}s")
 
             # Verify residual count matches
             theta_test = to_theta(R_w2c, t_w2c, x_all)
@@ -432,7 +434,7 @@ def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
                             bone_idx, C, N, J, lambda1, lambda2, invalid_mask,
                             conf_threshold, obs_weight)
             if jac_sp.shape[0] != len(r_test):
-                print(f"  WARNING: Sparsity rows ({jac_sp.shape[0]}) != residuals "
+                log.warning(f"Sparsity rows ({jac_sp.shape[0]}) != residuals "
                       f"({len(r_test)}), falling back to dense Jacobian")
                 jac_sp = None
 
@@ -470,7 +472,7 @@ def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
             n_outliers = np.sum(outlier_mask)
 
             if n_outliers > 0:
-                print(f"\n  Outlier rejection: {n_outliers}/{N} frames removed "
+                log.info(f"\n  Outlier rejection: {n_outliers}/{N} frames removed "
                       f"(threshold: {outlier_threshold:.1f}x median={median_err:.2f}px)")
                 # Zero out confidence for outlier frames
                 ss2d_work = ss2d.copy()
@@ -478,7 +480,7 @@ def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
                     ss2d_work[c][invalid_mask_3d] = 0.0
                     ss2d_work[c, outlier_mask, :] = 0.0
             else:
-                print(f"\n  No outliers found (median error: {median_err:.2f}px)")
+                log.info(f"\n  No outliers found (median error: {median_err:.2f}px)")
 
     return R_w2c, t_w2c, x_opt, cost_history
 
@@ -508,7 +510,7 @@ def save_json(out_dir, x2d, s2d, frames, aid, pid, gid, cid, joint2d_dir):
 def save_mask(intrinsic, R, t, obs_mask, width, height, conf_threshold=0.5):
 
     # if bObsMask:
-    print("save obs. mask")
+    log.info("save obs. mask")
     sCAMID_all, _, _, _, _, _, _, sp2d_all, ss2d_all, sframes_all = core.load_eldersim(
         PREFIX, GID, AID, PID
     )
@@ -540,6 +542,7 @@ def save_mask(intrinsic, R, t, obs_mask, width, height, conf_threshold=0.5):
 
 
 if __name__ == "__main__":
+    setup_logging()
 
     args = parse_args()
     PREFIX = (
@@ -603,9 +606,9 @@ if __name__ == "__main__":
     # Auto-detect skeleton based on joint count
     N_JOINTS = sp2d.shape[2]
     BONE_IDX, _ = core.get_bone_config(N_JOINTS)
-    print(f"dataset={DATASET}")
-    print(f"target BA={JSON_IN}")
-    print(f"Detected {N_JOINTS} joints -> using {len(BONE_IDX)} bones")
+    log.info(f"dataset={DATASET}")
+    log.info(f"target BA={JSON_IN}")
+    log.info(f"Detected {N_JOINTS} joints -> using {len(BONE_IDX)} bones")
 
     plot_dir = os.path.dirname(JSON_OUT)
     os.makedirs(plot_dir, exist_ok=True)
@@ -618,18 +621,18 @@ if __name__ == "__main__":
         jac_mode=args.ba_jac,
     )
 
-    # Génération et sauvegarde de la courbe d'optimisation
+    # Plot and save the optimisation cost curve
     plt.figure(figsize=(10, 6))
     plt.plot(cost_history, color='#2196F3', linewidth=2)
     plt.yscale('log')
-    plt.xlabel('Améliorations (Évaluations)')
-    plt.ylabel('Erreur globale (Échelle Log)')
-    plt.title(f'Courbe de convergence du Bundle Adjustment (Skip: {FRAME_SKIP})')
+    plt.xlabel('Improvement steps (evaluations)')
+    plt.ylabel('Total cost (log scale)')
+    plt.title(f'Bundle adjustment convergence (frame skip: {FRAME_SKIP})')
     plt.grid(True, which="both", ls="--", alpha=0.5)
     curve_path = JSON_OUT.replace('.json', '_curve.png')
     plt.savefig(curve_path, bbox_inches='tight', dpi=150)
     plt.close()
-    print(f"📈 Courbe d'optimisation sauvegardée : {curve_path}")
+    log.info(f"📈 Optimisation curve saved: {curve_path}")
 
     if SAVE_OBS_MASK:
         save_mask(intrinsic, R_w2c_opt, t_w2c_opt, OBS_MASK, width, height, CONF_THRESHOLD)
@@ -642,5 +645,5 @@ if __name__ == "__main__":
             "t_w2c": t_w2c_opt.tolist(),
         }
         json.dump(out, fp, indent=2, ensure_ascii=True)
-    print(" ")
+    log.info(" ")
 # %%

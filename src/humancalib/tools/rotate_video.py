@@ -1,6 +1,8 @@
 import cv2
 import argparse
 import os
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 
 def rotate_video(input_path, output_path, angle):
     """
@@ -14,7 +16,7 @@ def rotate_video(input_path, output_path, angle):
     cap = cv2.VideoCapture(input_path)
 
     if not cap.isOpened():
-        print(f"Error: Could not open video file {input_path}")
+        log.error(f"Could not open video file {input_path}")
         return
 
     # Get video properties
@@ -36,12 +38,12 @@ def rotate_video(input_path, output_path, angle):
     out = cv2.VideoWriter(output_path, fourcc, fps, (new_width, new_height))
 
     if not out.isOpened():
-        print(f"Error: Could not create video writer for {output_path}")
+        log.error(f"Could not create video writer for {output_path}")
         cap.release()
         return
 
-    print(f"Rotating video '{os.path.basename(input_path)}' by {angle} degrees...")
-    print(f"Original dimensions: {frame_width}x{frame_height}, New dimensions: {new_width}x{new_height}")
+    log.info(f"Rotating video '{os.path.basename(input_path)}' by {angle} degrees...")
+    log.info(f"Original dimensions: {frame_width}x{frame_height}, New dimensions: {new_width}x{new_height}")
 
     # Get the rotation matrix
     center = (frame_width / 2, frame_height / 2)
@@ -63,9 +65,10 @@ def rotate_video(input_path, output_path, angle):
 
     cap.release()
     out.release()
-    print(f"Rotation complete. Saved to '{output_path}'")
+    log.info(f"Rotation complete. Saved to '{output_path}'")
 
 if __name__ == "__main__":
+    setup_logging()
     parser = argparse.ArgumentParser(description="Rotate a video by a specified angle.")
     parser.add_argument("--input", "-i", type=str, required=True, help="Path to the input video file.")
     parser.add_argument("--output", "-o", type=str, required=True, help="Path to save the rotated video file.")

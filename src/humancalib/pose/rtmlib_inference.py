@@ -38,6 +38,8 @@ import numpy as np
 from tqdm import tqdm
 
 from humancalib.core.videos import list_videos
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 
 try:
     from rtmlib.visualization.draw import draw_skeleton
@@ -146,14 +148,14 @@ def process_video(video_path: str, body_model, output_op25_json: str, output_hal
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = cap.get(cv2.CAP_PROP_FPS)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    print(f"  Video: {os.path.basename(video_path)}  ({width}x{height}, {total_frames} frames)")
+    log.info(f"  Video: {os.path.basename(video_path)}  ({width}x{height}, {total_frames} frames)")
     op25_data = []
     halpe26_data = []
-    # Détermine la plage de frames à traiter
+    # Frame range to process
     sf = start_frame if start_frame is not None else 0
     ef = end_frame if end_frame is not None else total_frames - 1
     if sf > ef or sf < 0 or ef >= total_frames:
-        print(f"ERROR: Invalid frame range ({sf} to {ef}) for video {video_path}")
+        log.error(f"Invalid frame range ({sf} to {ef}) for video {video_path}")
         cap.release()
         return width, height
     n_frames = ef - sf + 1
@@ -206,7 +208,7 @@ def process_video(video_path: str, body_model, output_op25_json: str, output_hal
                     if draw_skeleton is not None:
                         img_show = draw_skeleton(img_show, keypoints_all, scores_all, kpt_thr=0.3)
                     else:
-                        # Fallback (au cas où draw_skeleton n'est pas dispo): points verts pour la meilleure personne
+                        # Fallback when draw_skeleton is unavailable: green dots for the best-scoring person
                         for kp, sc in zip(kp_halpe, sc_halpe):
                             if sc > 0.3:
                                 cv2.circle(img_show, (int(kp[0]), int(kp[1])), 4, (0, 255, 0), -1)
@@ -221,10 +223,10 @@ def process_video(video_path: str, body_model, output_op25_json: str, output_hal
     cap.release()
     with open(output_op25_json, "w") as f:
         json.dump({"data": op25_data}, f, indent=2, ensure_ascii=True)
-    print(f"  Saved {len(op25_data)} OpenPose-25 frames -> {output_op25_json}")
+    log.info(f"  Saved {len(op25_data)} OpenPose-25 frames -> {output_op25_json}")
     with open(output_halpe26_json, "w") as f:
         json.dump({"data": halpe26_data}, f, indent=2, ensure_ascii=True)
-    print(f"  Saved {len(halpe26_data)} Halpe26 frames -> {output_halpe26_json}")
+    log.info(f"  Saved {len(halpe26_data)} Halpe26 frames -> {output_halpe26_json}")
 
     return width, height
 
@@ -263,21 +265,21 @@ def main(argv=None):
     video_files = list_videos(args.video_dir)
 
     if len(video_files) == 0:
-        print(f"ERROR: No video files found in {args.video_dir}")
+        log.error(f"No video files found in {args.video_dir}")
         sys.exit(1)
 
-    print(f"Found {len(video_files)} video(s):")
+    log.info(f"Found {len(video_files)} video(s):")
     for i, v in enumerate(video_files):
-        print(f"  [{i+1}] {os.path.basename(v)}")
+        log.info(f"  [{i+1}] {os.path.basename(v)}")
 
     # ---- load RTMPose model -------------------------------------------------
     try:
         from rtmlib import BodyWithFeet
     except ImportError:
-        print("ERROR: rtmlib is not installed. Run: pip install rtmlib")
+        log.error("rtmlib is not installed. Run: pip install rtmlib")
         sys.exit(1)
 
-    print(f"\nLoading BodyWithFeet model (mode={args.mode}, device={args.device}) ...")
+    log.info(f"\nLoading BodyWithFeet model (mode={args.mode}, device={args.device}) ...")
     body_model = BodyWithFeet(
         mode=args.mode,
         to_openpose=False,   # keep Halpe26 output — we do the conversion ourselves
@@ -303,7 +305,7 @@ def main(argv=None):
         output_halpe26_json = os.path.join(out_halpe26_dir, base_name)
         
         if os.path.exists(output_op25_json) and os.path.exists(output_halpe26_json):
-            print(f"\n[Camera {cid}] Skipping, output files already exist.")
+            log.info(f"\n[Camera {cid}] Skipping, output files already exist.")
             cap = cv2.VideoCapture(video_path)
             if cap.isOpened():
                 widths.append(int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)))
@@ -311,7 +313,7 @@ def main(argv=None):
                 cap.release()
             continue
 
-        print(f"\n[Camera {cid}]")
+        log.info(f"\n[Camera {cid}]")
         save_video_path = None
         if args.save_video:
             save_video_path = os.path.join(out_overlay_dir, f"overlay_{os.path.basename(video_path)}")
@@ -325,7 +327,7 @@ def main(argv=None):
 
     # ---- print next-step instructions ---------------------------------------
     if not widths or not heights:
-        print("\nNo videos were processed. Exiting.")
+        log.info("\nNo videos were processed. Exiting.")
         sys.exit(0)
         
     width  = widths[0]
@@ -333,15 +335,16 @@ def main(argv=None):
     n_cams = len(video_files)
     cam_ids_str = ", ".join(str(i+1) for i in range(n_cams))
 
-    print("\n" + "="*60)
-    print("2D pose extraction complete!")
-    print(f"Output: {out_op25_dir}")
-    print(f"Also saved raw Halpe26 data to: {out_halpe26_dir}")
+    log.info("\n" + "="*60)
+    log.info("2D pose extraction complete!")
+    log.info(f"Output: {out_op25_dir}")
+    log.info(f"Also saved raw Halpe26 data to: {out_halpe26_dir}")
     if args.save_video:
-        print(f"Saved overlay videos to: {out_overlay_dir}")
-    print(f"Cameras: {cam_ids_str}  |  Resolution: {width}x{height}")
-    print("="*60)
+        log.info(f"Saved overlay videos to: {out_overlay_dir}")
+    log.info(f"Cameras: {cam_ids_str}  |  Resolution: {width}x{height}")
+    log.info("="*60)
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

@@ -19,19 +19,78 @@ In short, MeTRAbs collapses the 2D detection + 3D lifting into a **single forwar
 
 ---
 
+## Quick start with Docker
+
+The recommended way to run HumanCalib: nothing to install besides Docker, and
+the container runs exactly the environment the results were validated with.
+
+**Prerequisites:** an NVIDIA GPU with driver ≥ 525, Docker, and the
+[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+Linux or WSL2.
+
+```bash
+git clone https://github.com/flodelaplace/HumanCalib.git
+cd HumanCalib
+docker compose build
+HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose run --rm calib demo
+```
+
+The demo calibrates the 4 bundled cameras and writes its results to
+`output/demo/results/`. The first run downloads the MeTRAbs model (~708 MB) into
+a Docker volume; later runs reuse it.
+
+**Your own data:** put a session folder — synchronised videos plus a
+`Calib_scene.toml` with the intrinsics — under `input/`, then:
+
+```bash
+HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose run --rm calib \
+    /input/my_session /input/my_session/Calib_scene.toml /output/my_session \
+    --pose_engine metrabs --height 1.84 --ref_frame 1415
+```
+
+`./input` is mounted read-only and `./output` read-write. `HOST_UID`/`HOST_GID`
+make the results belong to you rather than to root. The container checks at
+start-up that it can see the GPU and load CUDA, and refuses to fall back to CPU
+silently. Arguments are those of [Usage](#3-usage-with-your-own-data).
+
+Without Docker, see [Installation](#1-installation-without-docker).
+
+---
+
+## Licensing
+
+**HumanCalib's code is MIT. The pretrained pose models it relies on are not
+free for commercial use** — and that holds for the default backend too.
+
+| Component | Licence | Applies to |
+|---|---|---|
+| HumanCalib | MIT ([`LICENSE`](LICENSE)) | all code in this repository |
+| MeTRAbs code | MIT | the pose model's reference implementation |
+| **MeTRAbs pretrained model** (`metrabs_l`) | **Non-commercial use only.** In the words of the MeTRAbs README: *"The models can only be used for non-commercial purposes due to the licensing of the used training datasets."* | every calibration made with `--pose_engine metrabs`, the recommended default path |
+| VideoPose3D code and weights | CC BY-NC 4.0; weights trained on Human3.6M (academic use) | the optional RTMPose path only |
+| rtmlib | Apache-2.0. Its README does not state the licence of the RTMPose/RTMDet weights it downloads. | the optional RTMPose path only |
+
+In practice, whichever pose backend you choose, the pretrained weights restrict
+use to non-commercial purposes. The Docker images contain no MeTRAbs weights
+unless built with `BAKE_MODELS=1`; the optional `rtmpose` image does contain the
+VideoPose3D weights. This section summarises upstream terms and is not legal
+advice: check the upstream licences for your use.
+
+---
+
 ## Pipeline Overview
 
-The pipeline processes synchronized multi-camera videos through a 7-step pipeline orchestrated by `calibrate.sh`:
+The pipeline processes synchronized multi-camera videos in 7 steps, run in order by `humancalib run` (or `scripts/calibrate.sh`, which forwards to it). Each step can also be run on its own with `humancalib <step>`:
 
-| Step | Script | Description |
-|------|--------|-------------|
-| **1. Pose Extraction** | `metrabs_inference.py` or `rtmlib_inference.py` | Detect 2D keypoints (+ direct metric 3D with MeTRAbs) in all camera views |
-| **2. Intrinsics Loading** | `create_cameras_from_toml.py` | Parse camera matrices & distortion from a Pose2Sim-compatible TOML |
-| **3. Configuration** | *(inline in calibrate.sh)* | Auto-detect number of cameras, joints, frame count; write `config.yaml` |
-| **4. 3D Lifting** | `src/humancalib/pose/inference.py` | Lift 2D→3D with VideoPose3D *(skipped when using MeTRAbs — 3D is already available)* |
-| **5. Calibration** | `src/humancalib/pipeline/run_calib_linear.py` → `src/humancalib/calibration/calib_linear.py` → `src/humancalib/pipeline/detect_outlier_frames.py` → `src/humancalib/pipeline/run_ba.py` → `src/humancalib/calibration/ba.py` | Chunked linear init (Procrustes for MeTRAbs, auto reference-camera selection) → auto outlier-frame drop → linear re-run if any drops → Bundle Adjustment |
-| **6. Evaluation** | `evaluate_calibration.py` | Compute Mean Reprojection Error (MRE) per camera + visualizations |
-| **7. Scaling** | `scale_scene.py` | Orient scene (gravity-aligned) and scale to metric units using person height |
+| Step | Module (`humancalib.…`) | `humancalib` step | Description |
+|------|--------|------|-------------|
+| **1. Pose Extraction** | `pose.metrabs_inference` / `pose.rtmlib_inference` | `extract-metrabs` / `extract-rtmpose` | Detect 2D keypoints (+ direct metric 3D with MeTRAbs) in all camera views |
+| **2. Intrinsics Loading** | `pipeline.create_cameras_from_toml` | `cameras` | Parse camera matrices & distortion from a Pose2Sim-compatible TOML |
+| **3. Session** | `pipeline.write_session` | `session` | Probe the videos (frame size and rate), count cameras and joints; write `<output>/noise_1_0/session.yaml` |
+| **4. 3D Lifting** | `pose.inference` | `lift` | Lift 2D→3D with VideoPose3D *(skipped when using MeTRAbs — 3D is already available)* |
+| **5. Calibration** | `pipeline.run_calib_linear` → `calibration.calib_linear` → `pipeline.detect_outlier_frames` → `pipeline.run_ba` → `calibration.ba` | `linear`, `outliers`, `ba` | Chunked linear init (Procrustes for MeTRAbs, auto reference-camera selection) → auto outlier-frame drop → linear re-run if any drops → Bundle Adjustment |
+| **6. Evaluation** | `postprocessing.evaluate_calibration` | `evaluate` | Compute Mean Reprojection Error (MRE) per camera + visualizations |
+| **7. Scaling** | `postprocessing.scale_scene` | `scale` | Orient scene (gravity-aligned) and scale to metric units using person height |
 
 **Final output:** `Calib_scene_calibrated.toml` with extrinsic parameters (R, t) for each camera in a real-world metric coordinate system.
 
@@ -60,7 +119,7 @@ These **27 bones** cover the full body including a 4-segment spine and articulat
 | Stored output | Full 87-joint 2D + 3D, Halpe26 2D (for scaling) |
 | 3D output | Metric (millimeters), per-camera coordinate frame |
 | Architecture | Single-step: image → 2D + 3D simultaneously |
-| Conda env | `metrabs_opensim` (Python 3.10, TensorFlow 2.x) |
+| Conda env | `humancalib` (Python 3.10, TensorFlow 2.12) — `envs/calib.yaml` |
 | Speed | ~2 min/camera on GPU |
 
 ### RTMPose + VideoPose3D — Two-step 2D→3D lifting
@@ -76,7 +135,7 @@ This path is still fully functional and can be useful when MeTRAbs is not availa
 | Output skeleton | 25 OpenPose joints (12 bones) |
 | 3D output | Relative scale (not metric) |
 | Architecture | Two-step: image → 2D keypoints → temporal 3D lifting |
-| Conda env | `human_calib` (Python 3.8, PyTorch 1.13) |
+| Conda env | `humancalib-rtmpose` (Python 3.8, PyTorch 1.13) — `envs/rtmpose.yaml` |
 
 ### Comparison
 
@@ -110,7 +169,7 @@ Use `--ba_jac numeric` to fall back to the legacy finite-difference path (same r
 
 ---
 
-## 1. Installation
+## 1. Installation without Docker
 
 ### Prerequisites
 
@@ -174,8 +233,9 @@ normal use and is kept mainly for comparison.
 
 > **Licensing:** VideoPose3D is CC BY-NC 4.0 (non-commercial) and its pretrained
 > weights were trained on Human3.6M, which is restricted to academic use.
-> HumanCalib itself is MIT, but any use of this backend inherits those
-> restrictions. The default MeTRAbs backend is unaffected.
+> HumanCalib's code is MIT, but any use of this backend inherits those
+> restrictions — as does the default MeTRAbs backend, whose pretrained model is
+> also for non-commercial use only. See [Licensing](#licensing).
 
 ```bash
 conda env create -f envs/rtmpose.yaml
@@ -196,20 +256,9 @@ bash scripts/setup_models.sh           # VideoPose3D source + weights, checksumm
 Tested with an NVIDIA RTX 3500 Ada, driver 581. Any driver >= 525 should cover
 the CUDA 11.8 runtime shipped by the environment.
 
-### VideoPose3D setup (RTMPose path only)
-
-Only needed if you use the RTMPose + VideoPose3D pipeline:
-
-```bash
-conda activate human_calib
-bash scripts/setup_models.sh
-```
-
-This clones VideoPose3D into `./third_party/VideoPose3D` and downloads the pretrained weights into `./model/`.
-
 ### WSL2 GPU fix
 
-If you encounter `libcuda.so not found` on WSL2, this is handled automatically inside `calibrate.sh`. For manual runs:
+On WSL2 the Windows driver's CUDA library lives in `/usr/lib/wsl/lib`, off the default loader path. `humancalib run` adds it for the steps that use the GPU. For other manual runs:
 
 ```bash
 export LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH
@@ -251,7 +300,7 @@ A demo dataset (4 cameras, 100 frames) is included in `demo/`.
 ### With MeTRAbs (recommended)
 
 ```bash
-conda activate human_calib
+conda activate humancalib
 
 bash scripts/calibrate.sh \
     demo \
@@ -265,7 +314,7 @@ bash scripts/calibrate.sh \
 ### With RTMPose + VideoPose3D
 
 ```bash
-conda activate human_calib
+conda activate humancalib
 
 bash scripts/calibrate.sh \
     demo \
@@ -295,7 +344,7 @@ Results are saved in `output/demo_*/results/`:
 
 Create a folder in `input/` with:
 
-1. **Synchronized MP4 videos** — one per camera. File names (without extension) are used as camera identifiers and must match the TOML sections.
+1. **Synchronized videos** (`.mp4`, `.avi`, `.mov`, `.mkv`) — one per camera. File names (without extension) are used as camera identifiers and must match the TOML sections.
 2. **`Calib_scene.toml`** — intrinsic parameters for each camera, in [Pose2Sim](https://github.com/perfanalytics/pose2sim) format:
 
 ```toml
@@ -315,11 +364,13 @@ fisheye = false
 bash scripts/calibrate.sh <video_dir> <calib_toml> <output_dir> [options]
 ```
 
+With the package installed, `humancalib run` takes exactly the same arguments.
+
 ### Required arguments
 
 | Argument | Description |
 |----------|-------------|
-| `video_dir` | Folder containing synchronized MP4 videos |
+| `video_dir` | Folder containing the synchronized videos |
 | `calib_toml` | Path to the TOML file with intrinsic parameters |
 | `output_dir` | Where to save results |
 
@@ -341,6 +392,7 @@ bash scripts/calibrate.sh <video_dir> <calib_toml> <output_dir> [options]
 | `--outlier_x_median <m>` | `5` | Multiplier above per-camera median for the outlier drop. A frame is dropped when its mean reproj error exceeds **both** thresholds. |
 | `cuda` / `cpu` | `cuda` | Inference device |
 | `lightweight` / `balanced` / `performance` | `balanced` | RTMPose model size |
+| `--verbose` / `--quiet` | — | More detail, or only warnings and errors (also `HUMANCALIB_LOG_LEVEL`) |
 
 ### Full example
 
@@ -506,12 +558,15 @@ The joint format is **auto-detected** based on the number of joints in the 2D po
 ```
 HumanCalib/
 ├── pyproject.toml            # Package metadata — `pip install -e .`
+├── CITATION.cff              # How to cite HumanCalib
+├── CONTRIBUTING.md           # Setup, tests and conventions for contributors
 ├── Dockerfile                # Main image (MeTRAbs backend, MIT)
 ├── Dockerfile.rtmpose        # Optional image (RTMPose + VideoPose3D, CC BY-NC 4.0)
 ├── compose.yaml
 │
 ├── src/humancalib/           # The Python package
-│   ├── src/humancalib/argument.py           # CLI argument parser shared across entry points
+│   ├── cli.py                # The `humancalib` command: `run` and each step
+│   ├── argument.py           # Options shared by the linear and BA steps
 │   ├── core/                 # Skeletons, geometry (DLT triangulation), pose/camera IO,
 │   │                         #   session file, dropped-frame sidecars, TOML loading
 │   ├── pose/                 # MeTRAbs extraction; RTMPose 2D + VideoPose3D lifting
@@ -548,12 +603,12 @@ HumanCalib/
 
 | Problem | Cause | Solution |
 |---------|-------|----------|
-| `libcuda.so not found` | WSL2 missing CUDA path | `export LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH` (auto-set in calibrate.sh) |
+| `libcuda.so not found` | WSL2 missing CUDA path | `export LD_LIBRARY_PATH=/usr/lib/wsl/lib:$LD_LIBRARY_PATH` (added automatically by `humancalib run`) |
 | High MRE on one camera | Bad intrinsics (distortion) | Check distortion coefficients: k1/k2 should be in [-2, 2]. Values > 5 are likely wrong. |
 | BA makes MRE worse | Regularization too strong | Auto-balanced lambda should handle this. If not, check if `objfun_multiview3d` is disabled. |
 | `No valid orientations` | Too few visible frames | Lower `--conf_threshold` or use a different frame range where person is more visible. |
 | MeTRAbs import error | TensorFlow not in the environment | MeTRAbs runs in the current environment, or in a `metrabs_opensim` conda environment if one exists. Set `HUMANCALIB_METRABS_PYTHON` to an interpreter command line to choose explicitly. |
-| OOM during BA | Too many frames | `run_ba.py` auto-retries with `frame_skip += 5` (up to max 60) to reduce memory usage. |
+| OOM during BA | Too many frames | `humancalib.pipeline.run_ba` auto-retries with `frame_skip += 5` (up to max 60) to reduce memory usage. |
 | Poses not re-extracted | Cache hit | Delete `output/*/noise_1_0/2d_joint` and `3d_joint` to force re-extraction (the cache only checks frame range, not intrinsics). |
 | Same intrinsics work better than individual ones | Poor per-camera calibration | If cameras are the same model, try shared intrinsics as baseline. |
 | One camera much higher MRE than others | Wrong intrinsics for that camera | Look at its Procrustes residual in the linear log — if it's low (≤ 100 mm) but its MRE is high, the K matrix (focal/principal point) is the bottleneck. The auto reference-camera selection avoids using a problematic camera as world frame. |
@@ -562,6 +617,9 @@ HumanCalib/
 ---
 
 ## Acknowledgments & Citations
+
+Citation metadata for HumanCalib itself is in [`CITATION.cff`](CITATION.cff); GitHub
+turns it into a *Cite this repository* button.
 
 This project builds upon [Extrinsic Camera Calibration From a Moving Person](https://github.com/kyotovision-public/extrinsic-camera-calibration-from-a-moving-person) (IROS 2022 / RA-L):
 
@@ -578,7 +636,7 @@ This project builds upon [Extrinsic Camera Calibration From a Moving Person](htt
 ```
 
 **MeTRAbs** — Metric-Scale Truncation-Robust Heatmaps for Absolute 3D Human Pose Estimation,
-by István Sárándi et al. HumanCalib uses the official `metrabs_l` model, loaded
+by István Sárándi, Timm Linder, Kai O. Arras and Bastian Leibe (IEEE T-BIOM, 2021). HumanCalib uses the official `metrabs_l` model, loaded
 unmodified from the authors' server via TensorFlow Hub.
 - [github.com/isarandi/metrabs](https://github.com/isarandi/metrabs)
 - Companion project by the maintainer of HumanCalib, not a dependency:
@@ -590,3 +648,11 @@ unmodified from the authors' server via TensorFlow Hub.
 
 **VideoPose3D** — 3D Human Pose Estimation in Video:
 - [github.com/facebookresearch/VideoPose3D](https://github.com/facebookresearch/VideoPose3D)
+
+---
+
+## Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the development setup, the test suite
+and the conventions. The decisions and findings behind the current structure of
+the repository are recorded in [`docs/REFACTOR_PLAN.md`](docs/REFACTOR_PLAN.md).

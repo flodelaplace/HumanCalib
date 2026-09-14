@@ -412,12 +412,14 @@ qui existent.
 
 | ID | Tâche |
 |----|-------|
-| T8.1 | 221 `print()` → `logging` avec niveaux (aucun `import logging` dans le dépôt aujourd'hui) |
-| T8.2 | Tout en anglais : chaînes, commentaires, et **labels des figures** (`ba.py:649-651` produit des axes en français dans les PNG livrés) |
-| T8.3 | `except BaseException` → `except Exception` (`core/gpu.py:26`, intercepte `KeyboardInterrupt`) |
-| T8.4 | Traiter les absorptions silencieuses d'exceptions recensées (`visualize_results.py:314`, `convert_calib_rotation.py:89`, `run_calib_linear.py:89`) |
-| T8.5 | README réorganisé **Docker d'abord** ; section licences tierces explicite (CC BY-NC pour VideoPose3D, conditions recherche des poids MeTRAbs) ; lien vers ce document |
-| T8.6 | `CITATION.cff`, `CONTRIBUTING.md` |
+| T8.1 | **fait** — **256** `print()` convertis (le décompte de 221 était faux : 262 au total, dont 2 conservés, l'aide et la version de la CLI, qui sont une sortie demandée) par **transformation AST**, sans aucun cas manuel. `core/log.py` : INFO sur stdout **sans décoration**, pour que la sortie reste identique ; WARNING/ERROR sur stderr, préfixés du niveau — les préfixes « ERROR: » écrits dans les messages ont été retirés pour ne pas être doublés. `--verbose`/`--quiet`, et `HUMANCALIB_LOG_LEVEL` transmis aux sous-processus. **Piège évité** : un module lancé en `python -m` s'appelle `__main__`, hors de la hiérarchie configurée — tous ses messages INFO auraient disparu sans bruit ; `get_logger` retrouve son vrai nom, et un test lance une étape réelle pour le prouver. Un test interdit tout nouveau `print()` |
+| T8.2 | **fait** — plus aucun texte français dans `src/`, `scripts/`, `docker/`, `tests/` ; la courbe de convergence du BA a désormais axes et titre en anglais. `docs/REFACTOR_PLAN.md` reste en français, volontairement : c'est le document de travail de l'auteur |
+| T8.3 | **fait** — `core/gpu.py` : Ctrl+C pendant la détection GPU affichait une trace et le run continuait ; la trace passe désormais par `log.warning(..., exc_info=True)` |
+| T8.4 | **fait** — numéros de ligne du plan périmés. Un seul site avalait réellement l'exception : `run_calib_linear.map_video_frames_to_indices` (`except Exception: return None, None` — l'appelant disait que la conversion avait échoué, jamais pourquoi) ; restreint à `TypeError`/`ValueError`, raison journalisée. `convert_calib_rotation` et `covisibility_report` affichaient déjà la raison. `visualize_results` tolère volontairement un réglage de cadrage cosmétique : documenté en commentaire |
+| T8.5 | **fait** — « Quick start with Docker » puis « Licensing » en tête ; tableau de pipeline aligné sur les modules et les étapes `humancalib` (il citait encore `config.yaml`) ; noms d'environnement périmés corrigés (`human_calib`, `metrabs_opensim`) ; section VideoPose3D en double supprimée ; ligne d'arborescence doublement préfixée par la Phase 6 corrigée ; lien vers ce document et vers `CONTRIBUTING.md` |
+| T8.6 | **fait** — `CITATION.cff` (avec Lee et al. 2022 et MeTRAbs en références) ; `CONTRIBUTING.md` : installation, tests, politique du golden-run, conventions, licences des contributions. `conda_linux.yaml`, supplanté par `envs/`, retiré |
+
+*Vérifié* : 99 tests verts ; CLI : erreurs sur stderr, stdout vide, `--quiet` respecté. *Démo complète dans l'image, stdout et stderr séparés : en cours de vérification.*
 
 ---
 
@@ -496,6 +498,31 @@ golden-run rend l'écart mesurable plutôt qu'invisible.
 
 ---
 
+## 5 quater. Correction de D1 — les poids MeTRAbs ne sont pas libres d'usage commercial (2026-09-14)
+
+Constaté en rédigeant la section licences (T8.5), en lisant le README officiel de MeTRAbs plutôt qu'en
+s'appuyant sur la licence de son code : *« The models can only be used for non-commercial purposes due to the
+licensing of the used training datasets. »* Le code MeTRAbs est MIT ; **les poids pré-entraînés ne le sont
+pas.**
+
+Or la justification de D1 et les textes écrits en Phase 2 présentaient l'image principale comme « la voie MIT
+de bout en bout » et l'image RTMPose comme la seule porteuse d'une restriction non commerciale — dans le
+`Dockerfile`, `Dockerfile.rtmpose`, `compose.yaml`, `envs/rtmpose.yaml`, `scripts/setup_models.sh` et le
+README (« The default MeTRAbs backend is unaffected »). **C'était faux** : les deux backends reposent sur des
+poids à usage non commercial. Ironie : la formulation initiale de T8.5 évoquait déjà des « conditions recherche
+des poids MeTRAbs » ; elle n'avait pas été répercutée.
+
+**Ce qui reste vrai de D1** : garder deux images. L'image RTMPose embarque du *code* et des poids CC BY-NC 4.0
+sur une pile Python 3.8 figée ; l'image principale ne contient **aucun poids** par défaut (`BAKE_MODELS=0`),
+le modèle étant téléchargé à l'exécution par l'utilisateur. **Ce qui change** : la justification, et tous les
+textes cités, corrigés. Une image construite avec `BAKE_MODELS=1` contient les poids et hérite de la
+restriction — le `Dockerfile` le dit désormais.
+
+**Point à trancher par l'auteur, hors du dépôt** : l'usage de ces poids dans un contexte commercial. Ce
+document résume des conditions amont ; il ne constitue pas un avis juridique.
+
+---
+
 ## 5 bis. Validation du 2026-09-14 — ce que le conteneur a révélé
 
 `docker compose run calib demo` s'exécute de bout en bout sur GPU, 7 étapes,
@@ -535,4 +562,4 @@ Mesures : GPU 9–12 s par caméra contre 3 min 55 s en CPU. Image ramenée de
 | 5 — Tests + CI | **terminée** | 2026-09-14 |
 | 6 — Package | **terminée** | 2026-09-14 |
 | 7 — CLI Python | **terminée** | 2026-09-14 |
-| 8 — logging + docs | à faire | |
+| 8 — logging + docs | écrite, démo en vérification | 2026-09-14 |

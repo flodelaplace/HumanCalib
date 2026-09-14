@@ -34,6 +34,8 @@ import numpy as np
 from humancalib.core import load_poses, load_eldersim_camera
 from humancalib.core.sidecars import read_dropped
 from humancalib.core.videos import list_videos
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 
 
 def parse_args():
@@ -83,7 +85,7 @@ def load_dropped(prefix, subset, video_dir, camid):
         return {}, {}
     videos = list_videos(video_dir)
     if len(videos) != len(camid):
-        print(f"  WARN: {len(videos)} videos vs {len(camid)} cams — skipping sidecar drops.")
+        log.warning(f"{len(videos)} videos vs {len(camid)} cams — skipping sidecar drops.")
         return {}, {}
     dropped, serials = {}, {}
     for c, v in enumerate(videos):
@@ -178,7 +180,7 @@ def save_heatmap(M, labels, out_path, min_covis):
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except Exception as e:  # pragma: no cover
-        print(f"  WARN: matplotlib unavailable, skipping heatmap ({e})")
+        log.warning(f"matplotlib unavailable, skipping heatmap ({e})")
         return
     C = M.shape[0]
     fig, ax = plt.subplots(figsize=(1.1 * C + 2, 1.1 * C + 1))
@@ -201,7 +203,7 @@ def save_heatmap(M, labels, out_path, min_covis):
     fig.tight_layout()
     fig.savefig(out_path, dpi=120, bbox_inches="tight")
     plt.close(fig)
-    print(f"  Heatmap saved -> {out_path}")
+    log.info(f"  Heatmap saved -> {out_path}")
 
 
 def main():
@@ -216,16 +218,16 @@ def main():
     dropped, serials = load_dropped(args.prefix, args.subset, args.video_dir, CAMID)
     labels = [serials.get(c, f"CAM{int(CAMID[c])}") for c in range(n_cams)]
 
-    print("=" * 70)
-    print("CO-VISIBILITY REPORT")
-    print("=" * 70)
-    print(f"  Cameras       : {n_cams}  ({', '.join(str(int(c)) for c in CAMID)})")
-    print(f"  Frames        : {len(frame_indices)}  "
+    log.info("=" * 70)
+    log.info("CO-VISIBILITY REPORT")
+    log.info("=" * 70)
+    log.info(f"  Cameras       : {n_cams}  ({', '.join(str(int(c)) for c in CAMID)})")
+    log.info(f"  Frames        : {len(frame_indices)}  "
           f"({int(frame_indices[0])}-{int(frame_indices[-1])})")
-    print(f"  well-seen rule: >= {args.min_joints} joints @ conf>{args.conf_threshold} "
+    log.info(f"  well-seen rule: >= {args.min_joints} joints @ conf>{args.conf_threshold} "
           f"AND 2D spread >= {args.min_spread}px")
-    print(f"  edge rule     : >= {args.min_covis} co-visible well-seen frames")
-    print("-" * 70)
+    log.info(f"  edge rule     : >= {args.min_covis} co-visible well-seen frames")
+    log.info("-" * 70)
 
     well = compute_well_seen(p2d, s2d, frame_indices, dropped,
                              args.conf_threshold, args.min_joints, args.min_spread)
@@ -234,10 +236,10 @@ def main():
     W = well.astype(np.int64)
     M = W @ W.T
 
-    print("Well-seen frames per camera:")
+    log.info("Well-seen frames per camera:")
     for c in range(n_cams):
-        print(f"  [{c}] {labels[c]:<28} {int(M[c, c]):5d} frames")
-    print("-" * 70)
+        log.info(f"  [{c}] {labels[c]:<28} {int(M[c, c]):5d} frames")
+    log.info("-" * 70)
 
     adj = (M >= args.min_covis)
     np.fill_diagonal(adj, False)
@@ -249,46 +251,47 @@ def main():
     comps = connected_components(adj)
     bridges = find_bridges(adj)
 
-    print(f"Graph: {int(adj.sum() // 2)} edges, {len(comps)} connected component(s)")
+    log.info(f"Graph: {int(adj.sum() // 2)} edges, {len(comps)} connected component(s)")
     for i, comp in enumerate(comps):
         names = ", ".join(labels[c] for c in comp)
         tag = "  <-- SINGLE CAMERA, NOT CALIBRABLE" if len(comp) == 1 else ""
-        print(f"  Component {i}: [{', '.join(str(c) for c in comp)}]  {names}{tag}")
+        log.info(f"  Component {i}: [{', '.join(str(c) for c in comp)}]  {names}{tag}")
 
     if isolated:
-        print("\n⚠ ISOLATED cameras (share < min_covis frames with EVERY other camera):")
+        log.warning("ISOLATED cameras (share < min_covis frames with EVERY other camera):")
         for c in range(n_cams):
             if c in isolated:
                 best = sorted(((int(M[c, d]), labels[d]) for d in range(n_cams) if d != c),
                               reverse=True)[:3]
                 best_str = ", ".join(f"{name}:{cnt}" for cnt, name in best)
-                print(f"    {labels[c]} — best partners: {best_str}")
-        print("    -> NOT calibrable from this sequence; flagged, not invented.")
+                log.info(f"    {labels[c]} — best partners: {best_str}")
+        log.info("    -> NOT calibrable from this sequence; flagged, not invented.")
 
-    print("\nWeakest links (bridges — removal disconnects the graph):")
+    log.info("\nWeakest links (bridges — removal disconnects the graph):")
     if bridges:
         for u, v in sorted(bridges, key=lambda e: M[e[0], e[1]]):
-            print(f"    {labels[u]} <-> {labels[v]}: {int(M[u, v])} frames")
+            log.info(f"    {labels[u]} <-> {labels[v]}: {int(M[u, v])} frames")
     else:
-        print("    none (graph has no bridges — robust to single-edge loss)")
+        log.info("    none (graph has no bridges — robust to single-edge loss)")
 
     # Per-camera weakest accepted edge (translation is poorly constrained on thin links)
-    print("\nPer-camera connectivity (degree / weakest accepted edge):")
+    log.info("\nPer-camera connectivity (degree / weakest accepted edge):")
     for c in range(n_cams):
         if degrees[c] == 0:
-            print(f"  {labels[c]:<28} degree 0  (isolated)")
+            log.info(f"  {labels[c]:<28} degree 0  (isolated)")
             continue
         edge_counts = [(int(M[c, d]), labels[d]) for d in range(n_cams) if adj[c, d]]
         weakest = min(edge_counts)
-        print(f"  {labels[c]:<28} degree {int(degrees[c])}  "
+        log.info(f"  {labels[c]:<28} degree {int(degrees[c])}  "
               f"weakest: {weakest[1]}:{weakest[0]}")
 
     out_path = args.out or os.path.join(args.prefix, "results", "covisibility.png")
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     save_heatmap(M, labels, out_path, args.min_covis)
 
-    print("=" * 70)
+    log.info("=" * 70)
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

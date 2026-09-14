@@ -16,6 +16,8 @@ import sys
 
 
 from humancalib.core.session import write_session
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 
 
 def main(argv=None):
@@ -32,7 +34,7 @@ def main(argv=None):
 
     cam_file = os.path.join(subset_dir, f"cameras_G{args.gid:03d}.json")
     if not os.path.exists(cam_file):
-        print(f"ERROR: {cam_file} not found (step 2 must run first).", file=sys.stderr)
+        log.error(f"{cam_file} not found (step 2 must run first).")
         return 1
     with open(cam_file) as f:
         n_cams = len(json.load(f)["CAMID"])
@@ -43,8 +45,8 @@ def main(argv=None):
     )
     jfiles = sorted(glob.glob(pattern))
     if not jfiles:
-        print(f"ERROR: no 2D pose files matching {pattern} "
-              f"(step 1 must run first).", file=sys.stderr)
+        log.error(f"no 2D pose files matching {pattern} "
+              f"(step 1 must run first).")
         return 1
     with open(jfiles[0]) as f:
         jdata = json.load(f)
@@ -61,10 +63,11 @@ def main(argv=None):
         gid=args.gid,
         video_dir=args.video_dir,
     )
-    print(f"Session written: {n_cams} cameras, {n_frames} frames, "
+    log.info(f"Session written: {n_cams} cameras, {n_frames} frames, "
           f"{n_joints} joints -> {path}")
     return 0
 
 
 if __name__ == "__main__":
+    setup_logging()
     sys.exit(main())

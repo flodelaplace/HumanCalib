@@ -11,7 +11,7 @@
 
 services:
 
-  # --- Main service: MeTRAbs backend, MIT-licensed path only ---------------
+  # --- Main service: MeTRAbs backend (its model: non-commercial use only) --
   calib:
     image: humancalib:latest
     build:

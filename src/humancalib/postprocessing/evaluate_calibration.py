@@ -30,6 +30,8 @@ import re
 
 import cv2
 import numpy as np
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 
 try:  # Python 3.11+
     import tomllib
@@ -174,7 +176,7 @@ def export_to_toml(input_toml_path, output_toml_path, R_w2c, t_w2c, cam_names):
     with open(output_toml_path, "w") as f:
         f.writelines(output_lines)
 
-    print(f"\nSuccessfully exported final calibration to: {output_toml_path}")
+    log.info(f"\nSuccessfully exported final calibration to: {output_toml_path}")
 
 
 def main(argv=None):
@@ -203,7 +205,7 @@ def main(argv=None):
     subset_dir = os.path.join(args.prefix, args.subset)
     calib_json_path = os.path.join(args.prefix, "results", f"{args.calib}.json")
     if not os.path.exists(calib_json_path):
-        print(f"ERROR: Calibration file not found: {calib_json_path}", file=sys.stderr)
+        log.error(f"Calibration file not found: {calib_json_path}")
         sys.exit(1)
 
     # --- Load Data ---
@@ -226,7 +228,7 @@ def main(argv=None):
     for cid in camera_ids:
         fpath = os.path.join(subset_dir, "2d_joint", f"A{aid:03d}_P{pid:03d}_G{gid:03d}_C{cid:03d}.json")
         if not os.path.exists(fpath):
-            print(f"ERROR: 2D pose file not found: {fpath}", file=sys.stderr)
+            log.error(f"2D pose file not found: {fpath}")
             sys.exit(1)
         frames, p2d, s2d = load_poses(fpath)
         min_frames = min(min_frames, len(frames))
@@ -242,18 +244,18 @@ def main(argv=None):
     all_errors = np.linalg.norm(p2d_all - p2d_reprojected_all, axis=-1)
     valid_mask = (s2d_all > args.conf_threshold) & ~np.isnan(all_errors)
 
-    print(f"\nEvaluating calibration: {args.calib}.json")
+    log.info(f"\nEvaluating calibration: {args.calib}.json")
     global_mre = np.mean(all_errors[valid_mask])
-    print(f"\n  -> Global MRE: {global_mre:.3f} pixels")
-    print("\n  -> Per-camera MRE:")
+    log.info(f"\n  -> Global MRE: {global_mre:.3f} pixels")
+    log.info("\n  -> Per-camera MRE:")
     for c, cam_id in enumerate(CAMID):
         cam_mask = valid_mask[c]
         cam_mre = np.mean(all_errors[c][cam_mask]) if np.any(cam_mask) else -1
-        print(f"     - Camera {cam_id}: {cam_mre:.3f} pixels")
-    print("-" * 40)
+        log.info(f"     - Camera {cam_id}: {cam_mre:.3f} pixels")
+    log.info("-" * 40)
 
     if args.visualize:
-        print("\nGenerating visualizations...")
+        log.info("\nGenerating visualizations...")
         vis_dir = os.path.join(args.prefix, "results", "MRE_visualizations", args.calib)
         os.makedirs(vis_dir, exist_ok=True)
         video_files = list_videos(args.video_dir)
@@ -261,7 +263,7 @@ def main(argv=None):
         for c, cam_id in enumerate(CAMID):
             frame_errors = np.nanmean(np.where(valid_mask[c], all_errors[c], np.nan), axis=1)
             if np.all(np.isnan(frame_errors)):
-                print(f"  Skipping Cam {cam_id}: No valid frames to visualize.")
+                log.info(f"  Skipping Cam {cam_id}: No valid frames to visualize.")
                 continue
 
             best_frame_idx, worst_frame_idx = np.nanargmin(frame_errors), np.nanargmax(frame_errors)
@@ -277,11 +279,12 @@ def main(argv=None):
                     vis_img = draw_visualization(img, p2d_all[c, frame_idx], p2d_reprojected_all[c, frame_idx], s2d_all[c, frame_idx], title, args.conf_threshold)
                     out_path = os.path.join(vis_dir, f"cam{cam_id}_{frame_type}.png")
                     cv2.imwrite(out_path, vis_img)
-                    print(f"  Saved: {out_path}")
+                    log.info(f"  Saved: {out_path}")
             cap.release()
 
     return float(global_mre)
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

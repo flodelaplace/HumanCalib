@@ -1,22 +1,21 @@
 """
 create_cameras_from_toml.py
 ----------------------------
-Crée cameras_G{gid}.json et skeleton_w_G{gid}.json à partir d'un fichier
-de calibration au format TOML (ex: Pose2Sim / AniPose).
+Build cameras_G{gid}.json -- and, when the pose step wrote none, a placeholder
+skeleton_w_G{gid}.json -- from a calibration TOML (Pose2Sim / AniPose format).
 
-Ce script recherche des sections dans le TOML qui correspondent aux noms
-des vidéos fournies.
+Looks up the TOML sections whose names match the given video names.
 
 Usage:
-    python create_cameras_from_toml.py \
+    python -m humancalib.pipeline.create_cameras_from_toml \
         --toml       ./Calibration.toml \
         --output_dir ./data/A001_P001_G001/raw_rtm \
         --gid 1 \
         --cam_names "video1" "video2" "video3"
 
-Le fichier TOML doit avoir des sections [video_name] avec:
+The TOML needs one [video_name] section per camera with:
     matrix       = [[fx, 0, cx], [0, fy, cy], [0, 0, 1]]
-    rotation     = [rx, ry, rz]   <- vecteur de Rodrigues
+    rotation     = [rx, ry, rz]   <- Rodrigues vector
     translation  = [tx, ty, tz]
     size         = [width, height]
 """
@@ -31,29 +30,31 @@ import numpy as np
 import cv2
 
 from humancalib.core.toml_io import load_toml
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        description="Convertit un fichier TOML de calibration en cameras_G{gid}.json"
+        description="Convert a calibration TOML into cameras_G{gid}.json"
     )
-    parser.add_argument("--toml", required=True, help="Chemin vers le fichier .toml")
-    parser.add_argument("--output_dir", required=True, help="Dossier de sortie")
+    parser.add_argument("--toml", required=True, help="Path to the .toml file")
+    parser.add_argument("--output_dir", required=True, help="Output directory")
     parser.add_argument("--gid", type=int, default=1, help="Group/Scene ID")
-    parser.add_argument("--cam_names", nargs='+', required=True, help="Liste des noms de base des vidéos (sans extension)")
+    parser.add_argument("--cam_names", nargs='+', required=True, help="Video base names without extension, in camera order")
     args = parser.parse_args(argv)
 
-    # ---- Lire le TOML -------------------------------------------------------
+    # ---- Read the TOML -------------------------------------------------------
     data = load_toml(args.toml)
 
-    print(f"Recherche des sections pour les caméras: {args.cam_names}")
+    log.info(f"Looking up TOML sections for cameras: {args.cam_names}")
 
-    # ---- Extraire K, R, t pour chaque caméra --------------------------------
+    # ---- Extract K, R, t for each camera --------------------------------
     cam_ids, K_list, R_list, t_list, dist_list = [], [], [], [], []
 
     for i, cam_name in enumerate(args.cam_names, start=1):
         if cam_name not in data:
-            print(f"ERROR: La section '[{cam_name}]' n'a pas été trouvée dans le fichier TOML {args.toml}", file=sys.stderr)
+            log.error(f"section '[{cam_name}]' not found in TOML file {args.toml}")
             sys.exit(1)
 
         sec = data[cam_name]
@@ -72,9 +73,9 @@ def main(argv=None):
         dist = np.array(sec.get("distortions", [0, 0, 0, 0, 0]), dtype=np.float64)
         dist_list.append(dist)
 
-        print(f"  -> Trouvé '{cam_name}' (Cam ID {i})")
+        log.info(f"  -> Found '{cam_name}' (Cam ID {i})")
 
-    # ---- Sauvegarder cameras_G{gid}.json ------------------------------------
+    # ---- Save cameras_G{gid}.json ------------------------------------
     os.makedirs(args.output_dir, exist_ok=True)
     cam_path = os.path.join(args.output_dir, f"cameras_G{args.gid:03d}.json")
 
@@ -87,7 +88,7 @@ def main(argv=None):
     }
     with open(cam_path, "w") as f:
         json.dump(out, f, indent=2, ensure_ascii=True)
-    print(f"\nSaved: {cam_path}")
+    log.info(f"\nSaved: {cam_path}")
 
     # ---- skeleton_w_G{gid}.json ---------------------------------------------
     #
@@ -104,7 +105,7 @@ def main(argv=None):
     # without a word. See B7 in docs/REFACTOR_PLAN.md for the measured effect.
     skel_path = os.path.join(args.output_dir, f"skeleton_w_G{args.gid:03d}.json")
     if os.path.exists(skel_path):
-        print(f"Kept:  {skel_path} (already written by the pose step)")
+        log.info(f"Kept:  {skel_path} (already written by the pose step)")
     else:
         joint_files = glob.glob(os.path.join(args.output_dir, "2d_joint", "*.json"))
         n_frames = 100
@@ -126,7 +127,8 @@ def main(argv=None):
         }
         with open(skel_path, "w") as f:
             json.dump(skel_out, f, indent=2, ensure_ascii=True)
-        print(f"Saved: {skel_path} (placeholder, {n_frames} frames)")
+        log.info(f"Saved: {skel_path} (placeholder, {n_frames} frames)")
 
 if __name__ == "__main__":
+    setup_logging()
     main()

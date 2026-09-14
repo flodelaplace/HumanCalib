@@ -11,6 +11,8 @@ from humancalib.argument import parse_args
 from humancalib.core import *
 from humancalib.core import get_bone_config
 import pycalib
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 
 # module_path = os.path.abspath(os.path.join('./pycalib/'))
 # if module_path not in sys.path:
@@ -91,11 +93,11 @@ def calib_linear(v_CxNx3, n_CxMx3):
             (C_mat.T @ C_mat).toarray(), subset_by_index=(0, 5), overwrite_a=True, overwrite_b=True
         )
     except np.linalg.LinAlgError:
-        print("WARN: SVD for calibration did not converge. Returning empty results.")
+        log.warning("SVD for calibration did not converge. Returning empty results.")
         return None, None, None
 
     if w[3] / w[4] > 1e-4:
-        print(f"WARN: degenerate case (only 4 eigenvalues should be zero): lambda={w}")
+        log.warning(f"degenerate case (only 4 eigenvalues should be zero): lambda={w}")
 
     k = v[:, :4]
 
@@ -105,7 +107,7 @@ def calib_linear(v_CxNx3, n_CxMx3):
     t = t[-B.shape[1] :]
     s = np.linalg.norm(t[3:6])
     if s < 1e-9:
-        print("WARN: Scale is close to zero. Calibration may be unstable.")
+        log.warning("Scale is close to zero. Calibration may be unstable.")
         return None, None, None
         
     t = t / s
@@ -182,7 +184,7 @@ def _procrustes_align_to_ref(p3d_CxNxJx3, s3d_CxNxJ, ref_idx, verbose=False):
 
         if len(valid_idx) < 10:
             if verbose:
-                print(f"  WARN: Camera {c} — only {len(valid_idx)} shared points, using identity")
+                log.warning(f"Camera {c} — only {len(valid_idx)} shared points, using identity")
             R_list[c] = np.eye(3)
             t_list[c] = np.zeros(3)
             continue
@@ -195,7 +197,7 @@ def _procrustes_align_to_ref(p3d_CxNxJx3, s3d_CxNxJ, ref_idx, verbose=False):
         residual = float(np.mean(np.linalg.norm(pts_cam - (s * (R @ pts_ref.T).T + t), axis=1)))
         residuals[c] = (residual, float(s))
         if verbose:
-            print(f"  Camera {c}: Procrustes residual = {residual:.2f}mm, scale = {s:.4f}")
+            log.info(f"  Camera {c}: Procrustes residual = {residual:.2f}mm, scale = {s:.4f}")
 
     return R_list, t_list, residuals
 
@@ -218,7 +220,7 @@ def calib_procrustes(p3d_CxNxJx3, s3d_CxNxJ, K_all, p2d_CxNxJx2, s2d_CxNxJ,
     C, N, J, _ = p3d_CxNxJx3.shape
 
     if ref_cam_idx is None:
-        print("  Auto-selecting Procrustes reference camera...")
+        log.info("  Auto-selecting Procrustes reference camera...")
         scores = []
         for cand in range(C):
             _, _, residuals = _procrustes_align_to_ref(p3d_CxNxJx3, s3d_CxNxJ, cand)
@@ -227,10 +229,10 @@ def calib_procrustes(p3d_CxNxJx3, s3d_CxNxJ, K_all, p2d_CxNxJx2, s2d_CxNxJ,
         scores.sort(key=lambda x: x[1])
         ref_cam_idx = scores[0][0]
         ranking = ", ".join(f"cam_idx={c} ({r:.1f}mm)" for c, r in scores)
-        print(f"    Mean Procrustes residual per candidate: {ranking}")
-        print(f"    -> Selected cam_idx={ref_cam_idx} ({scores[0][1]:.2f}mm)")
+        log.info(f"    Mean Procrustes residual per candidate: {ranking}")
+        log.info(f"    -> Selected cam_idx={ref_cam_idx} ({scores[0][1]:.2f}mm)")
     else:
-        print(f"  Using forced Procrustes reference: cam_idx={ref_cam_idx}")
+        log.info(f"  Using forced Procrustes reference: cam_idx={ref_cam_idx}")
 
     R_list, t_list, _ = _procrustes_align_to_ref(p3d_CxNxJx3, s3d_CxNxJ, ref_cam_idx, verbose=True)
 
@@ -290,10 +292,10 @@ def main_linear(
     n_joints = p3d.shape[2]
 
     if N_after == 0:
-        print("WARN: No frames left after chunking/skipping. Skipping this chunk.")
+        log.warning("No frames left after chunking/skipping. Skipping this chunk.")
         return None, None, None, None, None, None
 
-    mask_CxNxJ = (s2d > conf_threshold) * (s3d > conf_threshold) # Ignore les prédictions peu fiables (frames noires/floues)
+    mask_CxNxJ = (s2d > conf_threshold) * (s3d > conf_threshold) # ignore unreliable predictions (black or blurred frames)
 
     # --- Visibility-based frame selection ---
     # Only keep frames where the person is visible from enough cameras
@@ -309,7 +311,7 @@ def main_linear(
 
     n_dropped = N_after - int(good.sum())
     if n_dropped > 0:
-        print(f"  Visibility filter: {int(good.sum())}/{N_after} frames "
+        log.info(f"  Visibility filter: {int(good.sum())}/{N_after} frames "
               f"(>= {min_cams}/{C} cameras)")
         p3d = p3d[:, good, :, :]
         p2d = p2d[:, good, :, :]
@@ -319,17 +321,17 @@ def main_linear(
         N_after = int(good.sum())
 
     if N_after == 0:
-        print("WARN: No frames left after visibility filter. Skipping.")
+        log.warning("No frames left after visibility filter. Skipping.")
         return None, None, None, None, None, None
 
     vc = joints2orientations(p3d, mask_CxNxJ, bone_idx)
     if vc.shape[1] == 0:
-        print("WARN: No valid orientations found in this chunk. Skipping.")
+        log.warning("No valid orientations found in this chunk. Skipping.")
         return None, None, None, None, None, None
 
     y = joints2projections(p2d, mask_CxNxJ, joint_idx)
     if y.shape[1] == 0:
-        print("WARN: No valid 2D projections found in this chunk. Skipping.")
+        log.warning("No valid 2D projections found in this chunk. Skipping.")
         return None, None, None, None, None, None
 
     n = np.ones((y.shape[0], y.shape[1], 3), dtype=np.float64)
@@ -338,22 +340,22 @@ def main_linear(
     ni = [n[i] @ np.linalg.inv(K[i]).T for i in range(len(K))]
     n = np.array(ni)
 
-    print(f"Processing chunk: vc={vc.shape}, n={n.shape}")
+    log.info(f"Processing chunk: vc={vc.shape}, n={n.shape}")
 
     # Try Procrustes first if we have good 3D data (MeTRAbs: 26- or 87-joint skeletons)
     n_joints = p3d.shape[2]
     use_procrustes = (n_joints in (26, 87) and np.any(s3d > 0))
 
     if use_procrustes:
-        print("  Using Procrustes initialization (MeTRAbs 3D available)")
+        log.info("  Using Procrustes initialization (MeTRAbs 3D available)")
         # Convert user-supplied 1-indexed CAM ID to 0-based array index
         ref_cam_idx = None
         if ref_cam is not None:
             try:
                 ref_cam_idx = list(CAMID).index(ref_cam)
-                print(f"  --ref_cam {ref_cam} -> array index {ref_cam_idx} (CAMID={list(CAMID)})")
+                log.info(f"  --ref_cam {ref_cam} -> array index {ref_cam_idx} (CAMID={list(CAMID)})")
             except ValueError:
-                print(f"  WARN: --ref_cam {ref_cam} not in CAMID {list(CAMID)}; falling back to auto-select")
+                log.warning(f"--ref_cam {ref_cam} not in CAMID {list(CAMID)}; falling back to auto-select")
         R_w2c_est, t_w2c_est, p3d_w_est = calib_procrustes(
             p3d, s3d, K, p2d, s2d, conf_threshold, ref_cam_idx=ref_cam_idx
         )
@@ -413,7 +415,7 @@ def main(argv=None):
         os.makedirs(args.prefix + "/results/", exist_ok=True)
         JSON_OUT = os.path.join(args.prefix, "results", f"linear_{args.target.split('_')[1]}_{args.target.split('_')[2]}.json")
 
-    print(f"dataset={DATASET}")
+    log.info(f"dataset={DATASET}")
     
     # Auto-detect skeleton: peek at a 3D joint file to get the number of joints
     import glob as _glob
@@ -424,7 +426,7 @@ def main(argv=None):
     else:
         _n_joints = 25
     _bone_idx, _key_sub = get_bone_config(_n_joints)
-    print(f"Detected {_n_joints} joints -> using {len(_bone_idx)} bones")
+    log.info(f"Detected {_n_joints} joints -> using {len(_bone_idx)} bones")
 
     R, t, X, e, CAMID, K = main_linear(
         PREFIX, GID, AID, PID, _bone_idx, _key_sub, OBS_MASK,
@@ -444,13 +446,14 @@ def main(argv=None):
                 "t_w2c": t.tolist(),
             }
             json.dump(out, fp, indent=2, ensure_ascii=True)
-        print(f"Saved calibration to {JSON_OUT}")
-        print(f"Reprojection error: {e if e is not None else 'N/A'}")
+        log.info(f"Saved calibration to {JSON_OUT}")
+        log.info(f"Reprojection error: {e if e is not None else 'N/A'}")
     else:
-        print("Calibration failed for this chunk, no file saved.")
+        log.info("Calibration failed for this chunk, no file saved.")
 
-    print(" ")
+    log.info(" ")
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

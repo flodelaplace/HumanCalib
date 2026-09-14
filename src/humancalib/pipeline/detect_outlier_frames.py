@@ -30,6 +30,8 @@ from humancalib.postprocessing.evaluate_calibration import triangulate_skeleton,
 from humancalib.core import load_poses, load_eldersim_camera
 from humancalib.core.sidecars import write_dropped
 from humancalib.core.videos import list_videos
+from humancalib.core.log import get_logger, setup_logging
+log = get_logger(__name__)
 
 
 def parse_args(argv=None):
@@ -128,11 +130,11 @@ def main(argv=None):
 
     video_files = list_videos(args.video_dir)
     if len(video_files) != n_cams:
-        print(f"ERROR: found {len(video_files)} videos in {args.video_dir} "
-              f"but calib has {n_cams} cams", file=sys.stderr)
+        log.error(f"found {len(video_files)} videos in {args.video_dir} "
+              f"but calib has {n_cams} cams")
         sys.exit(1)
 
-    print(f"Thresholds: error > {args.abs_px}px AND error > {args.x_median}x median")
+    log.info(f"Thresholds: error > {args.abs_px}px AND error > {args.x_median}x median")
     total_added = 0
     for c in range(n_cams):
         cid = int(CAMID[c])
@@ -142,12 +144,12 @@ def main(argv=None):
 
         bad_idx = outliers[c]
         if not bad_idx:
-            print(f"  Cam {cid}: 0 outliers (median {med:.1f}px, max {mx:.1f}px)")
+            log.info(f"  Cam {cid}: 0 outliers (median {med:.1f}px, max {mx:.1f}px)")
             continue
 
         bad_frames = {frame_indices[i] for i in bad_idx}
         worst = float(np.nanmax([frame_errors[c, i] for i in bad_idx]))
-        print(f"  Cam {cid}: {len(bad_frames)} outliers (median {med:.1f}px, "
+        log.info(f"  Cam {cid}: {len(bad_frames)} outliers (median {med:.1f}px, "
               f"worst-outlier {worst:.1f}px)")
 
         added = write_dropped(args.prefix, args.subset, video_files[c], bad_frames)
@@ -159,9 +161,10 @@ def main(argv=None):
             if os.path.exists(jp):
                 zero_scores_in_json(jp, bad_frames)
 
-    print(f"NEW_DROPS={total_added}")
+    log.info(f"NEW_DROPS={total_added}")
     return total_added
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()
