@@ -82,16 +82,23 @@ RUN /opt/conda/envs/humancalib-rtmpose/bin/pip install --no-deps rtmlib==0.0.15
 
 # LD_LIBRARY_PATH matters as much as PATH here, and is easier to forget.
 # TensorFlow finds libcudart/libcublas/libcudnn through the loader, and
-# they live in the environment's lib/. Natively that path is added by conda's
-# activation script -- which this image deliberately never runs, calling the
-# interpreter by absolute path instead. Without this line the container
+# they live in the environment's lib/. `conda activate` does NOT add that
+# path -- no cudatoolkit or cudnn activate.d script does -- and this image
+# never activates anyway, calling the interpreter by absolute path. (Natively,
+# humancalib's CLI adds it for the steps that need it.) Without this line the container
 # starts, sees the GPU through nvidia-smi, and then silently runs the whole
 # pipeline on CPU: no error, just fifteen times slower.
 #
 # Safe to prepend: the conda environment ships no libcuda/libnvidia of its
 # own, so the driver injected by the NVIDIA container runtime at
 # /usr/lib/x86_64-linux-gnu is not shadowed. Verified inside the image.
-ENV LD_LIBRARY_PATH=/opt/conda/envs/humancalib-rtmpose/lib
+#
+# And torch/lib: PyTorch ships cuDNN inside its own package directory, not in
+# the environment's lib/, so it is off the loader path too. onnxruntime's CUDA
+# provider needs it. Without it RTMPose ran entirely on CPU, and the only trace
+# was one "Failed to create CUDAExecutionProvider" line lost in stderr.
+# Verified: with this path the session reports CUDAExecutionProvider.
+ENV LD_LIBRARY_PATH=/opt/conda/envs/humancalib-rtmpose/lib:/opt/conda/envs/humancalib-rtmpose/lib/python3.8/site-packages/torch/lib
 ENV PATH=/opt/conda/envs/humancalib-rtmpose/bin:${PATH} \
     HUMANCALIB_PYTHON=/opt/conda/envs/humancalib-rtmpose/bin/python
 

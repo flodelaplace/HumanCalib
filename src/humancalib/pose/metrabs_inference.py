@@ -363,9 +363,13 @@ def main(argv=None):
     if _gpus:
         log.info(f"\nCompute device: GPU ({len(_gpus)} visible to TensorFlow)")
     else:
-        log.info("\nCompute device: CPU — no GPU visible to TensorFlow. Inference will "
-              "be roughly 15x slower.\n  If this machine has a GPU, the CUDA runtime "
-              "libraries are not on the loader path.")
+        log.warning(
+            "Compute device: CPU -- no GPU visible to TensorFlow; inference will be "
+            "roughly 15x slower. On a machine with a GPU this means TensorFlow cannot "
+            "find the CUDA runtime libraries. `humancalib run` and scripts/calibrate.sh "
+            "put the environment's lib/ on the loader path themselves; when running "
+            "this step directly, do it first:\n"
+            "  export LD_LIBRARY_PATH=\"$CONDA_PREFIX/lib:$LD_LIBRARY_PATH\"")
 
     # Load MeTRAbs model (this takes 30-60s: model loading + TF graph compilation)
     log.info(f"\nLoading MeTRAbs model (skeleton={args.skeleton}) — please wait...")

@@ -174,7 +174,19 @@ def repo_root():
     return candidate if (candidate / "scripts" / "calibrate.sh").is_file() else None
 
 
-def child_env(environ=None, isdir=os.path.isdir):
+def _torch_lib_dir():
+    """PyTorch's bundled library directory, located without importing torch."""
+    try:
+        spec = importlib.util.find_spec("torch")
+    except (ImportError, ValueError):
+        return None
+    if spec is None or not spec.origin:
+        return None
+    return os.path.join(os.path.dirname(spec.origin), "lib")
+
+
+def child_env(environ=None, isdir=os.path.isdir, prefix=None, exists=os.path.exists,
+              torch_lib="auto"):
     """Environment for the steps that run in their own process."""
     env = dict(os.environ if environ is None else environ)
     env["PYTHONPATH"] = os.pathsep.join(
@@ -184,9 +196,38 @@ def child_env(environ=None, isdir=os.path.isdir):
     # path. Only where it exists: prepending it unconditionally shadowed the
     # driver stubs the NVIDIA container runtime injects.
     wsl = "/usr/lib/wsl/lib"
-    current = env.get("LD_LIBRARY_PATH", "")
-    if isdir(wsl) and wsl not in current.split(os.pathsep):
-        env["LD_LIBRARY_PATH"] = os.pathsep.join(p for p in (wsl, current) if p)
+
+    # The CUDA runtime installed by envs/calib.yaml lives in the environment's
+    # lib/, which is NOT on the loader path: `conda activate` does not add it --
+    # neither cudatoolkit nor cudnn ships an activate.d script that does -- and
+    # TensorFlow 2.12 finds libcudart and libcudnn only through the loader. So a
+    # native install that followed the README exactly (create, activate, run)
+    # ran pose extraction on CPU. It has to be set before the step's interpreter
+    # starts, which is why it is done here. Added only when that runtime is
+    # actually present, and never twice: the Docker image sets it already.
+    lib = os.path.join(sys.prefix if prefix is None else prefix, "lib")
+
+    # Empty components are dropped, not preserved: an empty entry makes the
+    # loader search the current directory. Libraries this process imports leave
+    # them behind -- opencv prepends its own directory to an empty variable and
+    # a trailing separator remains.
+    paths = [p for p in env.get("LD_LIBRARY_PATH", "").split(os.pathsep) if p]
+    if isdir(wsl) and wsl not in paths:
+        paths.insert(0, wsl)
+    if exists(os.path.join(lib, "libcudart.so.11.0")) and lib not in paths:
+        paths.insert(0, lib)
+
+    # The RTMPose environment adds a second trap: PyTorch keeps cuDNN in its own
+    # package directory, and onnxruntime's CUDA provider needs it. Without it,
+    # RTMPose silently ran on CPU. Appended after the environment's lib/, so a
+    # cuDNN installed at the environment level still takes precedence.
+    tlib = _torch_lib_dir() if torch_lib == "auto" else torch_lib
+    if tlib and exists(os.path.join(tlib, "libcudnn.so.8")) and tlib not in paths:
+        paths.append(tlib)
+    if paths:
+        env["LD_LIBRARY_PATH"] = os.pathsep.join(paths)
+    else:
+        env.pop("LD_LIBRARY_PATH", None)
     return env
 
 
@@ -546,9 +587,13 @@ def main(argv=None):
         print(f"humancalib: unknown command '{command}'\n\n{_usage()}", file=sys.stderr)
         return 2
     module_name = STEPS[command][0]
-    if command == "lift":            # no main(argv): a script run as a module
-        return subprocess.call([sys.executable, "-m", module_name, *rest],
-                               env=child_env(), cwd=repo_root())
+    if command in ("extract-metrabs", "extract-rtmpose", "lift"):
+        # Their own process, as in `humancalib run`: GPU memory is only released
+        # when a process exits, and the CUDA libraries must be on the loader
+        # path before the interpreter starts -- from inside this one, importing
+        # TensorFlow here, it would already be too late.
+        return subprocess.call([sys.executable, "-m", module_name, *rest], env=child_env(),
+                               cwd=repo_root() if command == "lift" else None)
     result = importlib.import_module(module_name).main(rest)
     return result if command == "session" else 0
 

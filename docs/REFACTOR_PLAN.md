@@ -498,6 +498,60 @@ golden-run rend l'écart mesurable plutôt qu'invisible.
 
 ---
 
+## 5 quinquies. Validation après fusion (2026-09-14, branche `fix/post-merge-validation`)
+
+La PR #1 a été fusionnée avec deux trous déclarés : l'image RTMPose n'avait jamais tourné, et l'option B du
+README (installation conda native) n'avait jamais été testée telle qu'écrite. Les deux ont caché des défauts.
+
+**Image RTMPose + VideoPose3D, premier test de bout en bout.** Trois défauts, dont un silencieux :
+
+1. Le raccourci `demo` de l'entrypoint imposait `--pose_engine metrabs`, absent de cette image ; à l'inverse,
+   dans l'image principale, une commande sans `--pose_engine` prenait `rtmpose`, absent aussi. Chaque image
+   déclare désormais son moteur (`HUMANCALIB_DEFAULT_ENGINE`) ; hors Docker, rien ne change.
+2. rtmlib met ses modèles ONNX en cache sous `$TORCH_HOME/hub`, sinon `~/.cache/rtmlib` — or `HOME=/tmp` dans
+   l'image : téléchargement à chaque conteneur. `TORCH_HOME=/models/torch` et volume nommé.
+3. **RTMPose tournait entièrement sur CPU.** PyTorch embarque cuDNN dans `site-packages/torch/lib`, hors du
+   chemin du chargeur ; le fournisseur CUDA d'onnxruntime en a besoin et, faute de le trouver, repasse sur CPU
+   en laissant une ligne dans stderr. Vérifié par une session onnxruntime : `CPUExecutionProvider` seul tel que
+   construit, `CUDAExecutionProvider` avec `torch/lib`. Le préflight de l'entrypoint avait **raison** de refuser
+   de démarrer, mais son message parlait de TensorFlow et donnait le chemin de l'autre image ; message corrigé.
+   L'extraction RTMPose annonce désormais le fournisseur réellement utilisé.
+
+Résultat après correctifs, démo normale (préflight actif) : `Compute device: GPU (onnxruntime
+CUDAExecutionProvider)`, **56 s** au lieu de 253 s, MRE **identique au millième** (178,316 / 8,526 px) — le
+chemin RTMPose est déterministe, le correctif ne change aucun chiffre. Le BA à 8,53 px correspond aux 8,5 px
+documentés.
+
+**Option B (conda native) : l'extraction MeTRAbs aurait tourné sur CPU.** Le Dockerfile affirmait qu'en natif
+« l'activation conda » mettait les bibliothèques CUDA de l'environnement sur le chemin du chargeur. Faux : les
+seuls scripts `activate.d` de l'environnement sont ceux de glib et libxml2 ; ni `cudatoolkit` ni `cudnn` n'en
+installent. La CLI ajoute désormais le `lib/` de l'environnement (et `torch/lib` s'il contient cuDNN) au
+`LD_LIBRARY_PATH` des étapes qui tournent dans leur propre processus, ce qui couvre toutes les commandes
+documentées ; `humancalib extract-*` lancé seul passe lui aussi en sous-processus, car le régler depuis un
+processus qui importe déjà TensorFlow serait trop tard. Simulé dans l'image, `LD_LIBRARY_PATH` vidé : aucun GPU
+sans le correctif, un GPU avec. Au passage, une entrée vide laissée dans ce chemin par OpenCV — qui fait
+chercher les bibliothèques dans le répertoire courant — est éliminée.
+
+**Tableau comparatif du README** : il annonçait 3,5 px après BA pour MeTRAbs, chiffre d'un run ancien aux
+réglages inconnus ; toutes les mesures du jour donnent 4,03 à 4,06 px. Remplacé par les valeurs mesurées, avec
+leurs conditions.
+
+**Option B testée pour de vrai, en natif** (environnement neuf `humancalib-optb-test`, lanceur forcé sur
+lui car la machine de l'auteur possède `metrabs_opensim`) : `conda env create -f envs/calib.yaml` sans erreur,
+démo du README `RC=0`, **`Compute device: GPU`**, MRE 4,035 px après BA, TOML final généré, commande
+`humancalib` fonctionnelle après `pip install --no-deps -e .`. Ce résultat **dépend du correctif de cette
+branche** : sur `main`, la même installation ferait tourner MeTRAbs sur CPU.
+
+**Option C testée dans un `python:3.10-slim` vierge** (`pip install git+…` depuis `main`) : l'installation
+réussit, les dépendances de `pyproject.toml` se résolvent depuis PyPI — ce qui n'avait jamais été vérifié, toutes
+les installations précédentes utilisant `--no-deps`. **Mais sans `libgl1` et `libglib2.0-0`, même
+`humancalib --help` échoue** (`ImportError: libGL.so.1`) : la CLI importe `humancalib.core`, qui importe
+OpenCV. Avec ces deux paquets, tout s'importe. Documenté dans l'option C et le dépannage. Passer à
+`opencv-contrib-python-headless` éviterait la dépendance, mais `pycalib-simple` exige la variante non headless :
+les deux distributions finiraient installées dans le même `cv2/`, précisément le conflit déjà documenté.
+
+---
+
 ## 5 quater. Correction de D1 — les poids MeTRAbs ne sont pas libres d'usage commercial (2026-09-14)
 
 Constaté en rédigeant la section licences (T8.5), en lisant le README officiel de MeTRAbs plutôt qu'en

@@ -77,14 +77,26 @@ them.
 
 The MeTRAbs model (~1.1 GB on disk) is downloaded on the first run and cached in
 `~/.cache/tfhub_modules`, which survives reboots, unlike TensorFlow Hub's default
-`/tmp`. Set `TFHUB_CACHE_DIR` to put it elsewhere. On WSL2, the CUDA driver path
-(`/usr/lib/wsl/lib`) is added automatically.
+`/tmp`. Set `TFHUB_CACHE_DIR` to put it elsewhere. The environment's CUDA
+libraries, and on WSL2 the driver path (`/usr/lib/wsl/lib`), are put on the loader
+path automatically.
+
+**It worked if** the log shows `Compute device: GPU` and the run ends with an MRE
+summary table.
 
 ### Option C — pip
 
 ```bash
 pip install "git+https://github.com/flodelaplace/HumanCalib"
 humancalib --help
+```
+
+On a minimal Linux system — a server, a slim container — OpenCV also needs two
+system libraries. Without them even `humancalib --help` fails with
+`ImportError: libGL.so.1`:
+
+```bash
+sudo apt-get install libgl1 libglib2.0-0
 ```
 
 This installs the `humancalib` package and command (Python ≥ 3.10): linear
@@ -283,11 +295,11 @@ This path is still fully functional and can be useful when MeTRAbs is not availa
 | **Joints / Bones** | 87 full (26 calib) / 27 bones | 25 joints / 12 bones |
 | **3D scale** | Metric (mm) | Relative |
 | **Calibration init** | Procrustes alignment (from 3D) | Bone collinearity (from 2D) |
-| Linear calibration MRE | 7.8 px | 152.2 px |
-| After Bundle Adjustment | **3.5 px** | **8.5 px** |
+| Linear calibration MRE | 8.1 px | 178.3 px |
+| After Bundle Adjustment | **4.0 px** | **8.5 px** |
 | Scale factor | 0.001 (metric 3D in mm) | 30.9 (arbitrary units) |
 
-*Results on demo dataset (4 cameras, 100 frames).*
+*Measured on the demo dataset (4 cameras, 100 frames) with the Docker images, on 2026-09-14. MeTRAbs pose extraction on GPU is not bit-for-bit deterministic, so expect variations of a few hundredths of a pixel between runs.*
 
 ---
 
@@ -528,6 +540,7 @@ HumanCalib/
 | `ERROR: /output is not writable by uid ...` | `output/` owned by another user, e.g. root after an earlier run | Create `.env` as in [Option A](#option-a--docker-recommended), or fix the ownership of `output/`. |
 | `ERROR: this container can see a GPU, but cannot load the CUDA runtime` | `LD_LIBRARY_PATH` overridden at run time | Append to it instead of replacing it; the message shows the value to use. |
 | `the RTMPose backend is not installed in this environment` | `--pose_engine rtmpose` (the native default) without that backend | Pass `--pose_engine metrabs`, or use the RTMPose image or environment. |
+| `ImportError: libGL.so.1: cannot open shared object file` | Minimal Linux system without OpenCV's system libraries | `sudo apt-get install libgl1 libglib2.0-0` |
 
 ---
 
