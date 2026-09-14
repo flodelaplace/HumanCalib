@@ -498,6 +498,51 @@ golden-run rend l'écart mesurable plutôt qu'invisible.
 
 ---
 
+## 5 quinquies. Validation après fusion (2026-09-14, branche `fix/post-merge-validation`)
+
+La PR #1 a été fusionnée avec deux trous déclarés : l'image RTMPose n'avait jamais tourné, et l'option B du
+README (installation conda native) n'avait jamais été testée telle qu'écrite. Les deux ont caché des défauts.
+
+**Image RTMPose + VideoPose3D, premier test de bout en bout.** Trois défauts, dont un silencieux :
+
+1. Le raccourci `demo` de l'entrypoint imposait `--pose_engine metrabs`, absent de cette image ; à l'inverse,
+   dans l'image principale, une commande sans `--pose_engine` prenait `rtmpose`, absent aussi. Chaque image
+   déclare désormais son moteur (`HUMANCALIB_DEFAULT_ENGINE`) ; hors Docker, rien ne change.
+2. rtmlib met ses modèles ONNX en cache sous `$TORCH_HOME/hub`, sinon `~/.cache/rtmlib` — or `HOME=/tmp` dans
+   l'image : téléchargement à chaque conteneur. `TORCH_HOME=/models/torch` et volume nommé.
+3. **RTMPose tournait entièrement sur CPU.** PyTorch embarque cuDNN dans `site-packages/torch/lib`, hors du
+   chemin du chargeur ; le fournisseur CUDA d'onnxruntime en a besoin et, faute de le trouver, repasse sur CPU
+   en laissant une ligne dans stderr. Vérifié par une session onnxruntime : `CPUExecutionProvider` seul tel que
+   construit, `CUDAExecutionProvider` avec `torch/lib`. Le préflight de l'entrypoint avait **raison** de refuser
+   de démarrer, mais son message parlait de TensorFlow et donnait le chemin de l'autre image ; message corrigé.
+   L'extraction RTMPose annonce désormais le fournisseur réellement utilisé.
+
+Résultat après correctifs, démo normale (préflight actif) : `Compute device: GPU (onnxruntime
+CUDAExecutionProvider)`, **56 s** au lieu de 253 s, MRE **identique au millième** (178,316 / 8,526 px) — le
+chemin RTMPose est déterministe, le correctif ne change aucun chiffre. Le BA à 8,53 px correspond aux 8,5 px
+documentés.
+
+**Option B (conda native) : l'extraction MeTRAbs aurait tourné sur CPU.** Le Dockerfile affirmait qu'en natif
+« l'activation conda » mettait les bibliothèques CUDA de l'environnement sur le chemin du chargeur. Faux : les
+seuls scripts `activate.d` de l'environnement sont ceux de glib et libxml2 ; ni `cudatoolkit` ni `cudnn` n'en
+installent. La CLI ajoute désormais le `lib/` de l'environnement (et `torch/lib` s'il contient cuDNN) au
+`LD_LIBRARY_PATH` des étapes qui tournent dans leur propre processus, ce qui couvre toutes les commandes
+documentées ; `humancalib extract-*` lancé seul passe lui aussi en sous-processus, car le régler depuis un
+processus qui importe déjà TensorFlow serait trop tard. Simulé dans l'image, `LD_LIBRARY_PATH` vidé : aucun GPU
+sans le correctif, un GPU avec. Au passage, une entrée vide laissée dans ce chemin par OpenCV — qui fait
+chercher les bibliothèques dans le répertoire courant — est éliminée.
+
+**Tableau comparatif du README** : il annonçait 3,5 px après BA pour MeTRAbs, chiffre d'un run ancien aux
+réglages inconnus ; toutes les mesures du jour donnent 4,03 à 4,06 px. Remplacé par les valeurs mesurées, avec
+leurs conditions.
+
+**Reste à faire** (connexion requise, prévu le soir même) : l'option B en natif pour de vrai
+(`envs/calib.yaml` ≈ 3 Go, en forçant l'environnement neuf, car la machine de l'auteur possède
+`metrabs_opensim`, prioritaire), et l'option C (`pip install git+…` depuis `main`) dans un conteneur Python
+vierge, y compris sans `libGL`.
+
+---
+
 ## 5 quater. Correction de D1 — les poids MeTRAbs ne sont pas libres d'usage commercial (2026-09-14)
 
 Constaté en rédigeant la section licences (T8.5), en lisant le README officiel de MeTRAbs plutôt qu'en
