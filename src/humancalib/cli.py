@@ -174,7 +174,7 @@ def repo_root():
     return candidate if (candidate / "scripts" / "calibrate.sh").is_file() else None
 
 
-def child_env(environ=None, isdir=os.path.isdir):
+def child_env(environ=None, isdir=os.path.isdir, prefix=None, exists=os.path.exists):
     """Environment for the steps that run in their own process."""
     env = dict(os.environ if environ is None else environ)
     env["PYTHONPATH"] = os.pathsep.join(
@@ -187,6 +187,19 @@ def child_env(environ=None, isdir=os.path.isdir):
     current = env.get("LD_LIBRARY_PATH", "")
     if isdir(wsl) and wsl not in current.split(os.pathsep):
         env["LD_LIBRARY_PATH"] = os.pathsep.join(p for p in (wsl, current) if p)
+
+    # The CUDA runtime installed by envs/calib.yaml lives in the environment's
+    # lib/, which is NOT on the loader path: `conda activate` does not add it --
+    # neither cudatoolkit nor cudnn ships an activate.d script that does -- and
+    # TensorFlow 2.12 finds libcudart and libcudnn only through the loader. So a
+    # native install that followed the README exactly (create, activate, run)
+    # ran pose extraction on CPU. It has to be set before the step's interpreter
+    # starts, which is why it is done here. Added only when that runtime is
+    # actually present, and never twice: the Docker image sets it already.
+    lib = os.path.join(sys.prefix if prefix is None else prefix, "lib")
+    current = env.get("LD_LIBRARY_PATH", "")
+    if exists(os.path.join(lib, "libcudart.so.11.0")) and lib not in current.split(os.pathsep):
+        env["LD_LIBRARY_PATH"] = os.pathsep.join(p for p in (lib, current) if p)
     return env
 
 
@@ -546,9 +559,13 @@ def main(argv=None):
         print(f"humancalib: unknown command '{command}'\n\n{_usage()}", file=sys.stderr)
         return 2
     module_name = STEPS[command][0]
-    if command == "lift":            # no main(argv): a script run as a module
-        return subprocess.call([sys.executable, "-m", module_name, *rest],
-                               env=child_env(), cwd=repo_root())
+    if command in ("extract-metrabs", "extract-rtmpose", "lift"):
+        # Their own process, as in `humancalib run`: GPU memory is only released
+        # when a process exits, and the CUDA libraries must be on the loader
+        # path before the interpreter starts -- from inside this one, importing
+        # TensorFlow here, it would already be too late.
+        return subprocess.call([sys.executable, "-m", module_name, *rest], env=child_env(),
+                               cwd=repo_root() if command == "lift" else None)
     result = importlib.import_module(module_name).main(rest)
     return result if command == "session" else 0
 

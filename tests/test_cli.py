@@ -169,14 +169,48 @@ def test_the_metrabs_launcher_can_be_overridden():
 
 
 def test_child_processes_import_this_same_package():
-    env = cli.child_env(environ={"PYTHONPATH": "/elsewhere"}, isdir=lambda _: False)
+    env = cli.child_env(environ={"PYTHONPATH": "/elsewhere"}, isdir=lambda _: False,
+                        exists=lambda _: False)
     assert env["PYTHONPATH"].split(os.pathsep) == [str(cli.package_root()), "/elsewhere"]
     assert "LD_LIBRARY_PATH" not in env
 
 
 def test_the_wsl_driver_path_is_added_only_where_it_exists():
-    env = cli.child_env(environ={"LD_LIBRARY_PATH": "/opt/lib"}, isdir=lambda _: True)
+    env = cli.child_env(environ={"LD_LIBRARY_PATH": "/opt/lib"}, isdir=lambda _: True,
+                        exists=lambda _: False)
     assert env["LD_LIBRARY_PATH"] == os.pathsep.join(["/usr/lib/wsl/lib", "/opt/lib"])
+
+
+def test_the_environments_cuda_runtime_reaches_the_gpu_steps(tmp_path):
+    """conda activation does not put it on the loader path; the CLI must."""
+    (tmp_path / "lib").mkdir()
+    (tmp_path / "lib" / "libcudart.so.11.0").write_bytes(b"")
+    lib = str(tmp_path / "lib")
+
+    env = cli.child_env(environ={}, isdir=lambda _: False, prefix=str(tmp_path))
+    assert env["LD_LIBRARY_PATH"] == lib
+
+    again = cli.child_env(environ={"LD_LIBRARY_PATH": lib}, isdir=lambda _: False, prefix=str(tmp_path))
+    assert again["LD_LIBRARY_PATH"] == lib, "added twice"
+
+
+def test_no_cuda_runtime_means_the_loader_path_is_left_alone(tmp_path):
+    env = cli.child_env(environ={}, isdir=lambda _: False, prefix=str(tmp_path))
+    assert "LD_LIBRARY_PATH" not in env
+
+
+def test_gpu_steps_run_on_their_own_even_when_invoked_alone(monkeypatch):
+    """`humancalib extract-metrabs` must not import TensorFlow in-process."""
+    seen = {}
+
+    def fake_call(cmd, env=None, cwd=None):
+        seen.update(cmd=cmd, env=env)
+        return 0
+
+    monkeypatch.setattr(cli.subprocess, "call", fake_call)
+    assert cli.main(["extract-metrabs", "--help"]) == 0
+    assert seen["cmd"][1:3] == ["-m", "humancalib.pose.metrabs_inference"]
+    assert "PYTHONPATH" in seen["env"]
 
 
 # --- the shim --------------------------------------------------------------------------

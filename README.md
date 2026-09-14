@@ -77,8 +77,12 @@ them.
 
 The MeTRAbs model (~1.1 GB on disk) is downloaded on the first run and cached in
 `~/.cache/tfhub_modules`, which survives reboots, unlike TensorFlow Hub's default
-`/tmp`. Set `TFHUB_CACHE_DIR` to put it elsewhere. On WSL2, the CUDA driver path
-(`/usr/lib/wsl/lib`) is added automatically.
+`/tmp`. Set `TFHUB_CACHE_DIR` to put it elsewhere. The environment's CUDA
+libraries, and on WSL2 the driver path (`/usr/lib/wsl/lib`), are put on the loader
+path automatically.
+
+**It worked if** the log shows `Compute device: GPU` and the run ends with an MRE
+summary table.
 
 ### Option C — pip
 

@@ -89,9 +89,10 @@ RUN --mount=type=cache,target=/opt/conda/pkgs,sharing=locked \
 # the dependencies -- and fails several steps later with an opaque ImportError.
 # LD_LIBRARY_PATH matters as much as PATH here, and is easier to forget.
 # TensorFlow finds libcudart/libcublas/libcudnn through the loader, and
-# they live in the environment's lib/. Natively that path is added by conda's
-# activation script -- which this image deliberately never runs, calling the
-# interpreter by absolute path instead. Without this line the container
+# they live in the environment's lib/. `conda activate` does NOT add that
+# path -- no cudatoolkit or cudnn activate.d script does -- and this image
+# never activates anyway, calling the interpreter by absolute path. (Natively,
+# humancalib's CLI adds it for the steps that need it.) Without this line the container
 # starts, sees the GPU through nvidia-smi, and then silently runs the whole
 # pipeline on CPU: no error, just fifteen times slower.
 #
