@@ -51,17 +51,34 @@ def parse_args(argv=None):
 
 
 def load_camera_poses(prefix, subset, aid, pid, gid, n_cams):
-    """Load per-camera 2D/3D poses. Frame indices are assumed identical across cams."""
-    p2d_all, s2d_all = [], []
-    frame_indices = None
+    """Load per-camera 2D poses, restricted to the frames every camera has.
+
+    Synchronised videos can still differ by a frame or two in decoded length
+    (BioCV: 1302 frames on most cameras, 1301 on two). The calibration steps
+    already truncate to the shortest camera; stacking ragged arrays here
+    instead crashed the whole run after pose extraction.
+    """
+    loaded = []
     for cid in range(1, n_cams + 1):
         fname = f"A{aid:03d}_P{pid:03d}_G{gid:03d}_C{cid:03d}.json"
         f2d, p2d, s2d = load_poses(os.path.join(prefix, subset, "2d_joint", fname))
-        if frame_indices is None:
-            frame_indices = [int(f) for f in f2d]
+        loaded.append(([int(f) for f in f2d], p2d, s2d))
+
+    common = set(loaded[0][0])
+    for frames, _, _ in loaded[1:]:
+        common &= set(frames)
+    frame_indices = sorted(common)
+    if any(len(frames) != len(frame_indices) for frames, _, _ in loaded):
+        log.warning(f"cameras differ in frame count ({[len(f) for f, _, _ in loaded]}); "
+                    f"using the {len(frame_indices)} frames they share")
+
+    p2d_all, s2d_all = [], []
+    for frames, p2d, s2d in loaded:
+        row = {f: i for i, f in enumerate(frames)}
+        keep = [row[f] for f in frame_indices]
         n_joints = s2d.shape[1]
-        p2d_all.append(p2d.reshape(-1, n_joints, 2))
-        s2d_all.append(s2d)
+        p2d_all.append(p2d.reshape(-1, n_joints, 2)[keep])
+        s2d_all.append(s2d[keep])
     return frame_indices, np.array(p2d_all), np.array(s2d_all)
 
 

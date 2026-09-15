@@ -35,6 +35,7 @@ log = get_logger(__name__)
 
 RTMPOSE_IMAGE = "humancalib-rtmpose:latest"
 RTMPOSE_MODELS_VOLUME = "humancalib_humancalib-rtmpose-models"
+SOURCE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATUS_FIELDS = ["started", "participant", "trial", "engine", "step", "status", "seconds",
                  "kept_stage", "mre_px", "rel_rot_deg_median", "rel_dir_deg_median", "scale_ratio_median",
                  "gravity_deg", "abs4dof_pos_mm_median", "abs4dof_rot_deg_median", "note"]
@@ -51,6 +52,9 @@ def calibration_command(engine, video_dir, work, metrabs_python):
     return ["docker", "run", "--rm", "--gpus", "all", "-u", f"{uid}:{gid}",
             "-v", f"{video_dir}:/input:ro", "-v", f"{work}:/output",
             "-v", f"{RTMPOSE_MODELS_VOLUME}:/models/torch",
+            # This checkout's code, not the copy baked into the image: both
+            # engines must run the same pipeline, fixes included.
+            "-v", f"{SOURCE_DIR}:/opt/humancalib/src/humancalib:ro",
             RTMPOSE_IMAGE, "/input", "/output/input/Calib_scene.toml", "/output/rtmpose", "cuda",
             "--pose_engine", "rtmpose"], dict(os.environ)
 

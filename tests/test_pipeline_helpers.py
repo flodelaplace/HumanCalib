@@ -161,3 +161,30 @@ def test_each_attempt_is_a_fresh_interpreter():
     cmd = run_ba.ba_command(opts, 10)
     assert cmd[1:3] == ["-m", "humancalib.calibration.ba"]
     assert cmd[cmd.index("--th_obs_mask") + 1] == "20"
+
+
+# --- outlier detection on cameras of unequal length ------------------------------
+
+def _write_pose_file(path, frames, n_joints=3):
+    data = [{"frame_index": f,
+             "skeleton": [{"pose": [float(f)] * (2 * n_joints), "score": [1.0] * n_joints}]}
+            for f in frames]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"data": data}))
+
+
+def test_outlier_loader_keeps_the_frames_all_cameras_share(tmp_path):
+    """BioCV P09: two of nine cameras decode one frame fewer. Stacking the
+    ragged arrays crashed the run after the whole pose extraction."""
+    from humancalib.pipeline.detect_outlier_frames import load_camera_poses
+
+    joints = tmp_path / "noise_1_0" / "2d_joint"
+    _write_pose_file(joints / "A001_P001_G001_C001.json", range(0, 5))
+    _write_pose_file(joints / "A001_P001_G001_C002.json", range(0, 4))
+    _write_pose_file(joints / "A001_P001_G001_C003.json", range(1, 5))
+
+    frames, p2d, s2d = load_camera_poses(str(tmp_path), "noise_1_0", 1, 1, 1, 3)
+    assert frames == [1, 2, 3]
+    assert p2d.shape == (3, 3, 3, 2) and s2d.shape == (3, 3, 3)
+    # Rows are aligned by frame number, not by position in each file.
+    assert (p2d[:, :, 0, 0] == [[1, 2, 3]] * 3).all()
