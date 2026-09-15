@@ -383,7 +383,7 @@ def run_pipeline(cfg):
     from humancalib.pipeline import (create_cameras_from_toml, detect_outlier_frames,
                                      reselect_person, run_ba, run_calib_linear, write_session)
     from humancalib.pipeline.frame_mapping import write_frame_mapping
-    from humancalib.pipeline.poses_cache import poses_are_cached
+    from humancalib.pipeline.poses_cache import poses_are_cached, covers_all_cameras
     from humancalib.postprocessing import evaluate_calibration, scale_scene
 
     env = child_env()
@@ -415,6 +415,11 @@ def run_pipeline(cfg):
         _header("[1/7] Extracting 2D+3D poses with MeTRAbs (replaces steps 1+4)...")
         log.info(rng)
         cached = poses_are_cached(out, SUBSET, cfg.start_frame, cfg.end_frame)
+        n_videos = len(camera_names(vd))
+        if cached and not covers_all_cameras(cached, n_videos):
+            log.info(f"  -> Cached poses cover {cached.n_cameras} of {n_videos} cameras "
+                     "(interrupted extraction): extracting again")
+            cached = None
         if cached and cfg.person_selection == "geometric" and not os.path.isdir(
                 os.path.join(out, SUBSET, "candidates")):
             log.info("  -> Cached poses have no candidate detections, which --person_selection "

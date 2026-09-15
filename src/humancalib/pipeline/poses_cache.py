@@ -53,3 +53,12 @@ def poses_are_cached(output_dir, subset, start_frame=None, end_frame=None):
     if cached.start == want_start and cached.end == want_end:
         return cached
     return None
+
+
+def covers_all_cameras(cached, n_cameras):
+    """Whether a cached extraction holds every camera.
+
+    An extraction interrupted between cameras leaves equal numbers of 2D and 3D
+    files for the cameras it finished, which poses_are_cached accepts: reusing it
+    would calibrate a rig with cameras missing."""
+    return cached is not None and cached.n_cameras == n_cameras

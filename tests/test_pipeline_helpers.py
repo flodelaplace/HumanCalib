@@ -188,3 +188,19 @@ def test_outlier_loader_keeps_the_frames_all_cameras_share(tmp_path):
     assert p2d.shape == (3, 3, 3, 2) and s2d.shape == (3, 3, 3)
     # Rows are aligned by frame number, not by position in each file.
     assert (p2d[:, :, 0, 0] == [[1, 2, 3]] * 3).all()
+
+
+def test_an_interrupted_extraction_is_not_a_cache(tmp_path):
+    """Four of nine cameras extracted, then the batch was stopped: equal numbers
+    of 2D and 3D files, so the range rule accepts it, but it is not the rig."""
+    from humancalib.pipeline.poses_cache import covers_all_cameras
+    sub = tmp_path / "noise_1_0"
+    for d in ("2d_joint", "3d_joint"):
+        (sub / d).mkdir(parents=True)
+        for c in range(1, 5):
+            (sub / d / f"A001_P001_G001_C{c:03d}.json").write_text(
+                json.dumps({"data": [{"frame_index": 0, "skeleton": [{"pose": [0, 0], "score": [1]}]}]}))
+    cached = poses_are_cached(str(tmp_path), "noise_1_0")
+    assert cached is not None and cached.n_cameras == 4
+    assert not covers_all_cameras(cached, 9)
+    assert covers_all_cameras(cached, 4)
