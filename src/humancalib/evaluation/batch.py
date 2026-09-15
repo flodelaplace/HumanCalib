@@ -28,6 +28,8 @@ import subprocess
 import sys
 import time
 
+import cv2
+
 from humancalib.core.log import get_logger, setup_logging
 from humancalib.evaluation import biocv
 
@@ -41,8 +43,46 @@ STATUS_FIELDS = ["started", "participant", "trial", "engine", "step", "status", 
                  "gravity_deg", "abs4dof_pos_mm_median", "abs4dof_rot_deg_median", "note"]
 
 
-def calibration_command(engine, video_dir, work, metrabs_python):
+def run_name(engine, rtmpose_fps=None):
+    """Output folder of one engine's run: rtmpose at a reduced rate gets its own."""
+    if engine == "rtmpose" and rtmpose_fps:
+        return f"rtmpose_{rtmpose_fps:g}hz"
+    return engine
+
+
+def decimation_factor(native_fps, target_fps):
+    """Keep one frame in k. VideoPose3D was trained at 50 Hz (docs/EVALUATION_PROTOCOL.md, section 8)."""
+    return max(1, int(round(native_fps / target_fps)))
+
+
+def local_decimated_copy(video_dir, dest, target_fps):
+    """Local copy of a trial's videos keeping one frame in k, identically on every
+    camera -- selection by frame number, not by timestamp, so synchronisation is kept."""
+    os.makedirs(dest, exist_ok=True)
+    ffmpeg = shutil.which("ffmpeg") or os.path.join(os.path.dirname(sys.executable), "ffmpeg")
+    for name in sorted(os.listdir(video_dir)):
+        if not name.lower().endswith((".mp4", ".avi", ".mov", ".mkv")):
+            continue
+        src = os.path.join(video_dir, name)
+        cap = cv2.VideoCapture(src)
+        native = cap.get(cv2.CAP_PROP_FPS)
+        cap.release()
+        k = decimation_factor(native, target_fps)
+        out_fps = native / k
+        subprocess.run([ffmpeg, "-y", "-loglevel", "error", "-i", src,
+                        "-vf", f"select=not(mod(n\\,{k})),setpts=N/({out_fps:g}*TB)",
+                        "-r", f"{out_fps:g}",
+                        # MJPEG at high quality: built into every ffmpeg (conda's has no
+                        # libx264), near-lossless, and these copies are deleted after the run.
+                        "-c:v", "mjpeg", "-q:v", "2", "-pix_fmt", "yuvj420p",
+                        os.path.splitext(os.path.join(dest, name))[0] + ".avi"],
+                       check=True)
+    return dest
+
+
+def calibration_command(engine, video_dir, work, metrabs_python, run=None):
     """(argv, env) running HumanCalib for one engine."""
+    run = run or engine
     toml = os.path.join(work, "input", "Calib_scene.toml")
     if engine == "metrabs":
         env = dict(os.environ, HUMANCALIB_METRABS_PYTHON=metrabs_python)
@@ -55,7 +95,7 @@ def calibration_command(engine, video_dir, work, metrabs_python):
             # This checkout's code, not the copy baked into the image: both
             # engines must run the same pipeline, fixes included.
             "-v", f"{SOURCE_DIR}:/opt/humancalib/src/humancalib:ro",
-            RTMPOSE_IMAGE, "/input", "/output/input/Calib_scene.toml", "/output/rtmpose", "cuda",
+            RTMPOSE_IMAGE, "/input", "/output/input/Calib_scene.toml", f"/output/{run}", "cuda",
             "--pose_engine", "rtmpose"], dict(os.environ)
 
 
@@ -123,6 +163,8 @@ def main(argv=None):
     parser.add_argument("--engines", nargs="+", default=["metrabs", "rtmpose"], choices=["metrabs", "rtmpose"])
     parser.add_argument("--metrabs_python", default=sys.executable,
                         help="Python of the environment with TensorFlow (default: this one)")
+    parser.add_argument("--rtmpose_fps", type=float, default=None,
+                        help="feed RTMPose + VideoPose3D videos reduced to about this rate, in their own output folder")
     parser.add_argument("--wait_minutes", type=float, default=20,
                         help="how long to wait for an unreachable dataset drive before stopping")
     args = parser.parse_args(argv)
@@ -145,16 +187,19 @@ def main(argv=None):
                 continue
 
             for engine in args.engines:
-                row = {**base, "engine": engine}
-                ba = os.path.join(work, engine, "results", "linear_1_0_ba.json")
+                run = run_name(engine, args.rtmpose_fps)
+                row = {**base, "engine": run}
+                ba = os.path.join(work, run, "results", "linear_1_0_ba.json")
                 if not os.path.isfile(ba):
                     video_dir = meta["video_dir"]
-                    if engine == "rtmpose":
+                    if run != engine:
+                        video_dir = local_decimated_copy(video_dir, os.path.join(work, "_videos"), args.rtmpose_fps)
+                    elif engine == "rtmpose":
                         video_dir = local_video_copy(video_dir, os.path.join(work, "_videos"))
-                    argv_, env = calibration_command(engine, video_dir, work, args.metrabs_python)
-                    log.info(f"{participant}_{trial} [{engine}]: calibrating...")
+                    argv_, env = calibration_command(engine, video_dir, work, args.metrabs_python, run)
+                    log.info(f"{participant}_{trial} [{run}]: calibrating...")
                     t0, started = time.time(), _now()
-                    rc = run_logged(argv_, os.path.join(work, f"{engine}_run.log"), env)
+                    rc = run_logged(argv_, os.path.join(work, f"{run}_run.log"), env)
                     if engine == "rtmpose":
                         shutil.rmtree(os.path.join(work, "_videos"), ignore_errors=True)
                     ok = rc == 0 and os.path.isfile(ba)
@@ -162,20 +207,20 @@ def main(argv=None):
                                            "status": "ok" if ok else "failed",
                                            "seconds": round(time.time() - t0), "note": "" if ok else f"exit {rc}"})
                     if not ok:
-                        log.error(f"{participant}_{trial} [{engine}]: calibration failed (exit {rc})")
+                        log.error(f"{participant}_{trial} [{run}]: calibration failed (exit {rc})")
                         continue
 
-                metrics = os.path.join(work, "eval", engine, "metrics.json")
+                metrics = os.path.join(work, "eval", run, "metrics.json")
                 if not os.path.isfile(metrics):
                     os.makedirs(os.path.join(work, "eval"), exist_ok=True)
                     t0, started = time.time(), _now()
                     rc = run_logged([sys.executable, "-m", "humancalib.evaluation.compare", "--work", work,
-                                     "--engine", engine], os.path.join(work, "eval", f"{engine}_compare.log"))
+                                     "--engine", engine, "--run", run], os.path.join(work, "eval", f"{run}_compare.log"))
                     append_status(status, {**row, "started": started, "step": "compare",
                                            "status": "ok" if rc == 0 else "failed",
                                            "seconds": round(time.time() - t0),
                                            **(metrics_row(metrics) if os.path.isfile(metrics) else {})})
-                    log.info(f"{participant}_{trial} [{engine}]: compare exit {rc}")
+                    log.info(f"{participant}_{trial} [{run}]: compare exit {rc}")
     return 0
 
 

@@ -116,6 +116,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--work", required=True, help="prepared trial folder")
     parser.add_argument("--engine", required=True, choices=("metrabs", "rtmpose"))
+    parser.add_argument("--run", default=None,
+                        help="output folder name when it is not the engine's (e.g. rtmpose_50hz)")
     parser.add_argument("--conf_threshold", type=float, default=0.5)
     parser.add_argument("--n_ref_frames", type=int, default=10, help="frames for the sensitivity analysis")
     args = parser.parse_args(argv)
@@ -124,10 +126,11 @@ def main(argv=None):
         meta = json.load(f)
     gold = read_pose2sim_toml(os.path.join(args.work, "gold", "Calib_gold.toml"))
     up_gold = meta["up"]
-    prefix = os.path.join(args.work, args.engine)
-    out = os.path.join(args.work, "eval", args.engine)
+    run = args.run or args.engine
+    prefix = os.path.join(args.work, run)
+    out = os.path.join(args.work, "eval", run)
     os.makedirs(out, exist_ok=True)
-    report = {"meta": meta, "engine": args.engine, "stages": {}}
+    report = {"meta": meta, "engine": args.engine, "run": run, "stages": {}}
 
     # 1-2. every calibration stage: MRE and invariant metrics
     scores = {}

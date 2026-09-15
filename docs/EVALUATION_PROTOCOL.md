@@ -155,7 +155,13 @@ rapporte la différence appariée directe.
   = moyenne face au gold ; précision = dispersion entre calibrations.
   Relancer la même séquence ne mesure que le non-déterminisme GPU de la pose
   (MRE 4,03–4,06 px observée) : fait une fois, pour le chiffrer.
-* **Moteurs** : MeTRAbs vs RTMPose + VideoPose3D sur les mêmes essais.
+* **Moteurs** : MeTRAbs vs RTMPose + VideoPose3D sur les mêmes essais. Un
+  résultat défavorable à RTMPose + VideoPose3D est un résultat (il motive la
+  recommandation de MeTRAbs), à condition que ce chemin ait tourné dans son
+  domaine d'usage : VideoPose3D est un modèle temporel entraîné à 50 Hz, donc
+  une vidéo à 100–200 Hz lui est donnée ramenée à ~50 Hz. Cette condition
+  d'entrée est fixée ici, avant résultats, et appliquée à tous les essais ; ce
+  n'est pas un réglage par essai.
 * **Image de référence** : échelle et verticale recalculées sur plusieurs images
   valides du même essai.
 * **Type de mouvement** : marche, course, saut sur place (CMJ), tapis (LBMC).
@@ -220,3 +226,5 @@ D:\FLO\Calibration dataset\<Dataset>\<Participant>_<Essai>\
 | Date | Étape |
 |---|---|
 | 2026-09-14 | Protocole rédigé. Lecteur BioCV validé par reprojection. Premier essai BioCV P03_WALK_01 (MeTRAbs) lancé. |
+| 2026-09-15 | Batch BioCV marche (P03 P06 P09 P10 P13 P16 × WALK_01/02 × 2 moteurs). Coupure de la machine vers 3 h 25 (Docker « unexpected EOF ») : relance technique, consignée. Bugs corrigés puis essais relancés avec les mêmes paramètres : décalage d'une image entre caméras (P09, P16 : crash de la détection d'images aberrantes) ; métrique d'angle lisant 0° sur les matrices non orthonormées de l'étape linéaire RTMPose ; conteneur RTMPose sur le code du dépôt. Décision : les échecs dus à une personne au premier plan (caméra 08 de P06, P10) **restent des échecs**. |
+| 2026-09-15 | Test RTMPose + VideoPose3D à 50 Hz (§8) programmé après le batch : vidéos réduites en gardant une image sur k à l'identique sur toutes les caméras, sorties dans `rtmpose_50hz`. |

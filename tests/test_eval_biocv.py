@@ -73,3 +73,13 @@ def test_nonzero_k3_is_refused(tmp_path):
     cam = Camera("00", (1920, 1080), np.eye(3), np.array([0.1, 0.0, 0.0, 0.0, 0.2]))
     with pytest.raises(ValueError, match="k3"):
         write_pose2sim_toml([cam], tmp_path / "x.toml")
+
+
+def test_reduced_rate_rtmpose_runs_get_their_own_folder():
+    from humancalib.evaluation.batch import decimation_factor, run_name
+    assert run_name("rtmpose") == "rtmpose"
+    assert run_name("metrabs", 50) == "metrabs"
+    assert run_name("rtmpose", 50) == "rtmpose_50hz"
+    assert decimation_factor(200, 50) == 4
+    assert decimation_factor(100, 50) == 2
+    assert decimation_factor(60, 50) == 1
