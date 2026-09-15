@@ -249,6 +249,10 @@ def main(argv=None):
                                            "seconds": round(time.time() - t0),
                                            **(metrics_row(seg_metrics) if os.path.isfile(seg_metrics) else {})})
                     log.info(f"{participant}_{trial} [{seg}]: compare exit {rc}")
+                    if rc == 0 and os.path.isfile(seg_metrics):
+                        run_logged([sys.executable, "-m", "humancalib.evaluation.plot_rig", "--work", work,
+                                    "--run", run, "--eval", seg, "--gif"],
+                                   os.path.join(work, "eval", f"{seg}_plot.log"))
     return 0
 
 

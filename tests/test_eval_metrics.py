@@ -146,3 +146,12 @@ def test_humancalib_loader_projects_non_rotations(tmp_path):
     assert orthonormality_dev(str(path)) > 0.5
     for c in cams:
         assert c.R @ c.R.T == pytest.approx(np.eye(3), abs=1e-12)
+
+
+def test_rig_figure_is_written(tmp_path):
+    from humancalib.evaluation.plot_rig import plot_rigs
+    gold = ring_rig()
+    est = transform(gold, s=1.02, Q=M.rotation_between(UP_GOLD, [0, -1, 0]) @ rot(UP_GOLD, 30))
+    path = tmp_path / "rig.png"
+    plot_rigs(est, gold, [0, -1, 0], UP_GOLD, str(path), title="synthetic")
+    assert path.stat().st_size > 10000
