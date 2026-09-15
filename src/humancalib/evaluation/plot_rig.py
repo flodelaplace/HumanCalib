@@ -6,6 +6,8 @@ Reads <work>/eval/<eval>/calibration_scaled.json (HumanCalib's metric, gravity-a
 calibration written by compare) and <work>/gold/Calib_gold.toml. Writes, in
 <work>/eval/<eval>/:
 
+* cameras_vs_gold_3d_4dof.png, cameras_vs_gold_3d_7dof.png -- camera frustums, floor and
+  subject in 3D, for each registration;
 * cameras_vs_gold.png -- top and side views of both rigs, camera centres and optical
   axes, after two registrations into the gold world frame: 4-DoF (yaw + translation
   only: HumanCalib's own vertical and scale are kept, so this is what a user gets)
@@ -103,15 +105,24 @@ def subject_skeleton(prefix, est, conf_threshold=0.5):
     return None
 
 
-def plot_rigs_3d(est, gold, up_est, up_gold, path, skeleton=None, title=""):
-    """Camera frustums of both rigs after the 4-DoF registration, floor and subject."""
+def plot_rigs_3d(est, gold, up_est, up_gold, path, skeleton=None, title="", registration="4dof"):
+    """Camera frustums of both rigs in the gold world frame, floor and subject.
+
+    registration "4dof": yaw + translation only, HumanCalib's vertical and scale kept
+    (end-to-end error). "7dof": similarity, the rig's shape alone."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     Cg = np.array([g.center for g in gold])
     Ce = np.array([e.center for e in est])
-    T, b = M.yaw_align(Ce, Cg, up_est, up_gold)
+    if registration == "4dof":
+        T, b = M.yaw_align(Ce, Cg, up_est, up_gold)
+        s = 1.0
+        label = "4-DoF registration: yaw and translation only, HumanCalib's own vertical and scale"
+    else:
+        s, T, b = M.umeyama(Ce, Cg)
+        label = f"7-DoF registration: similarity, rig shape only (scale factor {s:.3f})"
     fig = plt.figure(figsize=(11, 9))
     ax = fig.add_subplot(111, projection="3d")
 
@@ -128,7 +139,7 @@ def plot_rigs_3d(est, gold, up_est, up_gold, path, skeleton=None, title=""):
     pos_err, rot_err = [], []
     for k, g in enumerate(gold):
         Rw_est = T @ est[k].R.T                        # camera axes in the gold world
-        Cw_est = T @ Ce[k] + b
+        Cw_est = s * T @ Ce[k] + b
         frustum(g, g.R.T, Cg[k], "tab:green", 2.0)
         frustum(est[k], Rw_est, Cw_est, "tab:red", 1.2)
         ax.text(*(Cg[k] + [0, 0, 0.25]), g.name, fontsize=8)
@@ -141,7 +152,7 @@ def plot_rigs_3d(est, gold, up_est, up_gold, path, skeleton=None, title=""):
     if abs(up_g[2]) > 0.9:                             # floor drawn for a z-up gold world
         ax.plot_wireframe(gx, gy, np.zeros_like(gx), color="0.8", lw=0.5)
     if skeleton is not None:
-        Xw = skeleton @ T.T + b
+        Xw = s * skeleton @ T.T + b
         for i, j in HALPE26_BONES:
             if np.isfinite(Xw[[i, j]]).all():
                 ax.plot(*zip(Xw[i], Xw[j]), color="tab:blue", lw=2)
@@ -155,7 +166,7 @@ def plot_rigs_3d(est, gold, up_est, up_gold, path, skeleton=None, title=""):
     ax.set_zlim(0, top)
     ax.set_box_aspect((hi[0] - lo[0], hi[1] - lo[1], top))      # metric proportions
     ax.view_init(elev=24, azim=-58)
-    ax.set_title(f"{title}\n{len(gold)} cameras, lab world frame (4-DoF registration: yaw and translation only)\n"
+    ax.set_title(f"{title}\n{len(gold)} cameras, lab world frame ({label})\n"
                  f"camera position error median {np.median(pos_err):.0f} mm, orientation error median "
                  f"{np.median(rot_err):.2f}°", fontsize=10)
     fig.tight_layout()
@@ -196,11 +207,12 @@ def main(argv=None):
     png = os.path.join(args.work, "eval", args.eval, "cameras_vs_gold.png")
     plot_rigs(est, gold, UP_HUMANCALIB, up_gold, png,
               title=f"{os.path.basename(os.path.normpath(args.work))} — {args.eval} ({len(gold)} cameras)")
-    png3d = os.path.join(args.work, "eval", args.eval, "cameras_vs_gold_3d.png")
     skeleton = subject_skeleton(os.path.join(args.work, args.run), est)
-    plot_rigs_3d(est, gold, UP_HUMANCALIB, up_gold, png3d, skeleton=skeleton,
-                 title=f"{os.path.basename(os.path.normpath(args.work))}: HumanCalib (red) vs lab calibration (green)")
-    log.info(f"3D figure -> {png3d}")
+    for registration in ("4dof", "7dof"):
+        png3d = os.path.join(args.work, "eval", args.eval, f"cameras_vs_gold_3d_{registration}.png")
+        plot_rigs_3d(est, gold, UP_HUMANCALIB, up_gold, png3d, skeleton=skeleton, registration=registration,
+                     title=f"{os.path.basename(os.path.normpath(args.work))}: HumanCalib (red) vs lab calibration (green)")
+        log.info(f"3D figure -> {png3d}")
     log.info(f"Figure -> {png}")
     if args.gif:
         gif = render_gif(args.work, args.run, args.eval)
