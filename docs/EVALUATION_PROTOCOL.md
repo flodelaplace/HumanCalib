@@ -166,6 +166,17 @@ rapporte la différence appariée directe.
   valides du même essai.
 * **Type de mouvement** : marche, course, saut sur place (CMJ), tapis (LBMC).
 * Optionnel si le temps le permet : sous-ensembles de caméras, durée.
+* **Méthode v2 — sélection géométrique de la personne** (`--person_selection
+  geometric`), conçue après avoir vu les échecs de P06 et P10 (expérimentateur
+  au premier plan de la caméra 08). Règle fixée avant tout run v2 : après une
+  première calibration, triangulation robuste du sujet par consensus de
+  caméras (sous-ensemble de 3 caméras le plus cohérent, puis caméras à moins de
+  max(50 px, 5 × son erreur)), re-sélection dans chaque caméra de la détection
+  la plus proche de la reprojection, recalibration complète. Seuils = ceux de
+  la détection d'images aberrantes, aucun réglage par essai. Les résultats v1,
+  échecs compris, restent les résultats de la méthode v1. Parce que la règle
+  a été motivée par P06/P10, elle est aussi validée sur des participants jamais
+  examinés (P04, P17, P18), en v1 et en v2.
 
 ## 9. Statistiques
 
@@ -227,4 +238,5 @@ D:\FLO\Calibration dataset\<Dataset>\<Participant>_<Essai>\
 |---|---|
 | 2026-09-14 | Protocole rédigé. Lecteur BioCV validé par reprojection. Premier essai BioCV P03_WALK_01 (MeTRAbs) lancé. |
 | 2026-09-15 | Batch BioCV marche (P03 P06 P09 P10 P13 P16 × WALK_01/02 × 2 moteurs). Coupure de la machine vers 3 h 25 (Docker « unexpected EOF ») : relance technique, consignée. Bugs corrigés puis essais relancés avec les mêmes paramètres : décalage d'une image entre caméras (P09, P16 : crash de la détection d'images aberrantes) ; métrique d'angle lisant 0° sur les matrices non orthonormées de l'étape linéaire RTMPose ; conteneur RTMPose sur le code du dépôt. Décision : les échecs dus à une personne au premier plan (caméra 08 de P06, P10) **restent des échecs**. |
+| 2026-09-15 | Méthode v2 (sélection géométrique de la personne) implémentée et testée sur données synthétiques ; runs v2 MeTRAbs programmés après le test à 50 Hz, sur les 12 marches puis P04, P17, P18. |
 | 2026-09-15 | Test RTMPose + VideoPose3D à 50 Hz (§8) programmé après le batch : vidéos réduites en gardant une image sur k à l'identique sur toutes les caméras, sorties dans `rtmpose_50hz`. |

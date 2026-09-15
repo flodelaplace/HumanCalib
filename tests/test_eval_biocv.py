@@ -83,3 +83,12 @@ def test_reduced_rate_rtmpose_runs_get_their_own_folder():
     assert decimation_factor(200, 50) == 4
     assert decimation_factor(100, 50) == 2
     assert decimation_factor(60, 50) == 1
+
+
+def test_method_v2_runs_get_their_own_folder():
+    from humancalib.evaluation.batch import calibration_command, run_name
+    assert run_name("metrabs", None, "geometric") == "metrabs_v2"
+    assert run_name("rtmpose", 50, "geometric") == "rtmpose_50hz_v2"
+    argv, _ = calibration_command("metrabs", "/v", "/w", "/env/bin/python", "metrabs_v2",
+                                  ["--person_selection", "geometric"])
+    assert argv[4] == "/w/metrabs_v2" and argv[-2:] == ["--person_selection", "geometric"]

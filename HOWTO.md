@@ -75,6 +75,7 @@ bash scripts/calibrate.sh \
 | `--conf_threshold <t>` | `0.5` | Minimum 2D keypoint confidence. Lower = more data, more noise. |
 | `--ref_cam <id>` | *(auto)* | 1-indexed CAM ID to force as Procrustes reference. Default: auto-select the camera with the lowest mean Procrustes residual. |
 | `--ba_jac <mode>` | `analytic` | Bundle-adjustment Jacobian. `analytic` (default) is exact and ~10–100× fewer objective evals — much faster, same accuracy. `numeric` = legacy finite-difference path. |
+| `--person_selection largest\|geometric` | `largest` | `geometric`: after a first calibration, re-select in every camera the person the other cameras see, then calibrate again. For a bystander close to one camera. Needs pose extraction to have saved candidate detections (any extraction from this version on). |
 | `--no_auto_outlier_drop` | off | Disable the per-camera outlier-frame drop step between linear and BA. |
 | `--outlier_abs_px <p>` | `50` | Absolute reproj threshold for the outlier drop. |
 | `--outlier_x_median <m>` | `5` | Multiplier above per-camera median for the outlier drop (frame must exceed **both** thresholds to be dropped). |

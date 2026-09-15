@@ -43,11 +43,15 @@ STATUS_FIELDS = ["started", "participant", "trial", "engine", "step", "status", 
                  "gravity_deg", "abs4dof_pos_mm_median", "abs4dof_rot_deg_median", "note"]
 
 
-def run_name(engine, rtmpose_fps=None):
-    """Output folder of one engine's run: rtmpose at a reduced rate gets its own."""
+def run_name(engine, rtmpose_fps=None, person_selection="largest"):
+    """Output folder of one run: rtmpose at a reduced rate, and the geometric
+    person selection (method v2), each get their own."""
+    name = engine
     if engine == "rtmpose" and rtmpose_fps:
-        return f"rtmpose_{rtmpose_fps:g}hz"
-    return engine
+        name += f"_{rtmpose_fps:g}hz"
+    if person_selection == "geometric":
+        name += "_v2"
+    return name
 
 
 def decimation_factor(native_fps, target_fps):
@@ -80,14 +84,15 @@ def local_decimated_copy(video_dir, dest, target_fps):
     return dest
 
 
-def calibration_command(engine, video_dir, work, metrabs_python, run=None):
-    """(argv, env) running HumanCalib for one engine."""
+def calibration_command(engine, video_dir, work, metrabs_python, run=None, extra=()):
+    """(argv, env) running HumanCalib for one engine; `extra` is appended to its options."""
     run = run or engine
     toml = os.path.join(work, "input", "Calib_scene.toml")
     if engine == "metrabs":
         env = dict(os.environ, HUMANCALIB_METRABS_PYTHON=metrabs_python)
         exe = os.path.join(os.path.dirname(metrabs_python), "humancalib")
-        return [exe, "run", video_dir, toml, os.path.join(work, engine), "cuda", "--pose_engine", "metrabs"], env
+        return [exe, "run", video_dir, toml, os.path.join(work, run), "cuda", "--pose_engine", "metrabs",
+                *extra], env
     uid, gid = os.getuid(), os.getgid()
     return ["docker", "run", "--rm", "--gpus", "all", "-u", f"{uid}:{gid}",
             "-v", f"{video_dir}:/input:ro", "-v", f"{work}:/output",
@@ -96,7 +101,7 @@ def calibration_command(engine, video_dir, work, metrabs_python, run=None):
             # engines must run the same pipeline, fixes included.
             "-v", f"{SOURCE_DIR}:/opt/humancalib/src/humancalib:ro",
             RTMPOSE_IMAGE, "/input", "/output/input/Calib_scene.toml", f"/output/{run}", "cuda",
-            "--pose_engine", "rtmpose"], dict(os.environ)
+            "--pose_engine", "rtmpose", *extra], dict(os.environ)
 
 
 def wait_for(path, minutes):
@@ -165,6 +170,8 @@ def main(argv=None):
                         help="Python of the environment with TensorFlow (default: this one)")
     parser.add_argument("--rtmpose_fps", type=float, default=None,
                         help="feed RTMPose + VideoPose3D videos reduced to about this rate, in their own output folder")
+    parser.add_argument("--person_selection", choices=("largest", "geometric"), default="largest",
+                        help="geometric = method v2 (humancalib run --person_selection); own output folder")
     parser.add_argument("--wait_minutes", type=float, default=20,
                         help="how long to wait for an unreachable dataset drive before stopping")
     args = parser.parse_args(argv)
@@ -187,16 +194,17 @@ def main(argv=None):
                 continue
 
             for engine in args.engines:
-                run = run_name(engine, args.rtmpose_fps)
+                run = run_name(engine, args.rtmpose_fps, args.person_selection)
+                extra = ["--person_selection", args.person_selection] if args.person_selection != "largest" else []
                 row = {**base, "engine": run}
                 ba = os.path.join(work, run, "results", "linear_1_0_ba.json")
                 if not os.path.isfile(ba):
                     video_dir = meta["video_dir"]
-                    if run != engine:
+                    if engine == "rtmpose" and args.rtmpose_fps:
                         video_dir = local_decimated_copy(video_dir, os.path.join(work, "_videos"), args.rtmpose_fps)
                     elif engine == "rtmpose":
                         video_dir = local_video_copy(video_dir, os.path.join(work, "_videos"))
-                    argv_, env = calibration_command(engine, video_dir, work, args.metrabs_python, run)
+                    argv_, env = calibration_command(engine, video_dir, work, args.metrabs_python, run, extra)
                     log.info(f"{participant}_{trial} [{run}]: calibrating...")
                     t0, started = time.time(), _now()
                     rc = run_logged(argv_, os.path.join(work, f"{run}_run.log"), env)

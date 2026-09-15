@@ -38,6 +38,7 @@ import numpy as np
 from tqdm import tqdm
 
 from humancalib.core.videos import list_videos
+from humancalib.pose.candidates import STATUS_OK, candidates_path, save_candidates
 from humancalib.core.log import get_logger, setup_logging
 log = get_logger(__name__)
 
@@ -139,7 +140,7 @@ def halpe26_to_op25(kp_halpe, sc_halpe):
     return kp_op, score_op
 
 
-def process_video(video_path: str, body_model, output_op25_json: str, output_halpe26_json: str, start_frame: int = None, end_frame: int = None, save_video_path: str = None):
+def process_video(video_path: str, body_model, output_op25_json: str, output_halpe26_json: str, start_frame: int = None, end_frame: int = None, save_video_path: str = None, candidates_out: str = None):
     """Run RTMPose on a selected range of frames and save a 2d_joint JSON."""
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -151,6 +152,8 @@ def process_video(video_path: str, body_model, output_op25_json: str, output_hal
     log.info(f"  Video: {os.path.basename(video_path)}  ({width}x{height}, {total_frames} frames)")
     op25_data = []
     halpe26_data = []
+    # Every detection, for geometric person re-selection (pose/candidates.py).
+    cand_frames, cand_dets = [], []
     # Frame range to process
     sf = start_frame if start_frame is not None else 0
     ef = end_frame if end_frame is not None else total_frames - 1
@@ -201,6 +204,13 @@ def process_video(video_path: str, body_model, output_op25_json: str, output_hal
                         else:
                             bboxes_all = np.array([0,0,0,0])
                 kp_halpe, sc_halpe = get_best_person(keypoints_all, scores_all, bboxes_all)
+                n_det = len(keypoints_all) if keypoints_all.ndim == 3 else 1
+                cand_dets.append({"box": np.asarray(bboxes_all, dtype=float).reshape(n_det, 4),
+                                  "pose2d": np.asarray(keypoints_all).reshape(n_det, -1, 2),
+                                  "score2d": np.asarray(scores_all).reshape(n_det, -1)})
+            else:
+                cand_dets.append(None)
+            cand_frames.append(frame_idx)
 
             if writer is not None:
                 img_show = frame.copy()
@@ -221,6 +231,9 @@ def process_video(video_path: str, body_model, output_op25_json: str, output_hal
     if writer is not None:
         writer.release()
     cap.release()
+    if candidates_out:
+        save_candidates(candidates_out, cand_frames, [STATUS_OK] * len(cand_frames), cand_dets,
+                        (height, width))
     with open(output_op25_json, "w") as f:
         json.dump({"data": op25_data}, f, indent=2, ensure_ascii=True)
     log.info(f"  Saved {len(op25_data)} OpenPose-25 frames -> {output_op25_json}")
@@ -338,7 +351,8 @@ def main(argv=None):
 
         w, h = process_video(
             video_path, body_model, output_op25_json, output_halpe26_json,
-            start_frame=args.start_frame, end_frame=args.end_frame, save_video_path=save_video_path
+            start_frame=args.start_frame, end_frame=args.end_frame, save_video_path=save_video_path,
+            candidates_out=candidates_path(args.output_dir, args.subset_name, base_name),
         )
         widths.append(w)
         heights.append(h)
