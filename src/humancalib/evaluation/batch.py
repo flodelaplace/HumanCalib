@@ -51,6 +51,8 @@ def run_name(engine, rtmpose_fps=None, person_selection="largest"):
         name += f"_{rtmpose_fps:g}hz"
     if person_selection == "geometric":
         name += "_v2"
+    elif person_selection == "motion":
+        name += "_v4"
     return name
 
 
@@ -176,7 +178,7 @@ def main(argv=None):
                         help="Python of the environment with TensorFlow (default: this one)")
     parser.add_argument("--rtmpose_fps", type=float, default=None,
                         help="feed RTMPose + VideoPose3D videos reduced to about this rate, in their own output folder")
-    parser.add_argument("--person_selection", choices=("largest", "geometric"), default="largest",
+    parser.add_argument("--person_selection", choices=("largest", "geometric", "motion"), default="largest",
                         help="geometric = method v2 (humancalib run --person_selection); own output folder")
     parser.add_argument("--wait_minutes", type=float, default=20,
                         help="how long to wait for an unreachable dataset drive before stopping")

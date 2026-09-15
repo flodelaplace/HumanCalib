@@ -165,3 +165,39 @@ def test_reset_to_largest_restores_extraction_selection(tmp_path):
     data = json.load(open(os.path.join(prefix, sub, "2d_joint_halpe26", "A001_P001_G001_C001.json")))["data"]
     written = np.array(data[0]["skeleton"][0]["pose"]).reshape(J, 2)
     assert written == pytest.approx(proj(Ps[0], bystander), abs=1e-3)
+
+
+def test_motion_selection_keeps_the_walker_and_drops_a_seated_operator(tmp_path):
+    """Camera 0 sees a seated operator for the whole trial and the walker only in the
+    middle; cameras 1-3 see the walker throughout. The operator's box is the largest."""
+    from humancalib.pipeline import motion_selection
+    fps, F = 50.0, 300
+    t_ = np.arange(F) / fps
+    cands = []
+    for c in range(4):
+        dets = []
+        for f in range(F):
+            swing = 0.5 * np.sin(2 * np.pi * t_[f])
+            walker3d = np.zeros((87, 3))
+            operator3d = np.zeros((87, 3))
+            for side, (hip, knee, ankle) in enumerate(motion_selection.LEGS_3D_BML87):
+                sgn = 1 if side == 0 else -1
+                walker3d[hip] = [100 * sgn, 0.0, 4000.0]
+                walker3d[knee] = [100 * sgn + 200 * sgn * swing, 450.0, 4000.0]
+                walker3d[ankle] = [100 * sgn + 400 * sgn * swing, 900.0, 4000.0]
+                operator3d[hip], operator3d[knee], operator3d[ankle] = [0, 0, 3000], [0, 450, 3000], [0, 900, 3000]
+            rng = np.random.default_rng(f)
+            boxes, p3, p2 = [[800 + f, 300, 200, 600, 0.9]], [walker3d], [rng.uniform(0, 1000, (87, 2))]
+            if c == 0:
+                in_view = 80 <= f < 220
+                boxes = [[100, 200, 400, 800, 0.9]] + (boxes if in_view else [])
+                p3 = [operator3d] + (p3 if in_view else [])
+                p2 = [rng.uniform(0, 1000, (87, 2))] + (p2 if in_view else [])
+            dets.append({"box": np.array(boxes), "pose2d": np.array(p2), "pose3d": np.array(p3)})
+        path = str(tmp_path / f"c{c}.npz")
+        cand.save_candidates(path, range(F), [0] * F, dets, (1080, 1920))
+        cands.append(cand.load_candidates(path))
+    sel = motion_selection.select(cands, fps, "metrabs")
+    assert (sel[0][110:190] == 1).all()                    # the walker, not the larger operator
+    assert (sel[0][:60] == -1).all() and (sel[0][240:] == -1).all()
+    assert (sel[1][40:260] == 0).all()

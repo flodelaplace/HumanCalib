@@ -267,8 +267,12 @@ def main(argv=None):
     p.add_argument("--x_median", type=float, default=5.0)
     p.add_argument("--min_cams", type=int, default=3)
     p.add_argument("--reset_to_largest", action="store_true",
-                   help="only rewrite the pose files with extraction's own selection (largest box), "
+                   help="only rewrite the pose files with the initial selection (see --initial), "
                         "so a run reusing cached poses starts where extraction left it")
+    p.add_argument("--initial", choices=("largest", "motion"), default="largest",
+                   help="initial selection: extraction's largest box, or the walking person "
+                        "(pipeline/motion_selection.py; needs --fps)")
+    p.add_argument("--fps", type=float, default=None, help="video frame rate, for --initial motion")
     args = p.parse_args(argv)
 
     CAMID, K, _, _, dist = load_eldersim_camera(os.path.join(args.prefix, args.subset, f"cameras_G{args.gid:03d}.json"))
@@ -281,22 +285,28 @@ def main(argv=None):
             raise SystemExit(f"no candidate detections at {path}: re-run pose extraction")
         cands.append(cand.load_candidates(path))
 
-    # Largest-box selection, exactly as extraction made it, on every frame of every camera.
-    current = []
-    for c in cands:
-        sel = np.full(len(c["frames"]), -1)
-        for row in range(len(c["frames"])):
-            s, e = c["start"][row], c["start"][row + 1]
-            if c["status"][row] == cand.STATUS_OK and e > s:
-                sel[row] = cand.largest(args.engine, c["box"][s:e], c["pose2d"][s:e], c["imshape"])
-        current.append(sel)
+    if args.initial == "motion":
+        if not args.fps:
+            raise SystemExit("--initial motion needs --fps")
+        from humancalib.pipeline import motion_selection
+        current = motion_selection.select(cands, args.fps, args.engine)
+    else:
+        # Largest-box selection, exactly as extraction made it, on every frame of every camera.
+        current = []
+        for c in cands:
+            sel = np.full(len(c["frames"]), -1)
+            for row in range(len(c["frames"])):
+                s, e = c["start"][row], c["start"][row + 1]
+                if c["status"][row] == cand.STATUS_OK and e > s:
+                    sel[row] = cand.largest(args.engine, c["box"][s:e], c["pose2d"][s:e], c["imshape"])
+            current.append(sel)
 
     if args.reset_to_largest:
         write_selection(args, cands, names, current, K, dist)
         sidecars = os.path.join(args.prefix, args.subset, SIDECAR_DIRNAME)
         if os.path.isdir(sidecars):
             shutil.rmtree(sidecars)
-        log.info("Pose files reset to the largest-box selection")
+        log.info(f"Pose files reset to the {args.initial} selection")
         return 0
 
     CAMID_c, _, R, t, _ = load_eldersim_camera(os.path.join(args.prefix, "results", f"{args.calib}.json"))

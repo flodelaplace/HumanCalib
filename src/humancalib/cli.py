@@ -111,7 +111,7 @@ def build_run_parser():
     p.add_argument("--vertical_method", choices=("frame", "walk"), default="walk",
                    help="frame: head to feet on --ref_frame. walk: body axis over the whole walk, "
                         "walking direction removed -- about 0.7 deg on BioCV instead of 3")
-    p.add_argument("--person_selection", choices=("largest", "geometric"), default="geometric",
+    p.add_argument("--person_selection", choices=("largest", "geometric", "motion"), default="geometric",
                    help="largest: the largest detection per frame, per camera. geometric: after a "
                         "first calibration, re-select in every camera the person the other cameras "
                         "see, and calibrate again -- for a bystander close to one camera")
@@ -423,7 +423,7 @@ def run_pipeline(cfg):
             log.info(f"  -> Cached poses cover {cached.n_cameras} of {n_videos} cameras "
                      "(interrupted extraction): extracting again")
             cached = None
-        if cached and cfg.person_selection == "geometric" and not os.path.isdir(
+        if cached and cfg.person_selection in ("geometric", "motion") and not os.path.isdir(
                 os.path.join(out, SUBSET, "candidates")):
             log.info("  -> Cached poses have no candidate detections, which --person_selection "
                      "geometric needs: extracting again")
@@ -452,10 +452,20 @@ def run_pipeline(cfg):
         "--toml", cfg.calib_toml, "--output_dir", sub, "--gid", str(GID),
         "--cam_names", *camera_names(vd)])
 
-    if cfg.person_selection == "geometric" and cfg.pose_engine == "metrabs" and cached:
-        # Cached poses may carry an earlier run's re-selection; start from extraction's own.
+    fps_args = []
+    if cfg.person_selection == "motion":
+        import cv2
+        from humancalib.core.videos import list_videos
+        cap = cv2.VideoCapture(list_videos(vd)[0])
+        fps_args = ["--initial", "motion", "--fps", str(cap.get(cv2.CAP_PROP_FPS))]
+        cap.release()
+    if (cfg.person_selection == "geometric" and cfg.pose_engine == "metrabs" and cached) or \
+            cfg.person_selection == "motion":
+        # Cached poses may carry an earlier run's re-selection; start from the initial selection
+        # (extraction's largest box, or the walking person).
         run_step("reselect", reselect_person.main, [
-            "--prefix", out, "--subset", SUBSET, *ids, "--engine", "metrabs", "--reset_to_largest"])
+            "--prefix", out, "--subset", SUBSET, *ids, "--engine", cfg.pose_engine, "--reset_to_largest",
+            *fps_args])
 
     if cfg.start_frame is not None and cfg.end_frame is not None:
         _header("[2.5] Creating frame mapping file...")
@@ -514,7 +524,7 @@ def run_pipeline(cfg):
 
     calibrate()
 
-    if cfg.person_selection == "geometric":
+    if cfg.person_selection in ("geometric", "motion"):
         def lowest_mre_stage():
             scores = {}
             for stage in ("linear_1_0", "linear_1_0_ba"):
@@ -535,7 +545,7 @@ def run_pipeline(cfg):
             changed = run_step("reselect", reselect_person.main, [
                 "--prefix", out, "--subset", SUBSET, *ids, "--calib", base,
                 "--engine", cfg.pose_engine, "--conf_threshold", str(cfg.conf_threshold),
-                "--abs_px", str(cfg.outlier_abs_px), "--x_median", str(cfg.outlier_x_median)])
+                "--abs_px", str(cfg.outlier_abs_px), "--x_median", str(cfg.outlier_x_median), *fps_args])
             with open(os.path.join(out, "results", "person_selection.json")) as f:
                 fraction = json.load(f)["changed_fraction"]
             shutil.copyfile(os.path.join(out, "results", "person_selection.json"),
