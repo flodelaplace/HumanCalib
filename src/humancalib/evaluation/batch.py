@@ -201,7 +201,8 @@ def main(argv=None):
 
             for engine in args.engines:
                 run = run_name(engine, args.rtmpose_fps, args.person_selection)
-                extra = ["--person_selection", args.person_selection] if args.person_selection != "largest" else []
+                # Always explicit: the pipeline's default changed to geometric in method v3.
+                extra = ["--person_selection", args.person_selection]
                 row = {**base, "engine": run}
                 ba = os.path.join(work, run, "results", "linear_1_0_ba.json")
                 if not os.path.isfile(ba):

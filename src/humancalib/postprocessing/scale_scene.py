@@ -226,10 +226,10 @@ def main(argv=None):
     parser.add_argument("--export_toml", default=None, help="Path to save the final calibrated TOML file")
     parser.add_argument("--video_dir", default=None, help="Path to original videos (needed for TOML export)")
     parser.add_argument("--conf_threshold", type=float, default=0.5, help="Confidence threshold for 2D keypoints")
-    parser.add_argument("--vertical_method", default="frame", choices=["frame", "walk"],
+    parser.add_argument("--vertical_method", default="walk", choices=["frame", "walk"],
                         help="frame: head to feet on --frame_idx. walk: body axis over the whole walk "
                              "with the walking direction removed (see walking_vertical)")
-    parser.add_argument("--scale_method", default="head", choices=["head", "segments"],
+    parser.add_argument("--scale_method", default="segments", choices=["head", "segments"],
                         help="head: head height on --frame_idx. segments: leg segment lengths over "
                              "all frames against stature (orientation still uses --frame_idx)")
     parser.add_argument("--pose_engine", default="rtmpose", choices=["rtmpose", "metrabs"],

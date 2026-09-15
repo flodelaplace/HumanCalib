@@ -105,13 +105,13 @@ def build_run_parser():
     p.add_argument("--outlier_x_median", type=float, default=5.0)
     p.add_argument("--ref_cam", type=int, default=None)
     p.add_argument("--ba_jac", choices=("analytic", "numeric"), default="analytic")
-    p.add_argument("--scale_method", choices=("head", "segments"), default="head",
+    p.add_argument("--scale_method", choices=("head", "segments"), default="segments",
                    help="head: head height on --ref_frame. segments: leg segment lengths over the whole "
                         "sequence against --height -- about 2 %% scale error on BioCV instead of 11 %%")
-    p.add_argument("--vertical_method", choices=("frame", "walk"), default="frame",
+    p.add_argument("--vertical_method", choices=("frame", "walk"), default="walk",
                    help="frame: head to feet on --ref_frame. walk: body axis over the whole walk, "
                         "walking direction removed -- about 0.7 deg on BioCV instead of 3")
-    p.add_argument("--person_selection", choices=("largest", "geometric"), default="largest",
+    p.add_argument("--person_selection", choices=("largest", "geometric"), default="geometric",
                    help="largest: the largest detection per frame, per camera. geometric: after a "
                         "first calibration, re-select in every camera the person the other cameras "
                         "see, and calibrate again -- for a bystander close to one camera")

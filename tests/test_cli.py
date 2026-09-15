@@ -242,3 +242,10 @@ def test_calibrate_sh_is_only_a_forwarder():
         code = [l for l in f if l.strip() and not l.lstrip().startswith("#")]
     assert any("-m humancalib.cli run" in l for l in code)
     assert len(code) <= 10, f"calibrate.sh has grown back to {len(code)} lines of code"
+
+
+def test_method_v3_is_the_default():
+    """Geometric person selection, leg-segment scale and whole-walk vertical: the
+    methods validated against BioCV's lab calibration (docs/EVALUATION_PROTOCOL.md)."""
+    cfg = cli.parse_run_args(["videos", "calib.toml"])
+    assert (cfg.person_selection, cfg.scale_method, cfg.vertical_method) == ("geometric", "segments", "walk")

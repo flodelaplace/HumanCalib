@@ -68,14 +68,16 @@ bash scripts/calibrate.sh \
 |------|---------|--------|
 | `--pose_engine <eng>` | `rtmpose` (in Docker: the image's backend) | `metrabs` (recommended) or `rtmpose` |
 | `--height <m>` | — | Subject height in **meters** (e.g. `1.84`). Enables step 7 (scaling + orientation). |
-| `--ref_frame <n>` | — | Frame where the subject is standing straight, feet flat. Used to define the floor and to scale to metric units. Must be inside `[start_frame, end_frame]`. |
+| `--ref_frame <n>` | — | Frame with both heels visible. Sets the origin and horizontal axis; scale and vertical come from the whole walk (see `--scale_method`, `--vertical_method`). With `--vertical_method frame` / `--scale_method head`, pick a frame where the subject stands straight, feet flat. Must be inside `[start_frame, end_frame]`. |
 | `--start_frame <n>` | `0` | First frame to process. |
 | `--end_frame <n>` | last | Last frame to process. |
 | `--frame_skip <n>` | `10` | Subsample interval for BA. Lower = denser optimization, slower. `5` is a good default with MeTRAbs. |
 | `--conf_threshold <t>` | `0.5` | Minimum 2D keypoint confidence. Lower = more data, more noise. |
 | `--ref_cam <id>` | *(auto)* | 1-indexed CAM ID to force as Procrustes reference. Default: auto-select the camera with the lowest mean Procrustes residual. |
 | `--ba_jac <mode>` | `analytic` | Bundle-adjustment Jacobian. `analytic` (default) is exact and ~10–100× fewer objective evals — much faster, same accuracy. `numeric` = legacy finite-difference path. |
-| `--person_selection largest\|geometric` | `largest` | `geometric`: after a first calibration, re-select in every camera the person the other cameras see, then calibrate again. For a bystander close to one camera. Needs pose extraction to have saved candidate detections (any extraction from this version on). |
+| `--person_selection largest\|geometric` | `geometric` | `geometric`: after a first calibration, re-select in every camera the person the other cameras see (frames where only someone else is visible get no person), then calibrate again; two rounds. Robust to a bystander close to one camera. Needs pose extraction to have saved candidate detections (any extraction from this version on). `largest`: the largest detection per frame, as before. |
+| `--scale_method segments\|head` | `segments` | `segments`: median thigh + shank length over the sequence against 0.491 × `--height` (Drillis & Contini). `head`: head height on `--ref_frame` (former method, about 11 % too large on BioCV). |
+| `--vertical_method walk\|frame` | `walk` | `walk`: median body axis over the walk, minus its component along the walking direction. `frame`: head-to-feet on `--ref_frame` (former method). `walk` assumes the subject walks. |
 | `--no_auto_outlier_drop` | off | Disable the per-camera outlier-frame drop step between linear and BA. |
 | `--outlier_abs_px <p>` | `50` | Absolute reproj threshold for the outlier drop. |
 | `--outlier_x_median <m>` | `5` | Multiplier above per-camera median for the outlier drop (frame must exceed **both** thresholds to be dropped). |

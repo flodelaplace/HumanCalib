@@ -200,7 +200,8 @@ Docker, `--pose_engine` defaults to `rtmpose` for backward compatibility, so pas
 | Option | Default | Effect |
 |---|---|---|
 | `--pose_engine metrabs\|rtmpose` | see above | Pose backend |
-| `--height <m>` + `--ref_frame <n>` | — | Subject height, and a frame where they stand straight: enables metric scaling and a gravity-aligned frame |
+| `--height <m>` + `--ref_frame <n>` | — | Subject height, and a frame with both heels visible: enables metric scaling and a gravity-aligned frame (scale and vertical are measured over the whole walk; the frame sets the origin and horizontal axis) |
+| `--person_selection` | `geometric` | Re-selects, in every camera, the person the other cameras see — robust to a bystander close to one camera. `largest` = the largest detection |
 | `--start_frame <n>` / `--end_frame <n>` | whole video | Frame range to use |
 | `--frame_skip <n>` | `10` | Frame subsampling for bundle adjustment; lower is denser and slower |
 | `--conf_threshold <t>` | `0.5` | Minimum keypoint confidence |
@@ -435,13 +436,14 @@ Standard OpenPose body-25 format with joints: Nose, Neck, RShoulder, RElbow, RWr
 
 ### Scaling and Orientation
 
-Step 7 (`scale_scene.py`) transforms the calibrated scene into a metric, gravity-aligned coordinate system:
+Step 7 (`scale_scene.py`) transforms the calibrated scene into a metric, gravity-aligned coordinate system. Scale and vertical are measured over the **whole sequence**, not on one frame:
 
-1. **Ground plane**: fitted from foot keypoints (heels, toes, feet centers, and fifth metatarsals when available)
-2. **Vertical axis (Y)**: defined by head-to-feet vector (Y points down in OpenCV convention)
-3. **Horizontal axis (X)**: defined by left-heel → right-heel direction
-4. **Origin**: center of heels at ground level
-5. **Scale**: computed from `measured_skeleton_height / real_person_height`
+1. **Vertical axis (Y, pointing down in OpenCV convention)** — `--vertical_method walk` (default): the median body axis (head → mid-ankles) over the walk, with its component along the walking direction removed. The walking direction comes from the stance-phase foot keypoints; removing it cancels the forward trunk lean. On BioCV: about **0.7°** median error against the lab calibration, instead of about 3° for a single frame. `--vertical_method frame` keeps the former head-to-feet vector on `--ref_frame`.
+2. **Horizontal axis (X)**: left-heel → right-heel direction on `--ref_frame`, made orthogonal to Y.
+3. **Origin**: centre of the heels on `--ref_frame`, at floor level.
+4. **Scale** — `--scale_method segments` (default): hip, knee and ankle are triangulated on every frame; the median thigh + shank length is compared with **0.491 × `--height`** (Drillis & Contini segment proportions, as tabulated by Winter). On BioCV: about **2 %** scale error, instead of about 11 % for the former head height on one frame (`--scale_method head`), which measured a head keypoint below the top of the skull on a subject mid-stride.
+
+Both default methods assume the subject **walks** through the volume. For a trial without walking, use `--vertical_method frame` and pick a `--ref_frame` where the subject stands straight.
 
 The joint format is **auto-detected** based on the number of joints in the 2D pose files:
 
