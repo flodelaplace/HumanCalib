@@ -113,12 +113,14 @@ def robust_triangulate(pts, valid, Ps, abs_px, x_median, min_cams):
 
 
 def select_by_geometry(cameras, Ps, current, abs_px=50.0, x_median=5.0, min_cams=3, iterations=2):
-    """New selection (C, F) from per-camera candidates on common frames.
+    """New selection (C, F) from per-camera candidates on common frames, and the
+    reprojection cost (C, F) of each kept detection (NaN where not evaluated).
 
     cameras[c][f] = (pts (n, J, 2), valid (n, J), acceptable (n,)); current (C, F) holds the
     index extraction kept, -1 for none."""
     new = np.array(current, dtype=int, copy=True)
     C, F = new.shape
+    kept_cost = np.full((C, F), np.nan)
     J = next(p.shape[1] for cam in cameras for p, _, _ in cam if len(p))
     for f in range(F):
         for _ in range(iterations):
@@ -142,11 +144,31 @@ def select_by_geometry(cameras, Ps, current, abs_px=50.0, x_median=5.0, min_cams
                 cost[~np.asarray(acceptable, bool)] = np.inf
                 if np.isfinite(cost).any():
                     k = int(np.argmin(cost))
+                    kept_cost[c, f] = cost[k]
                     if k != new[c, f]:
                         new[c, f] = k
                         changed = True
             if not changed:
                 break
+    return new, kept_cost
+
+
+def drop_unmatched(selection, kept_cost, abs_px=50.0, x_median=5.0):
+    """No person where even the best detection is far from the subject.
+
+    When the subject is not detected in a camera -- out of view, occluded -- the
+    closest detection is still someone else: the operator at the back of BioCV
+    camera 05. Such a frame is marked as having no person when its cost exceeds
+    max(abs_px, x_median x that camera's median cost), the outlier-frame rule,
+    here measured against the consensus subject rather than the camera's own
+    possibly wrong calibration."""
+    new = np.array(selection, dtype=int, copy=True)
+    for c in range(new.shape[0]):
+        rated = np.isfinite(kept_cost[c]) & (new[c] >= 0)
+        if not rated.any():
+            continue
+        limit = max(abs_px, x_median * float(np.median(kept_cost[c][rated])))
+        new[c][rated & (kept_cost[c] > limit)] = -1
     return new
 
 
@@ -215,6 +237,21 @@ def rewrite_rtmpose(prefix, subset, base_name, c, chosen):
             json.dump({"data": data}, f, indent=2, ensure_ascii=True)
 
 
+def write_selection(args, cands, names, selections, K, dist):
+    """Rewrite every camera's pose files for one selection (index per frame, -1 for none)."""
+    skeleton_ref = None
+    for ci, (c, name, chosen) in enumerate(zip(cands, names, selections)):
+        if args.engine == "metrabs":
+            full3d = rewrite_metrabs(args.prefix, args.subset, name, c, chosen, K[ci], dist[ci])
+            if skeleton_ref is None:
+                skeleton_ref = (list(c["frames"]), full3d)
+        else:
+            rewrite_rtmpose(args.prefix, args.subset, name, c, chosen)
+    if skeleton_ref is not None:
+        from humancalib.pose.metrabs_outputs import save_skeleton_w
+        save_skeleton_w(os.path.join(args.prefix, args.subset, f"skeleton_w_G{args.gid:03d}.json"), *skeleton_ref)
+
+
 def main(argv=None):
     """Re-select persons and rewrite the pose files. Returns how many (camera, frame) selections changed."""
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -229,11 +266,12 @@ def main(argv=None):
     p.add_argument("--abs_px", type=float, default=50.0)
     p.add_argument("--x_median", type=float, default=5.0)
     p.add_argument("--min_cams", type=int, default=3)
+    p.add_argument("--reset_to_largest", action="store_true",
+                   help="only rewrite the pose files with extraction's own selection (largest box), "
+                        "so a run reusing cached poses starts where extraction left it")
     args = p.parse_args(argv)
 
-    CAMID, _, R, t, _ = load_eldersim_camera(os.path.join(args.prefix, "results", f"{args.calib}.json"))
-    _, K, _, _, dist = load_eldersim_camera(os.path.join(args.prefix, args.subset, f"cameras_G{args.gid:03d}.json"))
-    Ps = np.array([K[i] @ np.hstack([R[i], t[i].reshape(3, 1)]) for i in range(len(CAMID))])
+    CAMID, K, _, _, dist = load_eldersim_camera(os.path.join(args.prefix, args.subset, f"cameras_G{args.gid:03d}.json"))
 
     names = [f"A{args.aid:03d}_P{args.pid:03d}_G{args.gid:03d}_C{int(cid):03d}.json" for cid in CAMID]
     cands = []
@@ -253,6 +291,19 @@ def main(argv=None):
                 sel[row] = cand.largest(args.engine, c["box"][s:e], c["pose2d"][s:e], c["imshape"])
         current.append(sel)
 
+    if args.reset_to_largest:
+        write_selection(args, cands, names, current, K, dist)
+        sidecars = os.path.join(args.prefix, args.subset, SIDECAR_DIRNAME)
+        if os.path.isdir(sidecars):
+            shutil.rmtree(sidecars)
+        log.info("Pose files reset to the largest-box selection")
+        return 0
+
+    CAMID_c, _, R, t, _ = load_eldersim_camera(os.path.join(args.prefix, "results", f"{args.calib}.json"))
+    if list(CAMID_c) != list(CAMID):
+        raise SystemExit(f"camera ids differ between {args.calib} and cameras_G{args.gid:03d}.json")
+    Ps = np.array([K[i] @ np.hstack([R[i], t[i].reshape(3, 1)]) for i in range(len(CAMID))])
+
     common = sorted(set.intersection(*(set(c["frames"].tolist()) for c in cands)))
     rows = [{f: i for i, f in enumerate(c["frames"].tolist())} for c in cands]
     cameras = []
@@ -270,29 +321,27 @@ def main(argv=None):
 
     log.info(f"Re-selecting persons on {len(common)} frames, {len(cands)} cameras "
              f"(calibration {args.calib}, gate max({args.abs_px:g}px, {args.x_median:g}x median))")
-    new_common = select_by_geometry(cameras, Ps, cur_common, args.abs_px, args.x_median, args.min_cams)
+    new_common, kept_cost = select_by_geometry(cameras, Ps, cur_common, args.abs_px, args.x_median, args.min_cams)
+    matched = new_common >= 0
+    new_common = drop_unmatched(new_common, kept_cost, args.abs_px, args.x_median)
+    unmatched = matched & (new_common < 0)
 
     report, total = {"calib": args.calib, "frames": len(common), "cameras": {}}, 0
-    skeleton_ref = None
+    selections = []
     for ci, (c, name) in enumerate(zip(cands, names)):
         chosen = current[ci].copy()
         for j, f in enumerate(common):
             chosen[rows[ci][f]] = new_common[ci, j]
+        selections.append(chosen)
         changed = int((chosen != current[ci]).sum())
         total += changed
         multi = int(sum(1 for row in range(len(c["frames"])) if c["start"][row + 1] - c["start"][row] > 1))
-        report["cameras"][str(int(CAMID[ci]))] = {"changed": changed, "frames_with_several_people": multi}
-        log.info(f"  Cam {int(CAMID[ci])}: {changed} frames re-selected ({multi} frames with several people)")
-        if args.engine == "metrabs":
-            full3d = rewrite_metrabs(args.prefix, args.subset, name, c, chosen, K[ci], dist[ci])
-            if skeleton_ref is None:
-                skeleton_ref = (list(c["frames"]), full3d)
-        else:
-            rewrite_rtmpose(args.prefix, args.subset, name, c, chosen)
-
-    if skeleton_ref is not None:
-        from humancalib.pose.metrabs_outputs import save_skeleton_w
-        save_skeleton_w(os.path.join(args.prefix, args.subset, f"skeleton_w_G{args.gid:03d}.json"), *skeleton_ref)
+        n_none = int(unmatched[ci].sum())
+        report["cameras"][str(int(CAMID[ci]))] = {"changed": changed, "no_person": n_none,
+                                                   "frames_with_several_people": multi}
+        log.info(f"  Cam {int(CAMID[ci])}: {changed} frames changed, of which {n_none} now without a person "
+                 f"({multi} frames with several people)")
+    write_selection(args, cands, names, selections, K, dist)
 
     sidecars = os.path.join(args.prefix, args.subset, SIDECAR_DIRNAME)
     if os.path.isdir(sidecars):
@@ -300,6 +349,7 @@ def main(argv=None):
         log.info("  Removed the outlier-frame drops of the first pass; they are recomputed")
 
     report["changed_total"] = total
+    report["changed_fraction"] = total / max(1, sum(len(c["frames"]) for c in cands))
     with open(os.path.join(args.prefix, "results", "person_selection.json"), "w") as f:
         json.dump(report, f, indent=2)
     log.info(f"PERSON_RESELECTED={total}")

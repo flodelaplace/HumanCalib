@@ -87,7 +87,7 @@ def test_the_largest_box_is_the_bystander_and_geometry_picks_the_subject():
             frames.append((pts, np.ones((len(pts), J), bool), np.ones(len(pts), bool)))
         cameras.append(frames)
     assert (current[0] == 0).all()          # extraction kept the bystander in camera 0
-    new = rs.select_by_geometry(cameras, Ps, current)
+    new, _ = rs.select_by_geometry(cameras, Ps, current)
     assert (new[0] == 1).all()
     assert (new[1:] == 0).all()
 
@@ -133,3 +133,35 @@ def test_main_rewrites_rtmpose_files_and_reports(tmp_path):
     report = json.load(open(os.path.join(prefix, "results", "person_selection.json")))
     assert report["cameras"]["1"]["changed"] == F and report["cameras"]["2"]["changed"] == 0
     assert not os.path.isdir(os.path.join(prefix, sub, "dropped_frames"))
+
+
+def test_a_frame_whose_best_detection_is_far_from_the_subject_gets_no_person():
+    """Camera 05 of BioCV: when the subject is out of view, the operator at the
+    back is the only detection -- closest, and still wrong."""
+    selection = np.zeros((2, 6), dtype=int)
+    cost = np.array([[3.0, 4.0, 3.5, 900.0, 4.2, 3.8], [5.0, 6.0, 5.5, 60.0, 5.2, np.nan]])
+    new = rs.drop_unmatched(selection, cost, abs_px=50, x_median=5)
+    assert new[0].tolist() == [0, 0, 0, -1, 0, 0]
+    assert new[1].tolist() == [0, 0, 0, -1, 0, 0]
+
+
+def test_reset_to_largest_restores_extraction_selection(tmp_path):
+    R, t, Ps, subject, bystander = scene()
+    prefix, sub = str(tmp_path), "noise_1_0"
+    for d in ("2d_joint", "2d_joint_halpe26"):
+        os.makedirs(os.path.join(prefix, sub, d), exist_ok=True)
+    cams = {"CAMID": [1, 2, 3, 4], "K": [K.tolist()] * 4, "R_w2c": R.tolist(), "t_w2c": t.reshape(4, 3, 1).tolist(),
+            "dist_coeffs": [[0.0] * 5] * 4}
+    json.dump(cams, open(os.path.join(prefix, sub, "cameras_G001.json"), "w"))
+    for c in range(4):
+        dets = []
+        for f in range(F):
+            pts = np.array([proj(Ps[c], subject[f])] + ([proj(Ps[0], bystander)] if c == 0 else []))
+            boxes = np.array([[p[:, 0].min(), p[:, 1].min(), p[:, 0].max(), p[:, 1].max()] for p in pts])
+            dets.append({"box": boxes, "pose2d": pts, "score2d": np.ones((len(pts), J))})
+        cand.save_candidates(cand.candidates_path(prefix, sub, f"A001_P001_G001_C{c + 1:03d}.json"),
+                             range(F), [0] * F, dets, (1080, 1920))
+    assert rs.main(["--prefix", prefix, "--engine", "rtmpose", "--reset_to_largest"]) == 0
+    data = json.load(open(os.path.join(prefix, sub, "2d_joint_halpe26", "A001_P001_G001_C001.json")))["data"]
+    written = np.array(data[0]["skeleton"][0]["pose"]).reshape(J, 2)
+    assert written == pytest.approx(proj(Ps[0], bystander), abs=1e-3)

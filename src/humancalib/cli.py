@@ -27,6 +27,7 @@ Three steps still run in their own process, each for a stated reason:
 import argparse
 import datetime
 import importlib
+import json
 import importlib.util
 import logging
 import os
@@ -406,6 +407,7 @@ def run_pipeline(cfg):
 
     # 1. Pose extraction ------------------------------------------------------------------
     rng = f"  -> frame range: {cfg.start_frame or 0} to {cfg.end_frame if cfg.end_frame is not None else '<end>'}"
+    cached = None
     if cfg.pose_engine == "metrabs":
         _header("[1/7] Extracting 2D+3D poses with MeTRAbs (replaces steps 1+4)...")
         log.info(rng)
@@ -438,6 +440,11 @@ def run_pipeline(cfg):
     run_step("cameras", create_cameras_from_toml.main, [
         "--toml", cfg.calib_toml, "--output_dir", sub, "--gid", str(GID),
         "--cam_names", *camera_names(vd)])
+
+    if cfg.person_selection == "geometric" and cfg.pose_engine == "metrabs" and cached:
+        # Cached poses may carry an earlier run's re-selection; start from extraction's own.
+        run_step("reselect", reselect_person.main, [
+            "--prefix", out, "--subset", SUBSET, *ids, "--engine", "metrabs", "--reset_to_largest"])
 
     if cfg.start_frame is not None and cfg.end_frame is not None:
         _header("[2.5] Creating frame mapping file...")
@@ -497,21 +504,39 @@ def run_pipeline(cfg):
     calibrate()
 
     if cfg.person_selection == "geometric":
-        _header("[5b/7] Geometric person re-selection...")
-        first = "linear_1_0_ba" if os.path.isfile(os.path.join(out, "results", "linear_1_0_ba.json")) \
-            else "linear_1_0"
-        changed = run_step("reselect", reselect_person.main, [
-            "--prefix", out, "--subset", SUBSET, *ids, "--calib", first,
-            "--engine", cfg.pose_engine, "--conf_threshold", str(cfg.conf_threshold),
-            "--abs_px", str(cfg.outlier_abs_px), "--x_median", str(cfg.outlier_x_median)])
-        if changed:
+        def lowest_mre_stage():
+            scores = {}
+            for stage in ("linear_1_0", "linear_1_0_ba"):
+                if os.path.isfile(os.path.join(out, "results", f"{stage}.json")):
+                    mre = run_step("evaluate", evaluate_calibration.main, [
+                        "--prefix", out, "--calib", stage, "--conf_threshold", str(cfg.conf_threshold)])
+                    if mre is not None:
+                        scores[stage] = float(mre)
+            return best_calibration(scores)
+
+        # Each round re-selects on the best calibration so far; the second one
+        # benefits from cameras the first round already corrected.
+        for round_ in (1, 2):
+            _header(f"[5b/7] Geometric person re-selection, round {round_}...")
+            base = lowest_mre_stage()
+            changed = run_step("reselect", reselect_person.main, [
+                "--prefix", out, "--subset", SUBSET, *ids, "--calib", base,
+                "--engine", cfg.pose_engine, "--conf_threshold", str(cfg.conf_threshold),
+                "--abs_px", str(cfg.outlier_abs_px), "--x_median", str(cfg.outlier_x_median)])
+            with open(os.path.join(out, "results", "person_selection.json")) as f:
+                fraction = json.load(f)["changed_fraction"]
+            shutil.copyfile(os.path.join(out, "results", "person_selection.json"),
+                            os.path.join(out, "results", f"person_selection_round{round_}.json"))
+            if not changed:
+                log.info("  → No selection changed; the calibration stands.")
+                break
             if cfg.pose_engine != "metrabs":
                 log.info("  → Lifting the corrected 2D poses again...")
                 lift()
-            log.info(f"  → {changed} selections changed: calibrating again on the corrected poses...")
+            log.info(f"  → {changed} selections changed ({100 * fraction:.1f} %): calibrating again...")
             calibrate()
-        else:
-            log.info("  → No selection changed; the first calibration stands.")
+            if fraction < 0.01:
+                break
 
     # 6. Evaluation -------------------------------------------------------------------------------
     _header("[6/7] Evaluation and Visualization...")
