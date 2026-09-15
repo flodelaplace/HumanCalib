@@ -112,6 +112,57 @@ def segment_scale(p2d_all, s2d_all, K, R_w2c, t_w2c, legs, height, conf_threshol
     return height * LEG_RATIO / (np.nanmedian(thigh) + np.nanmedian(shank))
 
 
+def walking_vertical(p2d_all, s2d_all, K, R_w2c, t_w2c, feet, head, ankles, conf_threshold=0.5,
+                     step=2, stance_quantile=0.4):
+    """Upward vertical in the calibration's world frame, from the whole walk.
+
+    A single frame gives the vertical within 0.3 to 12 degrees depending on the
+    frame chosen. Over the sequence, two facts are used:
+    * the floor contains the walking direction, which the stance-phase foot
+      keypoints determine well (they spread metres along it);
+    * the body axis, head to mid-ankles, is vertical up to a sagittal lean,
+      and the sagittal lean lies along the walking direction.
+    So the median body axis, with its component along the walking direction
+    removed, is the vertical. A plane fitted to the stance points alone is
+    unstable: they span only a foot's width across the walk, less than the
+    height differences between heel, toe and metatarsal keypoints.
+    Stance frames are those where a foot keypoint moves less than its own
+    `stance_quantile` speed quantile. Returns None when too little is seen.
+    """
+    from humancalib.pipeline.reselect_person import robust_triangulate
+
+    C = p2d_all.shape[0]
+    Ps = np.array([K[c] @ np.hstack([R_w2c[c], np.asarray(t_w2c[c]).reshape(3, 1)]) for c in range(C)])
+    joints = list(feet) + [head] + list(ankles)
+    nf = len(feet)
+    frames = list(range(0, p2d_all.shape[1], step))
+    X = np.full((len(frames), len(joints), 3), np.nan)
+    for k, f in enumerate(frames):
+        X[k], used = robust_triangulate(p2d_all[:, f, joints, :], s2d_all[:, f, joints] > conf_threshold,
+                                        Ps, 50.0, 5.0, 3)
+        if used.sum() < 3:
+            X[k] = np.nan
+    body = X[:, nf] - 0.5 * (X[:, nf + 1] + X[:, nf + 2])
+    body = body[np.isfinite(body).all(axis=1)]
+    if len(body) < 10:
+        return None
+    axis = np.median(body / np.linalg.norm(body, axis=1, keepdims=True), axis=0)
+    axis /= np.linalg.norm(axis)
+
+    foot = X[:, :nf]
+    speed = np.full(foot.shape[:2], np.nan)
+    speed[1:-1] = np.linalg.norm(foot[2:] - foot[:-2], axis=2) / 2
+    with np.errstate(invalid="ignore"):
+        stance = speed <= np.nanquantile(speed, stance_quantile, axis=0)[None]
+    pts = foot[stance]
+    pts = pts[np.isfinite(pts).all(axis=1)]
+    if len(pts) < 10:
+        return axis
+    walk = np.linalg.svd(pts - pts.mean(axis=0), full_matrices=False)[2][0]
+    up = axis - (axis @ walk) * walk
+    return up / np.linalg.norm(up)
+
+
 def get_3d_keypoint(p2d_all, s2d_all, K, R_w2c, t_w2c, frame_idx, joint_idx, conf_threshold=0.5):
     """Triangulates a single 3D keypoint for a specific frame."""
     C = p2d_all.shape[0]
@@ -175,6 +226,9 @@ def main(argv=None):
     parser.add_argument("--export_toml", default=None, help="Path to save the final calibrated TOML file")
     parser.add_argument("--video_dir", default=None, help="Path to original videos (needed for TOML export)")
     parser.add_argument("--conf_threshold", type=float, default=0.5, help="Confidence threshold for 2D keypoints")
+    parser.add_argument("--vertical_method", default="frame", choices=["frame", "walk"],
+                        help="frame: head to feet on --frame_idx. walk: body axis over the whole walk "
+                             "with the walking direction removed (see walking_vertical)")
     parser.add_argument("--scale_method", default="head", choices=["head", "segments"],
                         help="head: head height on --frame_idx. segments: leg segment lengths over "
                              "all frames against stature (orientation still uses --frame_idx)")
@@ -237,6 +291,18 @@ def main(argv=None):
     # (from head to foot centroid). In OpenCV convention, Y points DOWN.
     y_axis_temp = ground_centroid - head_3d
     y_axis = y_axis_temp / np.linalg.norm(y_axis_temp)
+    if args.vertical_method == "walk":
+        up = walking_vertical(p2d_all, s2d_all, K, R_w2c_orig, t_w2c_orig, foot_kp_indices, HEAD_IDX,
+                              (layout["legs"][0][2], layout["legs"][1][2]), args.conf_threshold)
+        if up is None:
+            log.warning("Too little of the walk seen to estimate the vertical; using frame "
+                        f"{args.frame_idx} instead")
+        else:
+            if up @ (-y_axis) < 0:
+                up = -up
+            log.info(f"Vertical from the whole walk: {np.degrees(np.arccos(np.clip(up @ -y_axis, -1, 1))):.1f} deg "
+                     f"from the frame {args.frame_idx} estimate")
+            y_axis = -up
 
     # X-axis can be defined by the vector between heels
     l_heel_3d = get_3d_keypoint(p2d_all, s2d_all, K, R_w2c_orig, t_w2c_orig, args.frame_idx, L_HEEL_IDX, args.conf_threshold)

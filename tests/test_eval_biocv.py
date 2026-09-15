@@ -127,3 +127,36 @@ def test_segment_scale_comparison_names():
     from humancalib.evaluation.batch import segment_scale_name
     assert segment_scale_name("metrabs_v2") == "metrabs_v3"
     assert segment_scale_name("metrabs") == "metrabs_seg"
+
+
+def test_walking_vertical_removes_the_forward_lean():
+    """A walker leaning 8 degrees forward along +x: the body axis alone is off by
+    8 degrees; with the walking direction removed the vertical is exact."""
+    import cv2 as _cv2
+    from humancalib.postprocessing.scale_scene import walking_vertical
+    K = np.array([[1000.0, 0, 960], [0, 1000.0, 540], [0, 0, 1]])
+    Rs, ts = [], []
+    for a in np.radians([20, 110, 200, 290]):
+        C = np.array([8 * np.cos(a), 8 * np.sin(a), 2.0])
+        z = np.array([0.0, 0.0, 1.0]) - C; z /= np.linalg.norm(z)
+        x = np.cross(z, [0, 0, 1.0]); x /= np.linalg.norm(x)
+        R = np.vstack([x, np.cross(z, x), z]); Rs.append(R); ts.append(-R @ C)
+    lean = np.radians(8)
+    feet, head, ankles = [0, 1], 2, (3, 4)
+    F = 120
+    p2d = np.zeros((4, F, 5, 2)); s2d = np.ones((4, F, 5))
+    for f in range(F):
+        x0 = -3 + 6 * f / F
+        phase = (f // 20) % 2                     # each foot planted for 20 frames in turn
+        lfoot = np.array([x0 if phase == 0 else x0 + 0.3 * np.sin(f), 0.1, 0.0 if phase == 0 else 0.1])
+        rfoot = np.array([x0 if phase == 1 else x0 + 0.3 * np.sin(f), -0.1, 0.0 if phase == 1 else 0.1])
+        lfoot[0] = round(lfoot[0] / 0.6) * 0.6 if phase == 0 else lfoot[0]
+        rfoot[0] = round(rfoot[0] / 0.6) * 0.6 if phase == 1 else rfoot[0]
+        mid = np.array([x0, 0.0, 0.08])
+        top = mid + 1.6 * np.array([np.sin(lean), 0.0, np.cos(lean)])
+        pts = [lfoot, rfoot, top, mid + [0, 0.1, 0], mid + [0, -0.1, 0]]
+        for c in range(4):
+            for j, X in enumerate(pts):
+                p2d[c, f, j] = _cv2.projectPoints(X.reshape(1, 3), _cv2.Rodrigues(Rs[c])[0], ts[c], K, None)[0].ravel()
+    up = walking_vertical(p2d, s2d, np.array([K] * 4), np.array(Rs), np.array(ts), feet, head, ankles, step=1)
+    assert np.degrees(np.arccos(abs(up @ [0, 0, 1.0]))) < 0.5

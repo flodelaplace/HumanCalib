@@ -90,12 +90,14 @@ def rank_reference_frames(scores, layout, conf_threshold):
     return order, coverage
 
 
-def scale_on(prefix, calib, height, frame_idx, engine, conf_threshold, scale_method="head"):
+def scale_on(prefix, calib, height, frame_idx, engine, conf_threshold, scale_method="head",
+             vertical_method="frame"):
     """Run the pipeline's scaling step on one frame; the resulting JSON path, or None."""
     try:
         scale_scene.main(["--prefix", prefix, "--calib", calib, "--height", str(height),
                           "--frame_idx", str(int(frame_idx)), "--pose_engine", engine,
-                          "--conf_threshold", str(conf_threshold), "--scale_method", scale_method])
+                          "--conf_threshold", str(conf_threshold), "--scale_method", scale_method,
+                          "--vertical_method", vertical_method])
     except SystemExit as e:
         if e.code not in (0, None):
             return None
@@ -119,6 +121,7 @@ def main(argv=None):
     parser.add_argument("--run", default=None,
                         help="output folder name when it is not the engine's (e.g. rtmpose_50hz)")
     parser.add_argument("--scale_method", default="head", choices=("head", "segments"))
+    parser.add_argument("--vertical_method", default="frame", choices=("frame", "walk"))
     parser.add_argument("--out_name", default=None,
                         help="eval/ sub-folder to write to (default: the run name)")
     parser.add_argument("--conf_threshold", type=float, default=0.5)
@@ -133,7 +136,8 @@ def main(argv=None):
     prefix = os.path.join(args.work, run)
     out = os.path.join(args.work, "eval", args.out_name or run)
     os.makedirs(out, exist_ok=True)
-    report = {"meta": meta, "engine": args.engine, "run": run, "scale_method": args.scale_method, "stages": {}}
+    report = {"meta": meta, "engine": args.engine, "run": run, "scale_method": args.scale_method,
+              "vertical_method": args.vertical_method, "stages": {}}
 
     # 1-2. every calibration stage: MRE and invariant metrics
     scores = {}
@@ -163,13 +167,14 @@ def main(argv=None):
     chosen = int(order[0])
     top = order[coverage[order] == coverage[chosen]]
     others = [int(f) for f in np.sort(top)[np.linspace(0, len(top) - 1, min(args.n_ref_frames, len(top))).astype(int)]]
-    if args.scale_method == "segments":
-        others = []     # the scale no longer depends on the frame; orientation alone does
+    if args.scale_method == "segments" and args.vertical_method == "walk":
+        others = []     # neither scale nor vertical depends on the frame any more
 
     # 4. sensitivity first, so the chosen frame's result is the one left in results/
     sensitivity = []
     for f in others + [chosen]:
-        path = scale_on(prefix, best, meta["stature_m"], f, args.engine, args.conf_threshold, args.scale_method)
+        path = scale_on(prefix, best, meta["stature_m"], f, args.engine, args.conf_threshold, args.scale_method,
+                        args.vertical_method)
         row = {"frame_idx": f, "video_frame": int(frame_numbers[f]), "cameras_seeing": int(coverage[f]),
                "chosen": f == chosen, "ok": path is not None}
         if path:

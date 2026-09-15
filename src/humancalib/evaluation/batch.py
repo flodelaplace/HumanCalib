@@ -55,7 +55,8 @@ def run_name(engine, rtmpose_fps=None, person_selection="largest"):
 
 
 def segment_scale_name(run):
-    """eval/ folder of a run's comparison with leg-segment scaling: method v3 for a v2 run."""
+    """eval/ folder of a run's comparison with leg-segment scale and whole-walk vertical:
+    method v3 for a v2 run."""
     return run[:-3] + "_v3" if run.endswith("_v2") else run + "_seg"
 
 
@@ -241,7 +242,7 @@ def main(argv=None):
                     t0, started = time.time(), _now()
                     rc = run_logged([sys.executable, "-m", "humancalib.evaluation.compare", "--work", work,
                                      "--engine", engine, "--run", run, "--scale_method", "segments",
-                                     "--out_name", seg], os.path.join(work, "eval", f"{seg}_compare.log"))
+                                     "--vertical_method", "walk", "--out_name", seg], os.path.join(work, "eval", f"{seg}_compare.log"))
                     append_status(status, {**row, "engine": seg, "started": started, "step": "compare",
                                            "status": "ok" if rc == 0 else "failed",
                                            "seconds": round(time.time() - t0),

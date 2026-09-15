@@ -108,6 +108,9 @@ def build_run_parser():
     p.add_argument("--scale_method", choices=("head", "segments"), default="head",
                    help="head: head height on --ref_frame. segments: leg segment lengths over the whole "
                         "sequence against --height -- about 2 %% scale error on BioCV instead of 11 %%")
+    p.add_argument("--vertical_method", choices=("frame", "walk"), default="frame",
+                   help="frame: head to feet on --ref_frame. walk: body axis over the whole walk, "
+                        "walking direction removed -- about 0.7 deg on BioCV instead of 3")
     p.add_argument("--person_selection", choices=("largest", "geometric"), default="largest",
                    help="largest: the largest detection per frame, per camera. geometric: after a "
                         "first calibration, re-select in every camera the person the other cameras "
@@ -588,7 +591,8 @@ def run_pipeline(cfg):
                 "--frame_idx", str(mapped), "--input_toml", cfg.calib_toml,
                 "--export_toml", os.path.join(out, "results", "Calib_scene_calibrated.toml"),
                 "--video_dir", vd, "--conf_threshold", str(cfg.conf_threshold),
-                "--pose_engine", cfg.pose_engine, "--scale_method", cfg.scale_method])
+                "--pose_engine", cfg.pose_engine, "--scale_method", cfg.scale_method,
+                "--vertical_method", cfg.vertical_method])
 
             final = f"{best}_oriented_scaled"
             if os.path.isfile(os.path.join(out, "results", f"{final}.json")):
