@@ -30,7 +30,7 @@ from humancalib.core import load_poses
 from humancalib.core.log import get_logger, setup_logging
 from humancalib.core.session import session_ids
 from humancalib.evaluation.metrics import compare_rigs, pairwise_errors
-from humancalib.evaluation.rig import Camera, read_pose2sim_toml
+from humancalib.evaluation.rig import Camera, orthonormalize, read_pose2sim_toml
 from humancalib.postprocessing import evaluate_calibration, scale_scene
 
 log = get_logger(__name__)
@@ -40,17 +40,29 @@ UP_HUMANCALIB = (0.0, -1.0, 0.0)
 STAGES = ("linear_1_0", "linear_1_0_ba")
 
 
+def orthonormality_dev(path):
+    """max |R R^T - I| over the cameras of a calibration JSON.
+
+    The linear solution of the RTMPose + VideoPose3D path (Lee et al.) is a
+    general 3x3 matrix, not a rotation; MeTRAbs' Procrustes and the bundle
+    adjustment always give rotations. Reported so no angle hides it."""
+    with open(path) as f:
+        R = np.array(json.load(f)["R_w2c"], float)
+    return float(max(np.abs(r @ r.T - np.eye(3)).max() for r in R))
+
+
 def load_humancalib(path, gold):
     """A HumanCalib calibration JSON as cameras named like the gold ones.
 
     HumanCalib numbers cameras in the sorted order of the video names, which is
-    the order of the gold TOML for every prepared trial."""
+    the order of the gold TOML for every prepared trial. A matrix that is not a
+    rotation is replaced by the nearest rotation (see orthonormality_dev)."""
     with open(path) as f:
         d = json.load(f)
     R, t = np.array(d["R_w2c"], float), np.array(d["t_w2c"], float).reshape(-1, 3)
     if len(R) != len(gold):
         raise ValueError(f"{path}: {len(R)} cameras, gold has {len(gold)}")
-    return [Camera(g.name, g.size, g.K, g.dist, R[i], t[i]) for i, g in enumerate(gold)]
+    return [Camera(g.name, g.size, g.K, g.dist, orthonormalize(R[i]), t[i]) for i, g in enumerate(gold)]
 
 
 def pose_scores(prefix, layout):
@@ -129,6 +141,7 @@ def main(argv=None):
         pairs = pairwise_errors(load_humancalib(path, gold), gold)
         report["stages"][stage] = {
             "mre_px": scores[stage],
+            "rotation_orthonormality_dev": orthonormality_dev(path),
             "rel_rot_deg_median": float(np.median([p["rot_deg"] for p in pairs])),
             "rel_dir_deg_median": float(np.median([p["dir_deg"] for p in pairs])),
         }

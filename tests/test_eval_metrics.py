@@ -126,3 +126,23 @@ def test_rotation_between_handles_opposite_directions():
     R = M.rotation_between([0, 0, 1], [0, 0, -1])
     assert R @ np.array([0, 0, 1.0]) == pytest.approx([0, 0, -1])
     assert np.linalg.det(R) == pytest.approx(1.0)
+
+
+def test_a_matrix_that_is_not_a_rotation_is_refused_not_read_as_zero():
+    """The RTMPose path's linear stage returns general matrices; the trace
+    formula clipped them to 0 degrees, i.e. a perfect score."""
+    with pytest.raises(ValueError, match="not a rotation"):
+        M.rotation_angle_deg(1.3 * np.eye(3))
+
+
+def test_humancalib_loader_projects_non_rotations(tmp_path):
+    import json
+    from humancalib.evaluation.compare import load_humancalib, orthonormality_dev
+    gold = ring_rig(n=3)
+    sheared = [(g.R @ np.diag([1.0, 1.4, 0.7])).tolist() for g in gold]
+    path = tmp_path / "c.json"
+    path.write_text(json.dumps({"R_w2c": sheared, "t_w2c": [g.t.tolist() for g in gold]}))
+    cams = load_humancalib(str(path), gold)
+    assert orthonormality_dev(str(path)) > 0.5
+    for c in cams:
+        assert c.R @ c.R.T == pytest.approx(np.eye(3), abs=1e-12)

@@ -26,7 +26,14 @@ from humancalib.evaluation.rig import orthonormalize
 # --- elementary geometry ----------------------------------------------------------------------
 
 def rotation_angle_deg(R):
-    """Geodesic angle of a rotation matrix: arccos((tr R - 1) / 2), in degrees."""
+    """Geodesic angle of a rotation matrix: arccos((tr R - 1) / 2), in degrees.
+
+    Refuses a matrix that is not a rotation. The trace formula does not fail on
+    one -- it clips, and a scaled or sheared matrix silently reads as 0 degrees.
+    """
+    R = np.asarray(R, float)
+    if np.abs(R @ R.T - np.eye(3)).max() > 1e-6 or np.linalg.det(R) <= 0:
+        raise ValueError("not a rotation matrix; project it with rig.orthonormalize first")
     return float(np.degrees(np.arccos(np.clip((np.trace(R) - 1.0) / 2.0, -1.0, 1.0))))
 
 
