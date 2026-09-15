@@ -522,8 +522,10 @@ def run_pipeline(cfg):
                         scores[stage] = float(mre)
             return best_calibration(scores)
 
-        # Each round re-selects on the best calibration so far; the second one
-        # benefits from cameras the first round already corrected.
+        # Two rounds: the first re-selects on a calibration still wrong for the
+        # bystander's camera, the second on the corrected one. "Changed" counts
+        # differences from extraction's own selection, so it does not shrink
+        # between rounds and is not a convergence test.
         for round_ in (1, 2):
             _header(f"[5b/7] Geometric person re-selection, round {round_}...")
             base = lowest_mre_stage()
@@ -541,10 +543,9 @@ def run_pipeline(cfg):
             if cfg.pose_engine != "metrabs":
                 log.info("  → Lifting the corrected 2D poses again...")
                 lift()
-            log.info(f"  → {changed} selections changed ({100 * fraction:.1f} %): calibrating again...")
+            log.info(f"  → {changed} selections differ from extraction's ({100 * fraction:.1f} %): "
+                     "calibrating again...")
             calibrate()
-            if fraction < 0.01:
-                break
 
     # 6. Evaluation -------------------------------------------------------------------------------
     _header("[6/7] Evaluation and Visualization...")
