@@ -54,6 +54,11 @@ def run_name(engine, rtmpose_fps=None, person_selection="largest"):
     return name
 
 
+def segment_scale_name(run):
+    """eval/ folder of a run's comparison with leg-segment scaling: method v3 for a v2 run."""
+    return run[:-3] + "_v3" if run.endswith("_v2") else run + "_seg"
+
+
 def decimation_factor(native_fps, target_fps):
     """Keep one frame in k. VideoPose3D was trained at 50 Hz (docs/EVALUATION_PROTOCOL.md, section 8)."""
     return max(1, int(round(native_fps / target_fps)))
@@ -229,6 +234,19 @@ def main(argv=None):
                                            "seconds": round(time.time() - t0),
                                            **(metrics_row(metrics) if os.path.isfile(metrics) else {})})
                     log.info(f"{participant}_{trial} [{run}]: compare exit {rc}")
+
+                seg = segment_scale_name(run)
+                seg_metrics = os.path.join(work, "eval", seg, "metrics.json")
+                if os.path.isfile(os.path.join(work, run, "results", "linear_1_0.json")) and not os.path.isfile(seg_metrics):
+                    t0, started = time.time(), _now()
+                    rc = run_logged([sys.executable, "-m", "humancalib.evaluation.compare", "--work", work,
+                                     "--engine", engine, "--run", run, "--scale_method", "segments",
+                                     "--out_name", seg], os.path.join(work, "eval", f"{seg}_compare.log"))
+                    append_status(status, {**row, "engine": seg, "started": started, "step": "compare",
+                                           "status": "ok" if rc == 0 else "failed",
+                                           "seconds": round(time.time() - t0),
+                                           **(metrics_row(seg_metrics) if os.path.isfile(seg_metrics) else {})})
+                    log.info(f"{participant}_{trial} [{seg}]: compare exit {rc}")
     return 0
 
 

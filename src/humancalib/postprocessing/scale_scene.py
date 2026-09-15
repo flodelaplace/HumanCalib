@@ -66,6 +66,52 @@ BML87_R_FOO = 86
 BML87_L_FIFTHMET = 22
 BML87_R_FIFTHMET = 53
 
+# Thigh (hip-knee) + shank (knee-ankle) as a fraction of stature, Drillis & Contini
+# (Winter, Biomechanics and Motor Control of Human Movement, 4th ed., fig. 4.1).
+# Fixed from the literature, not fitted to any evaluation data.
+LEG_RATIO = 0.245 + 0.246
+
+# (hip, knee, ankle) per side, for each joint layout.
+LEGS = {
+    "bml_movi_87": ((73, 75, 71), (81, 83, 79)),
+    "calib26": ((14, 16, 18), (15, 17, 19)),
+    "halpe26": ((11, 13, 15), (12, 14, 16)),
+}
+
+
+def segment_scale(p2d_all, s2d_all, K, R_w2c, t_w2c, legs, height, conf_threshold=0.5, step=2):
+    """Metres per calibration unit, from leg segment lengths over the whole sequence.
+
+    The head-height method measures one frame, from a head keypoint that is not
+    the top of the skull, on a person who may be mid-stride: every bias shortens
+    the measured height, and on BioCV it overestimated scale by about 11 %.
+    Segment lengths do not depend on posture and are measured on every frame:
+    hip, knee and ankle are triangulated by camera consensus, the median thigh
+    and shank lengths are summed, and compared with LEG_RATIO x stature.
+    Returns None when too few frames could be triangulated.
+    """
+    from humancalib.pipeline.reselect_person import robust_triangulate
+
+    C = p2d_all.shape[0]
+    Ps = np.array([K[c] @ np.hstack([R_w2c[c], np.asarray(t_w2c[c]).reshape(3, 1)]) for c in range(C)])
+    joints = [j for side in legs for j in side]
+    thigh, shank = [], []
+    for f in range(0, p2d_all.shape[1], step):
+        pts = p2d_all[:, f, joints, :]
+        valid = s2d_all[:, f, joints] > conf_threshold
+        X, used = robust_triangulate(pts, valid, Ps, 50.0, 5.0, 3)
+        if used.sum() < 3:
+            continue
+        for side in range(2):
+            hip, knee, ankle = X[3 * side], X[3 * side + 1], X[3 * side + 2]
+            thigh.append(np.linalg.norm(hip - knee))
+            shank.append(np.linalg.norm(knee - ankle))
+    thigh, shank = np.asarray(thigh), np.asarray(shank)
+    if np.isfinite(thigh).sum() < 10 or np.isfinite(shank).sum() < 10:
+        return None
+    return height * LEG_RATIO / (np.nanmedian(thigh) + np.nanmedian(shank))
+
+
 def get_3d_keypoint(p2d_all, s2d_all, K, R_w2c, t_w2c, frame_idx, joint_idx, conf_threshold=0.5):
     """Triangulates a single 3D keypoint for a specific frame."""
     C = p2d_all.shape[0]
@@ -102,16 +148,16 @@ def joint_layout(prefix, subset, pose_engine):
                 n_joints = len(d["data"][0]["skeleton"][0]["score"])
 
     if pose_engine == "metrabs" and n_joints == 87:
-        return {"name": "bml_movi_87", "n_joints": n_joints, "joint_dir": detect_dir,
+        return {"name": "bml_movi_87", "n_joints": n_joints, "joint_dir": detect_dir, "legs": LEGS["bml_movi_87"],
                 "head": BML87_HEAD, "l_heel": BML87_L_HEEL, "r_heel": BML87_R_HEEL,
                 "feet": [BML87_L_HEEL, BML87_R_HEEL, BML87_L_TOE, BML87_R_TOE,
                          BML87_L_FOO, BML87_R_FOO, BML87_L_FIFTHMET, BML87_R_FIFTHMET]}
     if pose_engine == "metrabs":
-        return {"name": "calib26", "n_joints": n_joints, "joint_dir": detect_dir,
+        return {"name": "calib26", "n_joints": n_joints, "joint_dir": detect_dir, "legs": LEGS["calib26"],
                 "head": CALIB26_HEAD, "l_heel": CALIB26_L_HEEL, "r_heel": CALIB26_R_HEEL,
                 "feet": [CALIB26_L_HEEL, CALIB26_R_HEEL, CALIB26_L_TOE, CALIB26_R_TOE,
                          CALIB26_L_FOO, CALIB26_R_FOO]}
-    return {"name": "halpe26", "n_joints": n_joints,
+    return {"name": "halpe26", "n_joints": n_joints, "legs": LEGS["halpe26"],
             "joint_dir": os.path.join(prefix, subset, "2d_joint_halpe26"),
             "head": HALPE26_HEAD, "l_heel": HALPE26_L_HEEL, "r_heel": HALPE26_R_HEEL,
             "feet": [HALPE26_L_HEEL, HALPE26_R_HEEL, HALPE26_L_BIG_TOE,
@@ -129,6 +175,9 @@ def main(argv=None):
     parser.add_argument("--export_toml", default=None, help="Path to save the final calibrated TOML file")
     parser.add_argument("--video_dir", default=None, help="Path to original videos (needed for TOML export)")
     parser.add_argument("--conf_threshold", type=float, default=0.5, help="Confidence threshold for 2D keypoints")
+    parser.add_argument("--scale_method", default="head", choices=["head", "segments"],
+                        help="head: head height on --frame_idx. segments: leg segment lengths over "
+                             "all frames against stature (orientation still uses --frame_idx)")
     parser.add_argument("--pose_engine", default="rtmpose", choices=["rtmpose", "metrabs"],
                         help="Pose engine used: determines joint format for scaling")
     args = parser.parse_args(argv)
@@ -238,6 +287,14 @@ def main(argv=None):
     measured_height = abs(head_3d_new[1])
     
     scale_factor = args.height / measured_height
+    if args.scale_method == "segments":
+        seg = segment_scale(p2d_all, s2d_all, K, R_w2c_orig, t_w2c_orig, layout["legs"], args.height,
+                            args.conf_threshold)
+        if seg is None:
+            log.warning("Too few frames to measure leg segments; using the head height instead")
+        else:
+            log.info(f"Scale from leg segments: {seg:.4f} (head height on frame {args.frame_idx}: {scale_factor:.4f})")
+            scale_factor = seg
     log.info(f"Calculated scale factor: {scale_factor:.4f}")
 
     t_w2c_scaled = t_w2c_new * scale_factor

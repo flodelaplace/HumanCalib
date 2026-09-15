@@ -92,3 +92,38 @@ def test_method_v2_runs_get_their_own_folder():
     argv, _ = calibration_command("metrabs", "/v", "/w", "/env/bin/python", "metrabs_v2",
                                   ["--person_selection", "geometric"])
     assert argv[4] == "/w/metrabs_v2" and argv[-2:] == ["--person_selection", "geometric"]
+
+
+def test_segment_scale_recovers_a_known_scale():
+    """Legs of 2 + 2 calibration units for a 1.80 m person: 1.80 x 0.491 / 4 metres per unit."""
+    import cv2 as _cv2
+    from humancalib.postprocessing.scale_scene import LEG_RATIO, LEGS, segment_scale
+    rng = np.random.default_rng(0)
+    K = np.array([[1000.0, 0, 960], [0, 1000.0, 540], [0, 0, 1]])
+    Rs, ts = [], []
+    for a in np.radians([0, 90, 180, 270]):
+        C = np.array([20 * np.cos(a), 20 * np.sin(a), 3.0])
+        z = -C / np.linalg.norm(C)
+        x = np.cross(z, [0, 0, 1.0]); x /= np.linalg.norm(x)
+        R = np.vstack([x, np.cross(z, x), z])
+        Rs.append(R); ts.append(-R @ C)
+    F = 40
+    p2d = np.zeros((4, F, 26, 2)); s2d = np.zeros((4, F, 26))
+    for f in range(F):
+        for side, (hip, knee, ankle) in enumerate(LEGS["halpe26"]):
+            H = np.array([0.5 * side, 0.1 * f, 4.0])
+            direction = rng.normal(size=3); direction /= np.linalg.norm(direction)
+            Kn = H - np.array([0, 0, 2.0])
+            An = Kn + 2.0 * direction
+            for c in range(4):
+                for j, X in ((hip, H), (knee, Kn), (ankle, An)):
+                    uv = _cv2.projectPoints(X.reshape(1, 3), _cv2.Rodrigues(Rs[c])[0], ts[c], K, None)[0].ravel()
+                    p2d[c, f, j] = uv; s2d[c, f, j] = 1.0
+    s = segment_scale(p2d, s2d, np.array([K] * 4), np.array(Rs), np.array(ts), LEGS["halpe26"], 1.80, step=1)
+    assert s == pytest.approx(1.80 * LEG_RATIO / 4.0, rel=1e-6)
+
+
+def test_segment_scale_comparison_names():
+    from humancalib.evaluation.batch import segment_scale_name
+    assert segment_scale_name("metrabs_v2") == "metrabs_v3"
+    assert segment_scale_name("metrabs") == "metrabs_seg"
