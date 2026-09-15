@@ -39,10 +39,10 @@ def plot_rigs(est, gold, up_est, up_gold, path, title=""):
     Ce = np.array([e.center for e in est])
     T4, b4 = M.yaw_align(Ce, Cg, up_est, up_gold)
     s7, T7, b7 = M.umeyama(Ce, Cg)
-    views = (("dessus (x, y)", 0, 1), ("côté (x, z)", 0, 2))
+    views = (("top (x, y)", 0, 1), ("side (x, z)", 0, 2))
     fig, axes = plt.subplots(2, 2, figsize=(13, 10))
-    for row, (T, b, s, name) in enumerate(((T4, b4, 1.0, "recalage 4 ddl : verticale et échelle HumanCalib"),
-                                           (T7, b7, s7, "recalage 7 ddl : forme seule"))):
+    for row, (T, b, s, name) in enumerate(((T4, b4, 1.0, "4-DoF registration: HumanCalib's own vertical and scale"),
+                                           (T7, b7, s7, "7-DoF registration: rig shape only"))):
         A = s * Ce @ T.T + b
         err = np.linalg.norm(A - Cg, axis=1) * 1000
         rot = [M.rotation_angle_deg((est[i].R @ T.T) @ gold[i].R.T) for i in range(len(gold))]
@@ -56,15 +56,110 @@ def plot_rigs(est, gold, up_est, up_gold, path, title=""):
                 ax.plot(A[k, i], A[k, j], "x", color="tab:red", ms=10, mew=2)
                 ax.arrow(A[k, i], A[k, j], 0.8 * ze[i], 0.8 * ze[j], color="tab:red", width=0.01)
                 ax.annotate(g.name, (Cg[k, i], Cg[k, j]), xytext=(4, 4), textcoords="offset points", fontsize=8)
-            ax.set_aspect("equal")
+            if j == 2:
+                ax.set_ylim(0, max(2.5, float(Cg[:, 2].max()) + 0.8))   # side view: keep height readable
+            else:
+                ax.set_aspect("equal")
             ax.grid(alpha=0.3)
             ax.set_xlabel(f"{'xyz'[i]} (m)")
             ax.set_ylabel(f"{'xyz'[j]} (m)")
-            ax.set_title(f"{name} — vue de {vname}\nposition médiane {np.median(err):.0f} mm (max {err.max():.0f}), "
-                         f"orientation médiane {np.median(rot):.2f}° (max {max(rot):.2f}°)", fontsize=9)
-    fig.suptitle(f"{title}   vert = gold, rouge = HumanCalib, flèche = axe optique", fontsize=11)
+            ax.set_title(f"{name} — {vname} view\nposition error median {np.median(err):.0f} mm (max {err.max():.0f}), "
+                         f"orientation error median {np.median(rot):.2f}° (max {max(rot):.2f}°)", fontsize=9)
+    fig.suptitle(f"{title}   green = gold (lab calibration), red = HumanCalib, arrow = optical axis", fontsize=11)
     fig.tight_layout()
     fig.savefig(path, dpi=90)
+    plt.close(fig)
+
+
+HALPE26_BONES = [(17, 18), (18, 19), (18, 5), (18, 6), (5, 7), (7, 9), (6, 8), (8, 10), (19, 11), (19, 12),
+                 (11, 13), (13, 15), (12, 14), (14, 16), (15, 24), (15, 20), (16, 25), (16, 21)]
+
+
+def subject_skeleton(prefix, est, conf_threshold=0.5):
+    """Halpe26 joints (26, 3) of the subject on the frame most cameras see, triangulated with
+    the estimated calibration, in its world frame; None if no frame is usable."""
+    from humancalib.core import load_poses
+    from humancalib.pipeline.reselect_person import robust_triangulate
+    d = os.path.join(prefix, SUBSET, "2d_joint_halpe26")
+    if not os.path.isdir(d):
+        return None
+    names = sorted(f for f in os.listdir(d) if f.endswith(".json"))
+    if len(names) != len(est):
+        return None
+    P, S = [], []
+    for n in names:
+        fi, p, sc = load_poses(os.path.join(d, n))
+        P.append(p.reshape(len(fi), -1, 2))
+        S.append(sc)
+    nf = min(len(x) for x in S)
+    seen = np.array([(S[c][:nf] > conf_threshold).sum(axis=1) for c in range(len(est))])   # (C, F)
+    order = np.argsort(-(seen >= 20).sum(axis=0), kind="stable")
+    Ps = np.array([e.projection() for e in est])
+    for f in order[:20]:
+        X, used = robust_triangulate(np.array([P[c][f] for c in range(len(est))]),
+                                     np.array([S[c][f] > conf_threshold for c in range(len(est))]), Ps, 50.0, 5.0, 3)
+        if used.sum() >= 3 and np.isfinite(X).all(axis=1).sum() >= 20:
+            return X
+    return None
+
+
+def plot_rigs_3d(est, gold, up_est, up_gold, path, skeleton=None, title=""):
+    """Camera frustums of both rigs after the 4-DoF registration, floor and subject."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    Cg = np.array([g.center for g in gold])
+    Ce = np.array([e.center for e in est])
+    T, b = M.yaw_align(Ce, Cg, up_est, up_gold)
+    fig = plt.figure(figsize=(11, 9))
+    ax = fig.add_subplot(111, projection="3d")
+
+    def frustum(cam, R_world, C_world, color, lw, depth=0.6):
+        w, h = cam.size
+        K_inv = np.linalg.inv(cam.K)
+        corners = np.array([[0, 0, 1], [w, 0, 1], [w, h, 1], [0, h, 1]], float) @ K_inv.T * depth
+        pts = corners @ R_world.T + C_world            # camera -> world
+        for q in pts:
+            ax.plot(*zip(C_world, q), color=color, lw=lw)
+        loop = np.vstack([pts, pts[:1]])
+        ax.plot(loop[:, 0], loop[:, 1], loop[:, 2], color=color, lw=lw)
+
+    pos_err, rot_err = [], []
+    for k, g in enumerate(gold):
+        Rw_est = T @ est[k].R.T                        # camera axes in the gold world
+        Cw_est = T @ Ce[k] + b
+        frustum(g, g.R.T, Cg[k], "tab:green", 2.0)
+        frustum(est[k], Rw_est, Cw_est, "tab:red", 1.2)
+        ax.text(*(Cg[k] + [0, 0, 0.25]), g.name, fontsize=8)
+        pos_err.append(np.linalg.norm(Cw_est - Cg[k]) * 1000)
+        rot_err.append(M.rotation_angle_deg(Rw_est.T @ g.R.T))
+
+    lo, hi = Cg.min(axis=0) - 1.0, Cg.max(axis=0) + 1.0
+    gx, gy = np.meshgrid(np.linspace(lo[0], hi[0], 12), np.linspace(lo[1], hi[1], 12))
+    up_g = np.asarray(up_gold, float) / np.linalg.norm(up_gold)
+    if abs(up_g[2]) > 0.9:                             # floor drawn for a z-up gold world
+        ax.plot_wireframe(gx, gy, np.zeros_like(gx), color="0.8", lw=0.5)
+    if skeleton is not None:
+        Xw = skeleton @ T.T + b
+        for i, j in HALPE26_BONES:
+            if np.isfinite(Xw[[i, j]]).all():
+                ax.plot(*zip(Xw[i], Xw[j]), color="tab:blue", lw=2)
+
+    ax.set_xlabel("x (m)")
+    ax.set_ylabel("y (m)")
+    ax.set_zlabel("z (m)")
+    top = max(2.5, float(Cg[:, 2].max()) + 0.8)
+    ax.set_xlim(lo[0], hi[0])
+    ax.set_ylim(lo[1], hi[1])
+    ax.set_zlim(0, top)
+    ax.set_box_aspect((hi[0] - lo[0], hi[1] - lo[1], top))      # metric proportions
+    ax.view_init(elev=24, azim=-58)
+    ax.set_title(f"{title}\n{len(gold)} cameras, lab world frame (4-DoF registration: yaw and translation only)\n"
+                 f"camera position error median {np.median(pos_err):.0f} mm, orientation error median "
+                 f"{np.median(rot_err):.2f}°", fontsize=10)
+    fig.tight_layout()
+    fig.savefig(path, dpi=110)
     plt.close(fig)
 
 
@@ -100,7 +195,12 @@ def main(argv=None):
         up_gold = json.load(f)["up"]
     png = os.path.join(args.work, "eval", args.eval, "cameras_vs_gold.png")
     plot_rigs(est, gold, UP_HUMANCALIB, up_gold, png,
-              title=f"{os.path.basename(os.path.normpath(args.work))} — {args.eval} ({len(gold)} caméras)")
+              title=f"{os.path.basename(os.path.normpath(args.work))} — {args.eval} ({len(gold)} cameras)")
+    png3d = os.path.join(args.work, "eval", args.eval, "cameras_vs_gold_3d.png")
+    skeleton = subject_skeleton(os.path.join(args.work, args.run), est)
+    plot_rigs_3d(est, gold, UP_HUMANCALIB, up_gold, png3d, skeleton=skeleton,
+                 title=f"{os.path.basename(os.path.normpath(args.work))}: HumanCalib (red) vs lab calibration (green)")
+    log.info(f"3D figure -> {png3d}")
     log.info(f"Figure -> {png}")
     if args.gif:
         gif = render_gif(args.work, args.run, args.eval)
