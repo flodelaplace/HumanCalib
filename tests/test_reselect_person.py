@@ -223,3 +223,39 @@ def test_rtmpose_poses_are_written_undistorted(tmp_path):
     expected = cv2.undistortPoints(raw[0].reshape(-1, 1, 2).astype(np.float64), K, dist, P=K).reshape(J, 2)
     assert written == pytest.approx(expected, abs=1e-3)
     assert np.abs(written - raw[0]).max() > 1.0        # it really moved the points
+
+
+def test_motion_selection_keeps_a_camera_the_subject_walks_straight_at(tmp_path):
+    """The swing is measured in the image for RTMPose, so the camera the subject walks
+    towards sees it foreshortened and flags walking on a few frames only -- BioCV camera
+    04, 8 % against 60-85 % for its neighbours. The linear stage wants every bone in
+    every camera, so that camera must not be emptied: it still sees someone moving on
+    every frame, unlike the camera that only has a seated operator, and follows the
+    other cameras' window instead."""
+    from humancalib.pipeline import motion_selection
+    fps, F = 50.0, 300
+    t_ = np.arange(F) / fps
+    cands = []
+    for c in range(4):
+        scale, lift = (0.2, 30.0) if c == 0 else (1.0, 20.0)   # camera 0 sees the walk head-on
+        dets = []
+        for f in range(F):
+            swing, foot = np.sin(2 * np.pi * t_[f]), abs(np.sin(4 * np.pi * t_[f]))
+            pose = np.zeros((J, 2))
+            for side, (hip, knee, ankle) in enumerate(motion_selection.LEGS_2D_HALPE26):
+                sgn = 1 if side == 0 else -1
+                pose[hip] = [500 + 20 * sgn, 300.0]
+                pose[knee] = [500 + 20 * sgn + scale * 100 * sgn * swing, 500.0]
+                pose[ankle] = [500 + 20 * sgn + scale * 200 * sgn * swing, 700.0 - lift * foot]
+            dets.append({"box": np.array([[400.0, 250.0, 600.0, 750.0]]),
+                         "pose2d": pose[None], "score2d": np.ones((1, J))})
+        path = str(tmp_path / f"c{c}.npz")
+        cand.save_candidates(path, range(F), [0] * F, dets, (1080, 1920))
+        cands.append(cand.load_candidates(path))
+
+    gated = motion_selection.select(cands, fps, "rtmpose", gate="camera")
+    adaptive = motion_selection.select(cands, fps, "rtmpose")
+    assert (gated[0] >= 0).mean() < 0.2                  # emptied by its own verdict
+    assert (adaptive[0] >= 0).mean() > 0.7               # rescued by the other cameras'
+    for c in range(1, 4):                                # cameras that see the swing: untouched
+        assert (adaptive[c] == gated[c]).all()

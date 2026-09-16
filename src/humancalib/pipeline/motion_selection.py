@@ -38,6 +38,8 @@ from humancalib.pose import candidates as cand
 WINDOW_S = 0.2
 SEGMENT_S = 0.25
 SPEED_THR = 0.5      # leg lengths per second: walking about 1.5, standing still under 0.1
+GATE_REL = 0.7       # flagging walking under this much of the cameras' median rate: an outlier
+MOVING_REL = 0.4     # ... and still seeing someone move this fraction of SPEED_THR: a foreshortened view
 
 # (hip, knee, ankle) left and right
 LEGS_3D_BML87 = ((73, 75, 71), (81, 83, 79))
@@ -85,15 +87,30 @@ def leg_speeds(c, fps, engine):
     return speed
 
 
-def select(cands, fps, engine, speed_thr=SPEED_THR, segment_s=SEGMENT_S):
-    """Per camera, the detection index kept on each of its frames (-1 for none)."""
+def select(cands, fps, engine, speed_thr=SPEED_THR, segment_s=SEGMENT_S, gate="adaptive"):
+    """Per camera, the detection index kept on each of its frames (-1 for none).
+
+    A camera normally keeps a frame only if it flagged walking itself (gate
+    "camera"): that is what keeps the operator seated at the back of BioCV
+    camera 05 out of the frames where the subject is not there yet.
+
+    The swing is measured in the image for RTMPose, so the camera the subject
+    walks straight at sees it foreshortened -- BioCV camera 04 flags 8 % of the
+    frames where its neighbours flag 60-85 %, and the linear stage, which wants
+    every bone visible in every camera at once, then has nothing left. Such a
+    camera cannot judge walking, and says so by flagging far less often than the
+    others: gate "adaptive" lets a camera under GATE_REL of the cameras' median
+    rate follow the cross-camera window instead. Where no camera is an outlier
+    that way -- every MeTRAbs trial measured, the swing being 3D there -- this
+    is exactly the "camera" gate. Gate "none" drops the per-camera test
+    altogether; it costs 6-7 points of correct frames on MeTRAbs."""
     C = len(cands)
     half = max(1, int(round(segment_s * fps)))
-    walking, fastest = [], []
+    walking, fastest, tops = [], [], []
     for c in cands:
         F = len(c["frames"])
         speed = leg_speeds(c, fps, engine)
-        flag, best = np.zeros(F, bool), np.full(F, -1)
+        flag, best, top = np.zeros(F, bool), np.full(F, -1), np.full(F, np.nan)
         for r in range(F):
             s, e = c["start"][r], c["start"][r + 1]
             if c["status"][r] != cand.STATUS_OK or e == s:
@@ -102,12 +119,25 @@ def select(cands, fps, engine, speed_thr=SPEED_THR, segment_s=SEGMENT_S):
             sp = np.where(ok, np.nan_to_num(speed[s:e], nan=-1.0), -1.0)
             if sp.max() >= 0:
                 best[r] = int(np.argmax(sp))
+                top[r] = sp.max()
             flag[r] = sp.max() >= speed_thr
         csum = np.concatenate([[0], np.cumsum(flag)])
         idx = np.arange(F)
         lo, hi = np.clip(idx - half, 0, F), np.clip(idx + half + 1, 0, F)
         walking.append((csum[hi] - csum[lo]) * 2 > (hi - lo))
         fastest.append(best)
+        tops.append(top)
+
+    rates = np.array([w.mean() for w in walking])
+    if gate == "adaptive":
+        # A camera that sees the subject head-on measures a small swing on every frame;
+        # one that only has a seated bystander measures none at all. The quartile tells
+        # them apart -- 0.29-0.37 against 0.03-0.12 on the trials measured -- where the
+        # flagging rate alone does not (0.51-0.79 against 0.63-0.77).
+        moving = np.array([np.nanpercentile(t, 25) if np.isfinite(t).any() else -1.0 for t in tops])
+        gated = ~((rates < GATE_REL * np.median(rates)) & (moving >= MOVING_REL * speed_thr))
+    else:
+        gated = np.full(len(walking), gate == "camera")
 
     count = {}
     for ci, c in enumerate(cands):
@@ -118,7 +148,7 @@ def select(cands, fps, engine, speed_thr=SPEED_THR, segment_s=SEGMENT_S):
     for ci, c in enumerate(cands):
         sel = np.full(len(c["frames"]), -1)
         for r, f in enumerate(c["frames"].tolist()):
-            if walking[ci][r] and count[f] >= need:
+            if (walking[ci][r] or not gated[ci]) and count[f] >= need:
                 sel[r] = fastest[ci][r]
         out.append(sel)
     return out
