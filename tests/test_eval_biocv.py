@@ -56,7 +56,7 @@ def test_pose2sim_toml_round_trip(tmp_path):
     assert back.name == "00"
     assert back.R == pytest.approx(cam.R, abs=1e-12)
     assert back.t == pytest.approx(cam.t)
-    assert back.dist == pytest.approx(cam.dist[:4])
+    assert back.dist == pytest.approx(cam.dist[:5])
 
 
 def test_intrinsics_only_toml_keeps_the_lines_the_exporter_fills(tmp_path):
@@ -69,10 +69,21 @@ def test_intrinsics_only_toml_keeps_the_lines_the_exporter_fills(tmp_path):
     assert "translation = [0.0, 0.0, 0.0]" in content
 
 
-def test_nonzero_k3_is_refused(tmp_path):
+def test_k3_is_written_and_read_back(tmp_path):
+    """OpenCap's cameras carry k3 = 0.213: dropping it would leave the keypoints bent.
+    Pose2Sim reads four coefficients and ignores the fifth; everything here reads five."""
     cam = Camera("00", (1920, 1080), np.eye(3), np.array([0.1, 0.0, 0.0, 0.0, 0.2]))
-    with pytest.raises(ValueError, match="k3"):
-        write_pose2sim_toml([cam], tmp_path / "x.toml")
+    path = tmp_path / "x.toml"
+    write_pose2sim_toml([cam], path)
+    (back,) = read_pose2sim_toml(path)
+    assert back.dist == pytest.approx([0.1, 0.0, 0.0, 0.0, 0.2])
+
+
+def test_more_than_five_distortion_coefficients_are_refused(tmp_path):
+    """The thin-prism and tilted-sensor terms would be written and silently ignored."""
+    cam = Camera("00", (1920, 1080), np.eye(3), np.array([0.1, 0.0, 0.0, 0.0, 0.2, 0.3, 0.0, 0.0]))
+    with pytest.raises(ValueError, match="only the first five"):
+        write_pose2sim_toml([cam], tmp_path / "y.toml")
 
 
 def test_reduced_rate_rtmpose_runs_get_their_own_folder():

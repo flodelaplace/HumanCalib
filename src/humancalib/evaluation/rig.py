@@ -60,14 +60,20 @@ def write_pose2sim_toml(cameras, path, extrinsics=True):
     translation lines are still present, because HumanCalib's exporter fills
     its result into exactly those lines.
 
-    Pose2Sim reads four distortion coefficients. A non-zero k3 cannot be
-    represented and is refused rather than dropped silently.
+    Pose2Sim itself reads four distortion coefficients, but OpenCap's cameras
+    carry k3 = 0.213, far too large to drop: undistorting without it would leave
+    the keypoints bent. All five are written, since everything that reads these
+    files here takes them -- core.toml_io reads five, and cv2.undistortPoints
+    accepts 4, 5, 8, 12 or 14. Pose2Sim ignores the extra one. Beyond five
+    (the thin-prism and tilted-sensor terms) nothing in this pipeline would use
+    them, so they are refused rather than written and silently ignored.
     """
     lines = []
     for cam in cameras:
         dist = np.asarray(cam.dist, dtype=float).ravel()
-        if dist.size > 4 and np.any(np.abs(dist[4:]) > 0):
-            raise ValueError(f"{cam.name}: k3 = {dist[4]} cannot be written to a Pose2Sim TOML")
+        if dist.size > 5 and np.any(np.abs(dist[5:]) > 0):
+            raise ValueError(f"{cam.name}: {dist.size} distortion coefficients, "
+                             f"only the first five are supported")
         rvec = cv2.Rodrigues(cam.R)[0].ravel() if extrinsics else np.zeros(3)
         tvec = np.asarray(cam.t, dtype=float).ravel() if extrinsics else np.zeros(3)
         K = np.asarray(cam.K, dtype=float)
@@ -76,7 +82,7 @@ def write_pose2sim_toml(cameras, path, extrinsics=True):
             f'name = "{cam.name}"',
             f"size = [{float(cam.size[0])}, {float(cam.size[1])}]",
             "matrix = [" + ", ".join("[" + ", ".join(repr(float(v)) for v in row) + "]" for row in K) + "]",
-            "distortions = [" + ", ".join(repr(float(v)) for v in dist[:4]) + "]",
+            "distortions = [" + ", ".join(repr(float(v)) for v in dist[:5]) + "]",
             "rotation = [" + ", ".join(repr(float(v)) for v in rvec) + "]",
             "translation = [" + ", ".join(repr(float(v)) for v in tvec) + "]",
             "fisheye = false",
