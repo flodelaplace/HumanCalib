@@ -262,7 +262,7 @@ def build_jac_sparsity(C, N, J, ss2d_work, ss3d, bone_idx, invalid_mask, conf_th
 
 def _run_ba(K, R_w2c, t_w2c, x_all, sp2d_flat, ss2d, sp3d, ss3d, bone_idx,
             C, N, J, lambda1, lambda2, invalid_mask, conf_threshold, cost_history,
-            plot_path=None, jac_sparsity=None, loss="linear", f_scale=1.0,
+            plot_path=None, jac_sparsity=None, loss="linear", f_scale=1.0, tol=1e-7,
             obs_weight=None, jac_mode="numeric"):
     """Single pass of bundle adjustment optimization."""
     best_cost = cost_history[-1] if cost_history else float('inf')
@@ -296,9 +296,9 @@ def _run_ba(K, R_w2c, t_w2c, x_all, sp2d_flat, ss2d, sp3d, ss3d, bone_idx,
     max_evals = min(max(60000, 4 * n_params), 80000)
     kwargs = dict(
         verbose=0,
-        ftol=1e-7,
-        xtol=1e-7,
-        gtol=1e-7,
+        ftol=tol,
+        xtol=tol,
+        gtol=tol,
         max_nfev=max_evals,
         method="trf",
         loss=loss,
@@ -352,7 +352,7 @@ def bone_regularisation_useful(e_bone, x_NJ3, bone_idx, invalid_mask=None, rel_t
 def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
             conf_threshold=0.5, bone_idx=None, n_iterations=2, outlier_threshold=2.0,
             plot_dir=None, loss="linear", f_scale=1.0, obs_weight_mode="none",
-            border_margin=20.0, img_size=(1920, 1080), jac_mode="numeric"):
+            border_margin=20.0, img_size=(1920, 1080), jac_mode="numeric", tol=1e-7):
 
     C = len(camid)
     N = sp2d.shape[1]
@@ -470,7 +470,7 @@ def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
             K, R_w2c, t_w2c, x_all, sp2d_flat, ss2d_work, sp3d, ss3d,
             bone_idx, C, N, J, lambda1, lambda2, invalid_mask, conf_threshold,
             cost_history, plot_path=plot_path, jac_sparsity=jac_sp,
-            loss=loss, f_scale=f_scale, obs_weight=obs_weight, jac_mode=jac_mode
+            loss=loss, f_scale=f_scale, obs_weight=obs_weight, jac_mode=jac_mode, tol=tol
         )
 
         # Outlier rejection after all but the last iteration
@@ -642,7 +642,7 @@ if __name__ == "__main__":
         plot_dir=plot_dir,
         loss=args.ba_loss, f_scale=args.ba_f_scale, obs_weight_mode=args.ba_obs_weight,
         border_margin=args.ba_border_margin, img_size=(width, height),
-        jac_mode=args.ba_jac,
+        jac_mode=args.ba_jac, tol=args.ba_tol,
     )
 
     # Plot and save the optimisation cost curve
