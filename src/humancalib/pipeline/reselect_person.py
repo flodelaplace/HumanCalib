@@ -219,7 +219,8 @@ def rewrite_metrabs(prefix, subset, base_name, c, chosen, K, dist):
                                 os.path.join(d, "2d_joint_halpe26"), base_name)
 
 
-def rewrite_rtmpose(prefix, subset, base_name, c, chosen):
+def rewrite_rtmpose(prefix, subset, base_name, c, chosen, K=None, dist=None):
+    from humancalib.pose.metrabs_outputs import undistort_points
     from humancalib.pose.rtmlib_inference import halpe26_to_op25
     op25, halpe = [], []
     for row, k in enumerate(chosen):
@@ -227,6 +228,8 @@ def rewrite_rtmpose(prefix, subset, base_name, c, chosen):
         if k >= 0:
             i = c["start"][row] + k
             kp, sc = c["pose2d"][i], c["score2d"][i]
+            if K is not None and dist is not None and np.any(dist):
+                kp = undistort_points(np.asarray(kp, dtype=np.float32), K, dist)
         kp_op, sc_op = halpe26_to_op25(kp, sc)
         frame = int(c["frames"][row])
         op25.append({"frame_index": frame, "skeleton": [{"pose": kp_op.flatten().tolist(), "score": sc_op.tolist()}]})
@@ -246,7 +249,7 @@ def write_selection(args, cands, names, selections, K, dist):
             if skeleton_ref is None:
                 skeleton_ref = (list(c["frames"]), full3d)
         else:
-            rewrite_rtmpose(args.prefix, args.subset, name, c, chosen)
+            rewrite_rtmpose(args.prefix, args.subset, name, c, chosen, K[ci], dist[ci])
     if skeleton_ref is not None:
         from humancalib.pose.metrabs_outputs import save_skeleton_w
         save_skeleton_w(os.path.join(args.prefix, args.subset, f"skeleton_w_G{args.gid:03d}.json"), *skeleton_ref)

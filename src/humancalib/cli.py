@@ -442,7 +442,7 @@ def run_pipeline(cfg):
         log.info(rng)
         run_process("extract-rtmpose", [
             sys.executable, "-u", "-m", "humancalib.pose.rtmlib_inference",
-            "--video_dir", vd, "--output_dir", out, *ids, "--subset_name", SUBSET,
+            "--video_dir", vd, "--calib_toml", cfg.calib_toml, "--output_dir", out, *ids, "--subset_name", SUBSET,
             "--device", cfg.device, "--mode", cfg.mode, *frames,
             *(["--save_video"] if cfg.save_video else [])], env)
 

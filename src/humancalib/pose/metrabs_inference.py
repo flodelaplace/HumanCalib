@@ -41,7 +41,7 @@ import argparse
 import sys
 
 from humancalib.core.models import METRABS_L_URL
-from humancalib.core.toml_io import load_toml
+from humancalib.core.toml_io import intrinsics_from_toml
 from humancalib.core.sidecars import read_dropped
 from humancalib.core.videos import list_videos
 from humancalib.pose.candidates import (STATUS_DARK, STATUS_DROPPED, STATUS_OK,
@@ -73,23 +73,6 @@ N_CALIB_JOINTS = len(METRABS_BML87_INDICES)  # 26
 # Halpe26 indices: Head=17, Neck=18, MidHip=19, LBigToe=20, RBigToe=21,
 #                  LSmallToe=22, RSmallToe=23, LHeel=24, RHeel=25
 # ---------------------------------------------------------------------------
-
-
-def get_intrinsics_from_toml(toml_path, cam_names):
-    """Extract intrinsic matrices and distortion coefficients from TOML."""
-    data = load_toml(toml_path)
-    K_list = []
-    dist_list = []
-    for cam_name in cam_names:
-        if cam_name not in data:
-            log.error(f"Section '[{cam_name}]' not found in {toml_path}")
-            sys.exit(1)
-        sec = data[cam_name]
-        K = np.array(sec["matrix"], dtype=np.float64)
-        K_list.append(K)
-        dist = np.array(sec.get("distortions", [0, 0, 0, 0, 0]), dtype=np.float64)
-        dist_list.append(dist)
-    return K_list, dist_list
 
 
 def get_best_person(poses3d, poses2d, boxes, imshape=None):
@@ -256,7 +239,7 @@ def main(argv=None):
     cam_names = [os.path.splitext(os.path.basename(v))[0] for v in video_files]
 
     # Load intrinsics from TOML
-    K_list, dist_list = get_intrinsics_from_toml(args.calib_toml, cam_names)
+    K_list, dist_list = intrinsics_from_toml(args.calib_toml, cam_names)
     log.info(f"\nLoaded intrinsics for {len(K_list)} cameras from {args.calib_toml}")
 
     # Say plainly which device this will run on. Falling back to CPU is not an

@@ -39,6 +39,8 @@ from tqdm import tqdm
 
 from humancalib.core.videos import list_videos
 from humancalib.pose.candidates import STATUS_OK, candidates_path, save_candidates
+from humancalib.core.toml_io import intrinsics_from_toml
+from humancalib.pose.metrabs_outputs import undistort_points
 from humancalib.core.log import get_logger, setup_logging
 log = get_logger(__name__)
 
@@ -140,7 +142,7 @@ def halpe26_to_op25(kp_halpe, sc_halpe):
     return kp_op, score_op
 
 
-def process_video(video_path: str, body_model, output_op25_json: str, output_halpe26_json: str, start_frame: int = None, end_frame: int = None, save_video_path: str = None, candidates_out: str = None):
+def process_video(video_path: str, body_model, output_op25_json: str, output_halpe26_json: str, start_frame: int = None, end_frame: int = None, save_video_path: str = None, candidates_out: str = None, K=None, dist=None):
     """Run RTMPose on a selected range of frames and save a 2d_joint JSON."""
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -224,6 +226,10 @@ def process_video(video_path: str, body_model, output_op25_json: str, output_hal
                                 cv2.circle(img_show, (int(kp[0]), int(kp[1])), 4, (0, 255, 0), -1)
                 writer.write(img_show)
 
+            if K is not None and dist is not None and np.any(dist):
+                # Lens distortion, as the MeTRAbs path has always done: the calibration
+                # is a pinhole model, and distorted keypoints bias it (BioCV: k1 = -0.15).
+                kp_halpe = undistort_points(np.asarray(kp_halpe, dtype=np.float32), K, dist)
             kp_op25, sc_op25 = halpe26_to_op25(kp_halpe, sc_halpe)
             op25_data.append({"frame_index": frame_idx, "skeleton": [{"pose": kp_op25.flatten().tolist(), "score": sc_op25.tolist()}]})
             halpe26_data.append({"frame_index": frame_idx, "skeleton": [{"pose": kp_halpe.flatten().tolist(), "score": sc_halpe.tolist()}]})
@@ -253,6 +259,8 @@ def main(argv=None):
                         help="Folder containing the camera video files (mp4/avi/...)")
     parser.add_argument("--output_dir", required=True,
                         help="Output prefix, e.g. ./data/A001_P001_G001")
+    parser.add_argument("--calib_toml", default=None,
+                        help="Intrinsics TOML: with it, keypoints are undistorted before being saved")
     parser.add_argument("--aid", type=int, default=1, help="Action ID (default 1)")
     parser.add_argument("--pid", type=int, default=1, help="Person ID (default 1)")
     parser.add_argument("--gid", type=int, default=1, help="Group/Scene ID (default 1)")
@@ -328,6 +336,14 @@ def main(argv=None):
     if args.save_video:
         os.makedirs(out_overlay_dir, exist_ok=True)
 
+    cam_names = [os.path.splitext(os.path.basename(v))[0] for v in video_files]
+    if args.calib_toml:
+        K_list, dist_list = intrinsics_from_toml(args.calib_toml, cam_names)
+        log.info(f"Undistorting keypoints with the intrinsics of {args.calib_toml}")
+    else:
+        K_list = dist_list = [None] * len(video_files)
+        log.warning("No --calib_toml: keypoints are left distorted, which biases the calibration")
+
     widths, heights = [], []
     for cam_idx, video_path in enumerate(video_files, start=1):
         cid = cam_idx
@@ -353,6 +369,7 @@ def main(argv=None):
             video_path, body_model, output_op25_json, output_halpe26_json,
             start_frame=args.start_frame, end_frame=args.end_frame, save_video_path=save_video_path,
             candidates_out=candidates_path(args.output_dir, args.subset_name, base_name),
+            K=K_list[cam_idx - 1], dist=dist_list[cam_idx - 1],
         )
         widths.append(w)
         heights.append(h)

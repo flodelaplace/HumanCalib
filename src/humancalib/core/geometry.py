@@ -175,3 +175,25 @@ def project_cv2(Rs, ts, Ks, X, width, height):
     x_out = np.array(x_out)
     x_out = x_out.reshape(Nc, Nf, Nj, 2)
     return np.array(x_out)
+
+
+def orthonormalize(M):
+    """The rotation closest to M in the Frobenius sense, with det = +1."""
+    U, _, Vt = np.linalg.svd(M)
+    D = np.diag([1.0, 1.0, np.sign(np.linalg.det(U @ Vt))])
+    return U @ D @ Vt
+
+
+def normalize_pose(R, t):
+    """(R, t) of the same camera with R a true rotation.
+
+    A projection matrix is defined up to scale, so a linear solve can return
+    [s*R | t] instead of [R | t]: same projections, but t is then s times too
+    long and R is not a rotation. The RTMPose path's linear stage does exactly
+    this (determinants 0.01 to 3.3 on BioCV), and bundle adjustment started
+    from cv2.Rodrigues of a non-rotation. Dividing both by s fixes it without
+    changing a single projection.
+    """
+    R = np.asarray(R, float)
+    scale = float(np.cbrt(abs(np.linalg.det(R)))) or 1.0
+    return orthonormalize(R / scale), np.asarray(t, float) / scale

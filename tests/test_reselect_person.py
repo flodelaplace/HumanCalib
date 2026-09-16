@@ -201,3 +201,25 @@ def test_motion_selection_keeps_the_walker_and_drops_a_seated_operator(tmp_path)
     assert (sel[0][110:190] == 1).all()                    # the walker, not the larger operator
     assert (sel[0][:60] == -1).all() and (sel[0][240:] == -1).all()
     assert (sel[1][40:260] == 0).all()
+
+
+def test_rtmpose_poses_are_written_undistorted(tmp_path):
+    """The calibration is a pinhole model: the MeTRAbs path has always undistorted its
+    keypoints, the RTMPose path did not, which biased every comparison between them."""
+    import cv2
+    from humancalib.pipeline.reselect_person import rewrite_rtmpose
+    K = np.array([[1000.0, 0, 960], [0, 1000.0, 540], [0, 0, 1]])
+    dist = np.array([-0.15, 0.08, 0.0, 0.0])
+    raw = np.random.default_rng(0).uniform(100, 1500, (1, J, 2))
+    path = str(tmp_path / "c.npz")
+    cand.save_candidates(path, [0], [0], [{"box": np.array([[0, 0, 100, 200]]), "pose2d": raw,
+                                           "score2d": np.ones((1, J))}], (1080, 1920))
+    c = cand.load_candidates(path)
+    for d in ("2d_joint", "2d_joint_halpe26"):
+        os.makedirs(tmp_path / "noise_1_0" / d)
+    rewrite_rtmpose(str(tmp_path), "noise_1_0", "A001_P001_G001_C001.json", c, [0], K, dist)
+    written = np.array(json.load(open(tmp_path / "noise_1_0" / "2d_joint_halpe26" / "A001_P001_G001_C001.json")
+                                 )["data"][0]["skeleton"][0]["pose"]).reshape(J, 2)
+    expected = cv2.undistortPoints(raw[0].reshape(-1, 1, 2).astype(np.float64), K, dist, P=K).reshape(J, 2)
+    assert written == pytest.approx(expected, abs=1e-3)
+    assert np.abs(written - raw[0]).max() > 1.0        # it really moved the points

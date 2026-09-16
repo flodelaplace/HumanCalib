@@ -13,6 +13,8 @@ import cv2
 import numpy as np
 import toml
 
+from humancalib.core.geometry import orthonormalize  # noqa: F401  (re-exported)
+
 
 @dataclass
 class Camera:
@@ -29,13 +31,6 @@ class Camera:
 
     def projection(self):
         return self.K @ np.hstack([self.R, self.t.reshape(3, 1)])
-
-
-def orthonormalize(M):
-    """The rotation closest to M in the Frobenius sense, with det = +1."""
-    U, _, Vt = np.linalg.svd(M)
-    D = np.diag([1.0, 1.0, np.sign(np.linalg.det(U @ Vt))])
-    return U @ D @ Vt
 
 
 def read_pose2sim_toml(path):

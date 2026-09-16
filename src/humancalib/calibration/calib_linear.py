@@ -6,6 +6,8 @@ import json
 import itertools
 import scipy as sp
 
+from humancalib.core.geometry import normalize_pose
+
 # from numba import jit
 from humancalib.argument import parse_args
 from humancalib.core import *
@@ -438,6 +440,14 @@ def main(argv=None):
     )
 
     if R is not None:
+        # The linear solve returns [s*R | t]: same projections, but R is not a rotation
+        # and bundle adjustment starts from cv2.Rodrigues of it. Normalise both.
+        dev = max(float(np.abs(Ri @ Ri.T - np.eye(3)).max()) for Ri in R)
+        if dev > 1e-9:
+            log.info(f"  Normalising the linear poses to true rotations (max |RR'-I| was {dev:.3f})")
+            pairs = [normalize_pose(Ri, ti) for Ri, ti in zip(R, t)]
+            R = np.array([pr[0] for pr in pairs])
+            t = np.array([pr[1] for pr in pairs]).reshape(np.shape(t))
         with open(JSON_OUT, "w") as fp:
             out = {
                 "CAMID": CAMID.tolist(),
