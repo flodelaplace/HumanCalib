@@ -66,6 +66,22 @@ dataset. BioCV P03, caméra 08, points d'axes ±1 m de `markers2D` : écart
   Pose2Sim ; seul le fichier de calibration change. Toute différence est
   imputable à la calibration.
 
+## 3 bis. Noms des configurations évaluées (pour l'article)
+
+Les noms « v1 » à « v4 » sont des étapes de développement ; l'article ne compare que les
+configurations ci-dessous. Chacune est un jeu d'options de `humancalib run`.
+
+| Nom | Moteur de pose | Options | Pour qui |
+|---|---|---|---|
+| **HumanCalib-M** (référence) | MeTRAbs | `--person_selection motion --scale_method segments --vertical_method walk` | Le meilleur compromis précision / temps (~12 min pour 9 caméras et 1250 images) |
+| **HumanCalib-R (full)** | RTMPose + VideoPose3D | idem, à la fréquence native de la vidéo | Sans TensorFlow ; le plus précis de ce chemin, mais le plus lent |
+| **HumanCalib-R (fast)** | RTMPose + VideoPose3D | idem, vidéo ramenée à ~50 Hz | Option rapide, précision moindre |
+| *Ablations* | — | `--person_selection largest`, `--scale_method head`, `--vertical_method frame` | Montrent ce qu'apporte chaque élément |
+
+Les trois configurations principales partagent la même sélection de personne, la même
+correction de distorsion, la même échelle et la même verticale : seul le moteur de pose et
+la fréquence d'images changent.
+
 ## 4. Exécution de HumanCalib (paramètres figés)
 
 * Valeurs par défaut du pipeline : `frame_skip 10`, `conf_threshold 0.5`,
