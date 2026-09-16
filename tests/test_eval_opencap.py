@@ -57,22 +57,24 @@ def test_a_non_rotation_is_refused(tmp_path):
 
 
 def test_common_window_aligns_cameras_that_start_at_different_moments():
-    """Each camera has its own raw_start -- up to 2.2 s apart. The window is measured
-    relative to it, so the same instant lands on the same output frame everywhere."""
+    """Each camera has its own raw_start -- up to 2.2 s apart. The window is centred on
+    that instant, so it lands on the same output frame everywhere, and its width comes
+    from the dataset's own sync_frames rather than from everything the cameras share."""
     starts_frames = [(300, 601), (348, 607), (432, 595), (300, 546), (312, 603)]
     windows = {
         f"subject2/Session1/Cam{c}/walking1": {"raw_start": s, "raw_frames": n, "sync_frames": 86, "fps": 60.0}
         for c, (s, n) in enumerate(starts_frames)
     }
     length, starts = opencap.common_window(windows, "subject2", "walking1")
-    # the earliest camera allows 300 frames before, the shortest 595 - 432 = 163 after
-    assert length == 300 + 163
-    assert starts == {0: 0, 1: 48, 2: 132, 3: 0, 4: 12}
+    # centred on the synchronisation instant, sync_frames on each side
+    assert length == 86 + 86
+    assert starts == {0: 214, 1: 262, 2: 346, 3: 214, 4: 226}
     # the synchronisation instant lands on the same output frame in every camera
     for cam, (raw_start, _) in enumerate(starts_frames):
-        assert raw_start - starts[cam] == 300
-    # and the window is far longer than the clips the dataset ships
-    assert length > 5 * 86
+        assert raw_start - starts[cam] == 86
+    # a wider reach is clipped by the shortest camera, never by the longest
+    long_length, _ = opencap.common_window(windows, "subject2", "walking1", reach=10_000)
+    assert long_length == 300 + 163
 
 
 def test_common_window_reports_a_missing_camera():

@@ -16,9 +16,10 @@ Three things differ from BioCV and decide this reader:
 * the cameras are **not synchronised**. The same trial is 601 frames on one
   camera and 595 on another, and each starts at its own moment -- `raw_start`
   spreads over 2.2 s. `_RAW_WINDOWS.json` gives that offset per camera, so the
-  videos are re-cut here around it. The `<trial>_syncdWithMocap.avi` clips the
-  dataset ships are aligned but last 1.4 s; re-cutting the raw videos keeps
-  7.2 s on average, five times more.
+  videos are re-cut here around it, over a window centred on that instant and
+  as wide as the dataset's own `sync_frames` on each side -- about twice the
+  `<trial>_syncdWithMocap.avi` clip. Taking everything the cameras share
+  instead (7.2 s) drowns the trial in frames where the subject is out of shot.
 * `imageSize` is stored as [1280, 720] while the videos are portrait 720x1280.
   The principal point settles it (cx = 366 ~ 720/2, cy = 639 ~ 1280/2), so the
   size is taken from the intrinsics, not from that field.
@@ -111,12 +112,20 @@ def read_windows(root):
         return json.load(f)
 
 
-def common_window(windows, subject, trial, session=SESSION):
-    """(length, {camera: first frame}) of the longest window the 5 cameras share.
+def common_window(windows, subject, trial, session=SESSION, reach=None):
+    """(length, {camera: first frame}) of the window the 5 cameras share.
 
     Every camera has its own `raw_start` for the same instant, so the window is
-    measured relative to it: as many frames before as the earliest camera allows,
-    as many after as the shortest one does.
+    measured relative to it: `reach` frames on each side, clipped to what the
+    earliest and the shortest camera allow.
+
+    The window is centred, not maximised. Taking everything the cameras share
+    gave 463 frames on subject2/walking1, of which 150 showed the subject in no
+    camera at all and only ~160 had four cameras seeing them whole: the linear
+    stage then fell back to its 2-of-5 visibility rule and the calibration was
+    worthless. `reach` defaults to the dataset's own `sync_frames`, the window
+    OpenCap validated for this trial, so the span adapts to each trial instead
+    of being a constant tuned on our metrics.
     """
     entries = {}
     for cam in range(N_CAMERAS):
@@ -124,8 +133,10 @@ def common_window(windows, subject, trial, session=SESSION):
         if key not in windows:
             raise KeyError(f"{key} missing from {WINDOWS_FILE}")
         entries[cam] = windows[key]
-    before = min(e["raw_start"] for e in entries.values())
-    after = min(e["raw_frames"] - e["raw_start"] for e in entries.values())
+    if reach is None:
+        reach = max(int(e.get("sync_frames", 0)) for e in entries.values())
+    before = min(min(e["raw_start"] for e in entries.values()), reach)
+    after = min(min(e["raw_frames"] - e["raw_start"] for e in entries.values()), reach)
     if before + after <= 0:
         raise ValueError(f"{subject}/{trial}: no common window")
     return before + after, {cam: e["raw_start"] - before for cam, e in entries.items()}
@@ -135,14 +146,14 @@ def raw_video(root, subject, trial, cam, session=SESSION):
     return os.path.join(camera_dir(root, subject, cam, session), trial, f"{trial}.avi")
 
 
-def cut_videos(root, subject, trial, dest, session=SESSION, windows=None):
+def cut_videos(root, subject, trial, dest, session=SESSION, windows=None, reach=None):
     """The 5 raw videos, re-cut to their common window so they are synchronised.
 
     Frames are selected by number, never by timestamp, so the alignment computed
     from `_RAW_WINDOWS.json` is exactly what ends up in the files.
     """
     windows = windows if windows is not None else read_windows(root)
-    length, starts = common_window(windows, subject, trial, session)
+    length, starts = common_window(windows, subject, trial, session, reach)
     os.makedirs(dest, exist_ok=True)
     ffmpeg = shutil.which("ffmpeg") or os.path.join(os.path.dirname(sys.executable), "ffmpeg")
     for cam in range(N_CAMERAS):
