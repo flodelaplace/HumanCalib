@@ -112,7 +112,7 @@ def read_windows(root):
         return json.load(f)
 
 
-def common_window(windows, subject, trial, session=SESSION, reach=None):
+def common_window(windows, subject, trial, session=SESSION, reach=None, shifts=None):
     """(length, {camera: first frame}) of the window the 5 cameras share.
 
     Every camera has its own `raw_start` for the same instant, so the window is
@@ -135,25 +135,27 @@ def common_window(windows, subject, trial, session=SESSION, reach=None):
         entries[cam] = windows[key]
     if reach is None:
         reach = max(int(e.get("sync_frames", 0)) for e in entries.values())
-    before = min(min(e["raw_start"] for e in entries.values()), reach)
-    after = min(min(e["raw_frames"] - e["raw_start"] for e in entries.values()), reach)
+    sh = {c: 0 for c in entries} if shifts is None else {c: int(shifts[c]) for c in entries}
+    starts = {c: e["raw_start"] + sh[c] for c, e in entries.items()}
+    before = min(min(starts.values()), reach)
+    after = min(min(e["raw_frames"] - starts[c] for c, e in entries.items()), reach)
     if before + after <= 0:
         raise ValueError(f"{subject}/{trial}: no common window")
-    return before + after, {cam: e["raw_start"] - before for cam, e in entries.items()}
+    return before + after, {c: starts[c] - before for c in entries}
 
 
 def raw_video(root, subject, trial, cam, session=SESSION):
     return os.path.join(camera_dir(root, subject, cam, session), trial, f"{trial}.avi")
 
 
-def cut_videos(root, subject, trial, dest, session=SESSION, windows=None, reach=None):
+def cut_videos(root, subject, trial, dest, session=SESSION, windows=None, reach=None, shifts=None):
     """The 5 raw videos, re-cut to their common window so they are synchronised.
 
     Frames are selected by number, never by timestamp, so the alignment computed
     from `_RAW_WINDOWS.json` is exactly what ends up in the files.
     """
     windows = windows if windows is not None else read_windows(root)
-    length, starts = common_window(windows, subject, trial, session, reach)
+    length, starts = common_window(windows, subject, trial, session, reach, shifts)
     os.makedirs(dest, exist_ok=True)
     ffmpeg = shutil.which("ffmpeg") or os.path.join(os.path.dirname(sys.executable), "ffmpeg")
     for cam in range(N_CAMERAS):
@@ -172,7 +174,7 @@ def cut_videos(root, subject, trial, dest, session=SESSION, windows=None, reach=
     return dest, length
 
 
-def prepare(root, subject, trial, out, session=SESSION):
+def prepare(root, subject, trial, out, session=SESSION, reach=None, shifts=None):
     """HumanCalib's input for one trial, plus the gold calibration.
 
     <out>/_videos/CamN.avi       the raw videos re-cut to a common window
@@ -185,7 +187,8 @@ def prepare(root, subject, trial, out, session=SESSION):
     os.makedirs(gold, exist_ok=True)
 
     cameras = read_rig(root, subject, session)
-    video_dir, length = cut_videos(root, subject, trial, os.path.join(out, "_videos"), session)
+    video_dir, length = cut_videos(root, subject, trial, os.path.join(out, "_videos"), session,
+                                   reach=reach, shifts=shifts)
 
     write_pose2sim_toml(cameras, os.path.join(inp, "Calib_scene.toml"), extrinsics=False)
     write_pose2sim_toml(cameras, os.path.join(gold, "Calib_gold.toml"), extrinsics=True)
@@ -195,7 +198,7 @@ def prepare(root, subject, trial, out, session=SESSION):
         "calibration": [os.path.join(camera_dir(root, subject, i, session),
                                      "cameraIntrinsicsExtrinsics.pickle") for i in range(N_CAMERAS)],
         "world": "video frame, Y down, metres",
-        "up": UP,
+        "up": UP, "shifts": list(shifts) if shifts is not None else None, "reach": reach,
     }
     with open(os.path.join(gold, "meta.json"), "w") as f:
         json.dump(meta, f, indent=2)
@@ -212,9 +215,14 @@ def main(argv=None):
     p.add_argument("--trial", required=True, help="e.g. walking1 or walkingTS2")
     p.add_argument("--out", required=True)
     p.add_argument("--session", default=SESSION)
+    p.add_argument("--reach", type=int, default=None,
+                   help="half-window in frames; default is the dataset's own sync_frames")
+    p.add_argument("--shifts", type=int, nargs=N_CAMERAS, default=None,
+                   help="extra per-camera frame shift, on top of raw_start (5 values)")
     args = parser.parse_args(argv)
     if args.command == "prepare":
-        prepare(args.root, args.subject, args.trial, args.out, args.session)
+        prepare(args.root, args.subject, args.trial, args.out, args.session,
+                reach=args.reach, shifts=args.shifts)
     return 0
 
 
