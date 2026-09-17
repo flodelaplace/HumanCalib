@@ -150,11 +150,15 @@ def read_timing(root):
 
 
 def video_path(root, subject, serial, rotated):
+    """The take number varies between subjects (_001 on subject 2, _002 on 3, 9, 11, 13),
+    so any take is accepted -- but only one, since the timing table has one per subject."""
     folder = os.path.join(root, "Videos", "Compressed_RGB_videos", f"Subject_{subject}", TRIAL)
-    pattern = f"{'Rotated_' if rotated else ''}{TRIAL}_001-Camera {serial} (*).mp4"
+    pattern = f"{'Rotated_' if rotated else ''}{TRIAL}_*-Camera {serial} (*).mp4"
     hits = sorted(glob.glob(os.path.join(folder, glob.escape(pattern).replace(r"[*]", "*"))))
     if not hits:
         raise FileNotFoundError(os.path.join(folder, pattern))
+    if len(hits) > 1:
+        raise ValueError(f"several takes for camera {serial} of subject {subject}: {hits}")
     return hits[0]
 
 

@@ -1,4 +1,6 @@
 """IMOVE reader: the side-mounted cameras and the out-and-back window."""
+import os
+
 import cv2
 import numpy as np
 import pytest
@@ -51,6 +53,20 @@ def test_the_upright_turn_points_the_image_down_the_world():
     up = imove.upright(cam)
     assert up.R[1] @ np.array(imove.UP) < -0.9
     assert up.K[0, 2] == pytest.approx(cam.K[1, 2])          # counter-clockwise: cx' = cy
+
+
+def test_video_path_accepts_any_take_but_only_one(tmp_path):
+    folder = tmp_path / "Videos" / "Compressed_RGB_videos" / "Subject_3" / imove.TRIAL
+    folder.mkdir(parents=True)
+    for name in ("t1_walking_002-Camera 21 (C11398).mp4", "Rotated_t1_walking_002-Camera 22 (C11399).mp4",
+                 "t1_walking_002-Camera 22 (C11399).mp4"):
+        (folder / name).touch()
+    assert imove.video_path(str(tmp_path), 3, "21", False).endswith("t1_walking_002-Camera 21 (C11398).mp4")
+    assert os.path.basename(imove.video_path(str(tmp_path), 3, "22", True)).startswith("Rotated_")
+    assert not os.path.basename(imove.video_path(str(tmp_path), 3, "22", False)).startswith("Rotated_")
+    (folder / "t1_walking_003-Camera 21 (C11398).mp4").touch()
+    with pytest.raises(ValueError, match="several takes"):
+        imove.video_path(str(tmp_path), 3, "21", False)
 
 
 def test_walk_window_spans_both_passes_and_the_gap():
