@@ -26,6 +26,10 @@ Chaque entrée : décision, raison, conséquence. Le détail daté est dans
   étaient estimés avec la gold : les publier reviendrait à évaluer avec la référence.
   Les runs « resync » restent une analyse de sensibilité. Conséquence : relancer les
   9 sujets (~2 h) ; résultats attendus un peu moins bons que 2,06°.
+- **OpenCap, révision du 17/09 après-midi : synchronisation vérifiée à la main** (Florian, image
+  par image sur un événement de la marche), validée par reprojection ; fenêtre asymétrique
+  [−30, +120] pour exclure l'opérateur présent avant l'entrée du sujet. Remplace « fenêtres du jeu
+  seules » ; phrase de l'article : « synchronisation des caméras vérifiée image par image ».
 - **La resynchronisation n'est pas décrite comme méthode** : « un dataset propre est
   censé être bien synchronisé » (Florian, 16/09).
 - **Démo Pose2Sim écartée** des statistiques (sujet sur une poutre, stature inconnue).

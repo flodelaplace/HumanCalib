@@ -70,6 +70,14 @@ LBMC : RTMPose 3,27 / 3,17° contre MeTRAbs 1,47 / 3,08° ; même plafond des de
   petits (6–12 images sur 1–3 caméras) chez 6 sujets sur 9.
 - Sans nos décalages (fenêtres du jeu seules) sur les essais déjà testés : s2 w2 1,79°
   (au lieu de 1,61), s3 w1 2,13° (au lieu de 1,19).
+- **Synchronisation vérifiée à la main par Florian** (s2 walking1 : Cam1 −6, Cam2 −107, Cam3 +4
+  images) : confirmée par reprojection avec la gold à l'image près (minima 3,2 / 11 / 6,0 px) ;
+  l'estimateur automatique ratait les petits décalages. Un opérateur est en champ avant l'entrée
+  du sujet → fenêtre **[−30, +120]** images autour de l'instant officiel (150 images). Résultat :
+  **1,55° (pire paire 2,23°), 46 mm en 7 ddl, 60 mm en 4 ddl, MRE 2,2 px**, contre 2,14° / 88 mm /
+  4,4 px avec Cam2 seule corrigée et 240 images. Bien synchronisé et bien fenêtré, OpenCap
+  atteint le MRE de BioCV et ~1,5°. Règle retenue pour l'article : synchro vérifiée image par
+  image sur chaque essai retenu, fenêtre [−30, +120].
 
 ## 5. La gold est-elle en cause ? Test de cohérence hors échantillon
 
