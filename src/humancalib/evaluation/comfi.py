@@ -118,9 +118,12 @@ def align(ts_ref, ts_other, max_mismatch=MAX_MISMATCH_S):
     return np.where(ok, pick, -1)
 
 
-def common_window(ts):
-    """{camera: frame indices} of the longest run of reference frames every camera matches.
-    ts: {camera: timestamps}; the reference is the first camera."""
+MAX_FRAMES = 1000               # 25 s at 40 Hz: more frames do not improve the calibration and cost minutes
+
+
+def common_window(ts, max_frames=MAX_FRAMES):
+    """{camera: frame indices} of the longest run of reference frames every camera matches,
+    cut to its first `max_frames`. ts: {camera: timestamps}; the reference is the first camera."""
     ref = CAMERAS[0]
     idx = {ref: np.arange(len(ts[ref]))}
     good = np.ones(len(ts[ref]), bool)
@@ -135,6 +138,8 @@ def common_window(ts):
         if run > best[0]:
             best = (run, i - run + 1)
     length, first = best
+    if max_frames:
+        length = min(length, int(max_frames))
     sel = np.arange(first, first + length)
     return {n: idx[n][sel] for n in CAMERAS}
 
@@ -165,14 +170,14 @@ def cut_videos(src_dir, dest, frames):
     return dest
 
 
-def prepare(cam_root, video_root, participant, trial, out):
+def prepare(cam_root, video_root, participant, trial, out, max_frames=MAX_FRAMES):
     inp, gold = os.path.join(out, "input"), os.path.join(out, "gold")
     os.makedirs(inp, exist_ok=True)
     os.makedirs(gold, exist_ok=True)
     cameras = read_rig(cam_root, participant)
     src = trial_dir(video_root, participant, trial)
     ts = {n: read_timestamps(os.path.join(src, f"camera_{n}_timestamps.csv")) for n in CAMERAS}
-    frames = common_window(ts)
+    frames = common_window(ts, max_frames)
     video_dir = cut_videos(src, os.path.join(out, "_videos"), frames)
     write_pose2sim_toml(cameras, os.path.join(inp, "Calib_scene.toml"), extrinsics=False)
     write_pose2sim_toml(cameras, os.path.join(gold, "Calib_gold.toml"), extrinsics=True)
@@ -200,8 +205,9 @@ def main(argv=None):
     p.add_argument("--participant", required=True)
     p.add_argument("--trial", default="CircularWalking")
     p.add_argument("--out", required=True)
+    p.add_argument("--max_frames", type=int, default=MAX_FRAMES, help="0 = whole common window")
     args = parser.parse_args(argv)
-    prepare(args.cam_root, args.video_root, args.participant, args.trial, args.out)
+    prepare(args.cam_root, args.video_root, args.participant, args.trial, args.out, args.max_frames)
     return 0
 
 

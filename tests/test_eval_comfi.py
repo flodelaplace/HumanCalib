@@ -55,3 +55,5 @@ def test_common_window_is_the_longest_run_everyone_matches():
     assert 9 <= n <= 12 and all(len(frames[c]) == n for c in (2, 4, 6))
     assert 7 not in frames[0]                        # the hole splits the run; the longer side is kept
     assert np.all(np.diff(frames[4]) >= 0)          # a single lost frame is filled by repeating a neighbour
+    short = comfi.common_window(ts, max_frames=5)
+    assert all(len(short[c]) == 5 for c in (0, 2, 4, 6)) and short[0][0] == frames[0][0]
