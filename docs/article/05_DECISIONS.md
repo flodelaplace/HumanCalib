@@ -35,7 +35,7 @@ Chaque entrée : décision, raison, conséquence. Le détail daté est dans
 - **Démo Pose2Sim écartée** des statistiques (sujet sur une poutre, stature inconnue).
 - **Tapis (LBMC)** : rapporté tel quel, avec le message « se déplacer dans la scène même
   pour une acquisition sur tapis » (MRE bon au centre, rotations mal contraintes).
-- **OpenCap : 2 marches naturelles par sujet (walking1 et walking2), 18 essais, synchro relevée à la
+- **OpenCap : 2 marches naturelles par sujet (walking1 et walking2 ; subject11 walking2 et walking3, pas de walking1), 18 essais, synchro relevée à la
   main par Florian sur chacun** (17/09) ; fenêtre = plage de visibilité mesurée par essai (repérage
   sur planches, `~/humancalib_eval/OpenCap/_visibility/`), la règle fixe [−30, +120] ne tenant pas
   (s8 : [−78, +72]). Premiers résultats : s2 w1 2,14 → 1,55°, s8 w1 2,11 → 1,96° ; 7 ddl 88 → 46 mm et
