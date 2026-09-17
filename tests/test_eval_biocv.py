@@ -171,3 +171,40 @@ def test_walking_vertical_removes_the_forward_lean():
                 p2d[c, f, j] = _cv2.projectPoints(X.reshape(1, 3), _cv2.Rodrigues(Rs[c])[0], ts[c], K, None)[0].ravel()
     up = walking_vertical(p2d, s2d, np.array([K] * 4), np.array(Rs), np.array(ts), feet, head, ankles, step=1)
     assert np.degrees(np.arccos(abs(up @ [0, 0, 1.0]))) < 0.5
+
+
+def test_segment_scale_adds_the_trunk_for_halpe26():
+    """RTMPose (Halpe26): legs 2 + 2 units and trunk 1 unit -> 1.80 x (0.491 + 0.288) / 5."""
+    import cv2 as _cv2
+    from humancalib.postprocessing.scale_scene import LEG_RATIO, LEGS, TRUNK, TRUNK_RATIO, joint_layout, segment_scale
+    rng = np.random.default_rng(1)
+    K = np.array([[1000.0, 0, 960], [0, 1000.0, 540], [0, 0, 1]])
+    Rs, ts = [], []
+    for a in np.radians([0, 90, 180, 270]):
+        C = np.array([20 * np.cos(a), 20 * np.sin(a), 3.0])
+        z = -C / np.linalg.norm(C)
+        x = np.cross(z, [0, 0, 1.0]); x /= np.linalg.norm(x)
+        R = np.vstack([x, np.cross(z, x), z])
+        Rs.append(R); ts.append(-R @ C)
+    F = 40
+    p2d = np.zeros((4, F, 26, 2)); s2d = np.zeros((4, F, 26))
+    mid_hip, neck = TRUNK["halpe26"]
+    for f in range(F):
+        pts = {mid_hip: np.array([0.25, 0.1 * f, 4.0])}
+        d = rng.normal(size=3); d /= np.linalg.norm(d)
+        pts[neck] = pts[mid_hip] + d
+        for side, (hip, knee, ankle) in enumerate(LEGS["halpe26"]):
+            H = np.array([0.5 * side, 0.1 * f, 4.0])
+            d = rng.normal(size=3); d /= np.linalg.norm(d)
+            pts[hip], pts[knee] = H, H - np.array([0, 0, 2.0])
+            pts[ankle] = pts[knee] + 2.0 * d
+        for c in range(4):
+            for j, X in pts.items():
+                p2d[c, f, j] = _cv2.projectPoints(X.reshape(1, 3), _cv2.Rodrigues(Rs[c])[0], ts[c], K, None)[0].ravel()
+                s2d[c, f, j] = 1.0
+    s = segment_scale(p2d, s2d, np.array([K] * 4), np.array(Rs), np.array(ts), LEGS["halpe26"], 1.80, step=1,
+                      trunk=TRUNK["halpe26"])
+    assert s == pytest.approx(1.80 * (LEG_RATIO + TRUNK_RATIO) / 5.0, rel=1e-6)
+    # MeTRAbs layouts keep legs alone
+    assert joint_layout("/nonexistent", "noise_1_0", "metrabs").get("trunk") is None
+    assert joint_layout("/nonexistent", "noise_1_0", "rtmpose")["trunk"] == TRUNK["halpe26"]

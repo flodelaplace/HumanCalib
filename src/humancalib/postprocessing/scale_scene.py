@@ -67,9 +67,11 @@ BML87_L_FIFTHMET = 22
 BML87_R_FIFTHMET = 53
 
 # Thigh (hip-knee) + shank (knee-ankle) as a fraction of stature, Drillis & Contini
-# (Winter, Biomechanics and Motor Control of Human Movement, 4th ed., fig. 4.1).
+# (Winter, Biomechanics and Motor Control of Human Movement, 4th ed., fig. 4.1); de Leva
+# (J Biomech 1996, joint centres) gives 0.492 for men. Hip to shoulder: 0.818 - 0.530.
 # Fixed from the literature, not fitted to any evaluation data.
 LEG_RATIO = 0.245 + 0.246
+TRUNK_RATIO = 0.288
 
 # (hip, knee, ankle) per side, for each joint layout.
 LEGS = {
@@ -77,25 +79,33 @@ LEGS = {
     "calib26": ((14, 16, 18), (15, 17, 19)),
     "halpe26": ((11, 13, 15), (12, 14, 16)),
 }
+# (mid-hip, neck) of the layouts whose scale adds the trunk to the legs. Only Halpe26 (RTMPose):
+# its hip keypoints sit about 85 mm in front of the joint centre, which lengthens the thigh
+# and shortens the trunk by opposite amounts. Legs alone overestimated RTMPose scale by +5 %
+# on BioCV, legs + trunk -1.8 %; MeTRAbs, whose hips are joint centres, keeps legs alone
+# (+1 to +2 %, where legs + trunk gives -2 to -3 %). docs/EVALUATION_PROTOCOL.md, journal.
+TRUNK = {"halpe26": (19, 18)}
 
 
-def segment_scale(p2d_all, s2d_all, K, R_w2c, t_w2c, legs, height, conf_threshold=0.5, step=2):
-    """Metres per calibration unit, from leg segment lengths over the whole sequence.
+def segment_scale(p2d_all, s2d_all, K, R_w2c, t_w2c, legs, height, conf_threshold=0.5, step=2, trunk=None):
+    """Metres per calibration unit, from segment lengths over the whole sequence.
 
     The head-height method measures one frame, from a head keypoint that is not
     the top of the skull, on a person who may be mid-stride: every bias shortens
     the measured height, and on BioCV it overestimated scale by about 11 %.
     Segment lengths do not depend on posture and are measured on every frame:
     hip, knee and ankle are triangulated by camera consensus, the median thigh
-    and shank lengths are summed, and compared with LEG_RATIO x stature.
+    and shank lengths are summed, and compared with LEG_RATIO x stature. With
+    `trunk` = (mid-hip, neck), the median trunk length is added and compared with
+    (LEG_RATIO + TRUNK_RATIO) x stature.
     Returns None when too few frames could be triangulated.
     """
     from humancalib.pipeline.reselect_person import robust_triangulate
 
     C = p2d_all.shape[0]
     Ps = np.array([K[c] @ np.hstack([R_w2c[c], np.asarray(t_w2c[c]).reshape(3, 1)]) for c in range(C)])
-    joints = [j for side in legs for j in side]
-    thigh, shank = [], []
+    joints = [j for side in legs for j in side] + (list(trunk) if trunk else [])
+    thigh, shank, torso = [], [], []
     for f in range(0, p2d_all.shape[1], step):
         pts = p2d_all[:, f, joints, :]
         valid = s2d_all[:, f, joints] > conf_threshold
@@ -106,10 +116,16 @@ def segment_scale(p2d_all, s2d_all, K, R_w2c, t_w2c, legs, height, conf_threshol
             hip, knee, ankle = X[3 * side], X[3 * side + 1], X[3 * side + 2]
             thigh.append(np.linalg.norm(hip - knee))
             shank.append(np.linalg.norm(knee - ankle))
-    thigh, shank = np.asarray(thigh), np.asarray(shank)
+        if trunk:
+            torso.append(np.linalg.norm(X[6] - X[7]))
+    thigh, shank, torso = np.asarray(thigh), np.asarray(shank), np.asarray(torso)
     if np.isfinite(thigh).sum() < 10 or np.isfinite(shank).sum() < 10:
         return None
-    return height * LEG_RATIO / (np.nanmedian(thigh) + np.nanmedian(shank))
+    if not trunk:
+        return height * LEG_RATIO / (np.nanmedian(thigh) + np.nanmedian(shank))
+    if np.isfinite(torso).sum() < 10:
+        return None
+    return height * (LEG_RATIO + TRUNK_RATIO) / (np.nanmedian(thigh) + np.nanmedian(shank) + np.nanmedian(torso))
 
 
 def walking_vertical(p2d_all, s2d_all, K, R_w2c, t_w2c, feet, head, ankles, conf_threshold=0.5,
@@ -208,7 +224,7 @@ def joint_layout(prefix, subset, pose_engine):
                 "head": CALIB26_HEAD, "l_heel": CALIB26_L_HEEL, "r_heel": CALIB26_R_HEEL,
                 "feet": [CALIB26_L_HEEL, CALIB26_R_HEEL, CALIB26_L_TOE, CALIB26_R_TOE,
                          CALIB26_L_FOO, CALIB26_R_FOO]}
-    return {"name": "halpe26", "n_joints": n_joints, "legs": LEGS["halpe26"],
+    return {"name": "halpe26", "n_joints": n_joints, "legs": LEGS["halpe26"], "trunk": TRUNK["halpe26"],
             "joint_dir": os.path.join(prefix, subset, "2d_joint_halpe26"),
             "head": HALPE26_HEAD, "l_heel": HALPE26_L_HEEL, "r_heel": HALPE26_R_HEEL,
             "feet": [HALPE26_L_HEEL, HALPE26_R_HEEL, HALPE26_L_BIG_TOE,
@@ -355,11 +371,12 @@ def main(argv=None):
     scale_factor = args.height / measured_height
     if args.scale_method == "segments":
         seg = segment_scale(p2d_all, s2d_all, K, R_w2c_orig, t_w2c_orig, layout["legs"], args.height,
-                            args.conf_threshold)
+                            args.conf_threshold, trunk=layout.get("trunk"))
+        what = "leg and trunk segments" if layout.get("trunk") else "leg segments"
         if seg is None:
-            log.warning("Too few frames to measure leg segments; using the head height instead")
+            log.warning(f"Too few frames to measure {what}; using the head height instead")
         else:
-            log.info(f"Scale from leg segments: {seg:.4f} (head height on frame {args.frame_idx}: {scale_factor:.4f})")
+            log.info(f"Scale from {what}: {seg:.4f} (head height on frame {args.frame_idx}: {scale_factor:.4f})")
             scale_factor = seg
     log.info(f"Calculated scale factor: {scale_factor:.4f}")
 
