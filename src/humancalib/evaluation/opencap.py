@@ -112,20 +112,24 @@ def read_windows(root):
         return json.load(f)
 
 
-def common_window(windows, subject, trial, session=SESSION, reach=None, shifts=None):
+def common_window(windows, subject, trial, session=SESSION, reach=None, shifts=None, before=None, after=None):
     """(length, {camera: first frame}) of the window the 5 cameras share.
 
     Every camera has its own `raw_start` for the same instant, so the window is
-    measured relative to it: `reach` frames on each side, clipped to what the
-    earliest and the shortest camera allow.
+    measured relative to it: `before` frames before it and `after` frames after,
+    clipped to what the earliest and the shortest camera allow. `reach` sets
+    both at once; when nothing is given, both default to the dataset's own
+    `sync_frames`, the window OpenCap validated for this trial.
 
-    The window is centred, not maximised. Taking everything the cameras share
-    gave 463 frames on subject2/walking1, of which 150 showed the subject in no
-    camera at all and only ~160 had four cameras seeing them whole: the linear
-    stage then fell back to its 2-of-5 visibility rule and the calibration was
-    worthless. `reach` defaults to the dataset's own `sync_frames`, the window
-    OpenCap validated for this trial, so the span adapts to each trial instead
-    of being a constant tuned on our metrics.
+    The window is not maximised. Taking everything the cameras share gave 463
+    frames on subject2/walking1, of which 150 showed the subject in no camera
+    at all and only ~160 had four cameras seeing them whole: the linear stage
+    then fell back to its 2-of-5 visibility rule and the calibration was
+    worthless. It should not extend far before the instant either: an operator
+    walks the volume before the subject enters (subject2/walking1, camera 4:
+    subject in shot from frame ~280 to ~430, official instant 312), so a
+    symmetric 120-frame window picked up the wrong person. Florian's choice
+    for the article: 30 before, 120 after.
     """
     entries = {}
     for cam in range(N_CAMERAS):
@@ -135,10 +139,12 @@ def common_window(windows, subject, trial, session=SESSION, reach=None, shifts=N
         entries[cam] = windows[key]
     if reach is None:
         reach = max(int(e.get("sync_frames", 0)) for e in entries.values())
+    before = reach if before is None else int(before)
+    after = reach if after is None else int(after)
     sh = {c: 0 for c in entries} if shifts is None else {c: int(shifts[c]) for c in entries}
     starts = {c: e["raw_start"] + sh[c] for c, e in entries.items()}
-    before = min(min(starts.values()), reach)
-    after = min(min(e["raw_frames"] - starts[c] for c, e in entries.items()), reach)
+    before = min(min(starts.values()), before)
+    after = min(min(e["raw_frames"] - starts[c] for c, e in entries.items()), after)
     if before + after <= 0:
         raise ValueError(f"{subject}/{trial}: no common window")
     return before + after, {c: starts[c] - before for c in entries}
@@ -148,14 +154,15 @@ def raw_video(root, subject, trial, cam, session=SESSION):
     return os.path.join(camera_dir(root, subject, cam, session), trial, f"{trial}.avi")
 
 
-def cut_videos(root, subject, trial, dest, session=SESSION, windows=None, reach=None, shifts=None):
+def cut_videos(root, subject, trial, dest, session=SESSION, windows=None, reach=None, shifts=None,
+               before=None, after=None):
     """The 5 raw videos, re-cut to their common window so they are synchronised.
 
     Frames are selected by number, never by timestamp, so the alignment computed
     from `_RAW_WINDOWS.json` is exactly what ends up in the files.
     """
     windows = windows if windows is not None else read_windows(root)
-    length, starts = common_window(windows, subject, trial, session, reach, shifts)
+    length, starts = common_window(windows, subject, trial, session, reach, shifts, before, after)
     os.makedirs(dest, exist_ok=True)
     ffmpeg = shutil.which("ffmpeg") or os.path.join(os.path.dirname(sys.executable), "ffmpeg")
     for cam in range(N_CAMERAS):
@@ -174,7 +181,7 @@ def cut_videos(root, subject, trial, dest, session=SESSION, windows=None, reach=
     return dest, length
 
 
-def prepare(root, subject, trial, out, session=SESSION, reach=None, shifts=None):
+def prepare(root, subject, trial, out, session=SESSION, reach=None, shifts=None, before=None, after=None):
     """HumanCalib's input for one trial, plus the gold calibration.
 
     <out>/_videos/CamN.avi       the raw videos re-cut to a common window
@@ -188,7 +195,7 @@ def prepare(root, subject, trial, out, session=SESSION, reach=None, shifts=None)
 
     cameras = read_rig(root, subject, session)
     video_dir, length = cut_videos(root, subject, trial, os.path.join(out, "_videos"), session,
-                                   reach=reach, shifts=shifts)
+                                   reach=reach, shifts=shifts, before=before, after=after)
 
     write_pose2sim_toml(cameras, os.path.join(inp, "Calib_scene.toml"), extrinsics=False)
     write_pose2sim_toml(cameras, os.path.join(gold, "Calib_gold.toml"), extrinsics=True)
@@ -199,6 +206,7 @@ def prepare(root, subject, trial, out, session=SESSION, reach=None, shifts=None)
                                      "cameraIntrinsicsExtrinsics.pickle") for i in range(N_CAMERAS)],
         "world": "video frame, Y down, metres",
         "up": UP, "shifts": list(shifts) if shifts is not None else None, "reach": reach,
+        "before": before, "after": after,
     }
     with open(os.path.join(gold, "meta.json"), "w") as f:
         json.dump(meta, f, indent=2)
@@ -219,10 +227,12 @@ def main(argv=None):
                    help="half-window in frames; default is the dataset's own sync_frames")
     p.add_argument("--shifts", type=int, nargs=N_CAMERAS, default=None,
                    help="extra per-camera frame shift, on top of raw_start (5 values)")
+    p.add_argument("--before", type=int, default=None, help="frames before the sync instant (overrides --reach)")
+    p.add_argument("--after", type=int, default=None, help="frames after the sync instant (overrides --reach)")
     args = parser.parse_args(argv)
     if args.command == "prepare":
         prepare(args.root, args.subject, args.trial, args.out, args.session,
-                reach=args.reach, shifts=args.shifts)
+                reach=args.reach, shifts=args.shifts, before=args.before, after=args.after)
     return 0
 
 

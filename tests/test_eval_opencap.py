@@ -75,6 +75,11 @@ def test_common_window_aligns_cameras_that_start_at_different_moments():
     # a wider reach is clipped by the shortest camera, never by the longest
     long_length, _ = opencap.common_window(windows, "subject2", "walking1", reach=10_000)
     assert long_length == 300 + 163
+    # an asymmetric window: 30 frames before the instant, 120 after, per-camera shifts applied
+    length, starts = opencap.common_window(windows, "subject2", "walking1", before=30, after=120,
+                                           shifts=[0, -6, -107, 4, 0])
+    assert length == 150
+    assert starts == {0: 270, 1: 312, 2: 295, 3: 274, 4: 282}
 
 
 def test_common_window_reports_a_missing_camera():
