@@ -32,6 +32,21 @@ from humancalib.evaluation.rig import read_pose2sim_toml
 log = get_logger(__name__)
 
 
+def display_rotation(up):
+    """Rotation that turns the gold world so its vertical points up the figure.
+
+    Errors are computed in the gold world; only what is drawn is turned. Without it a
+    Y-down world such as OpenCap's is drawn lying on its side, cameras under the floor."""
+    u = np.asarray(up, float) / np.linalg.norm(up)
+    z = np.array([0.0, 0.0, 1.0])
+    axis = np.cross(u, z)
+    if np.linalg.norm(axis) < 1e-9:
+        return np.eye(3) if u @ z > 0 else np.diag([1.0, -1.0, -1.0])
+    import cv2
+    angle = np.arccos(np.clip(u @ z, -1.0, 1.0))
+    return cv2.Rodrigues(axis / np.linalg.norm(axis) * angle)[0]
+
+
 def plot_rigs(est, gold, up_est, up_gold, path, title=""):
     import matplotlib
     matplotlib.use("Agg")
@@ -41,30 +56,33 @@ def plot_rigs(est, gold, up_est, up_gold, path, title=""):
     Ce = np.array([e.center for e in est])
     T4, b4 = M.yaw_align(Ce, Cg, up_est, up_gold)
     s7, T7, b7 = M.umeyama(Ce, Cg)
-    views = (("top (x, y)", 0, 1), ("side (x, z)", 0, 2))
+    D = display_rotation(up_gold)
+    Cg_d = Cg @ D.T
+    views = (("top", 0, 1), ("side", 0, 2))
     fig, axes = plt.subplots(2, 2, figsize=(13, 10))
     for row, (T, b, s, name) in enumerate(((T4, b4, 1.0, "4-DoF registration: HumanCalib's own vertical and scale"),
                                            (T7, b7, s7, "7-DoF registration: rig shape only"))):
         A = s * Ce @ T.T + b
         err = np.linalg.norm(A - Cg, axis=1) * 1000
         rot = [M.rotation_angle_deg((est[i].R @ T.T) @ gold[i].R.T) for i in range(len(gold))]
+        A_d = A @ D.T
         for col, (vname, i, j) in enumerate(views):
             ax = axes[row, col]
             for k, g in enumerate(gold):
-                zg = g.R.T @ np.array([0.0, 0.0, 1.0])
-                ze = T @ (est[k].R.T @ np.array([0.0, 0.0, 1.0]))
-                ax.plot(Cg[k, i], Cg[k, j], "o", color="tab:green", ms=9)
-                ax.arrow(Cg[k, i], Cg[k, j], 0.8 * zg[i], 0.8 * zg[j], color="tab:green", width=0.02)
-                ax.plot(A[k, i], A[k, j], "x", color="tab:red", ms=10, mew=2)
-                ax.arrow(A[k, i], A[k, j], 0.8 * ze[i], 0.8 * ze[j], color="tab:red", width=0.01)
-                ax.annotate(g.name, (Cg[k, i], Cg[k, j]), xytext=(4, 4), textcoords="offset points", fontsize=8)
+                zg = D @ g.R.T @ np.array([0.0, 0.0, 1.0])
+                ze = D @ T @ (est[k].R.T @ np.array([0.0, 0.0, 1.0]))
+                ax.plot(Cg_d[k, i], Cg_d[k, j], "o", color="tab:green", ms=9)
+                ax.arrow(Cg_d[k, i], Cg_d[k, j], 0.8 * zg[i], 0.8 * zg[j], color="tab:green", width=0.02)
+                ax.plot(A_d[k, i], A_d[k, j], "x", color="tab:red", ms=10, mew=2)
+                ax.arrow(A_d[k, i], A_d[k, j], 0.8 * ze[i], 0.8 * ze[j], color="tab:red", width=0.01)
+                ax.annotate(g.name, (Cg_d[k, i], Cg_d[k, j]), xytext=(4, 4), textcoords="offset points", fontsize=8)
             if j == 2:
-                ax.set_ylim(0, max(2.5, float(Cg[:, 2].max()) + 0.8))   # side view: keep height readable
+                ax.set_ylim(0, max(2.5, float(Cg_d[:, 2].max()) + 0.8))   # side view: keep height readable
             else:
                 ax.set_aspect("equal")
             ax.grid(alpha=0.3)
-            ax.set_xlabel(f"{'xyz'[i]} (m)")
-            ax.set_ylabel(f"{'xyz'[j]} (m)")
+            ax.set_xlabel("horizontal (m)")
+            ax.set_ylabel("height (m)" if j == 2 else "horizontal (m)")
             ax.set_title(f"{name} — {vname} view\nposition error median {np.median(err):.0f} mm (max {err.max():.0f}), "
                          f"orientation error median {np.median(rot):.2f}° (max {max(rot):.2f}°)", fontsize=9)
     fig.suptitle(f"{title}   green = gold (lab calibration), red = HumanCalib, arrow = optical axis", fontsize=11)
@@ -125,14 +143,16 @@ def plot_rigs_3d(est, gold, up_est, up_gold, path, skeleton=None, title="", regi
         label = f"7-DoF registration: similarity, rig shape only (scale factor {s:.3f})"
     fig = plt.figure(figsize=(11, 9))
     ax = fig.add_subplot(111, projection="3d")
+    D = display_rotation(up_gold)                      # drawing only: gold vertical up the figure
 
     def frustum(cam, R_world, C_world, color, lw, depth=0.6):
         w, h = cam.size
         K_inv = np.linalg.inv(cam.K)
         corners = np.array([[0, 0, 1], [w, 0, 1], [w, h, 1], [0, h, 1]], float) @ K_inv.T * depth
-        pts = corners @ R_world.T + C_world            # camera -> world
+        pts = (corners @ R_world.T + C_world) @ D.T    # camera -> world -> figure
+        c = D @ C_world
         for q in pts:
-            ax.plot(*zip(C_world, q), color=color, lw=lw)
+            ax.plot(*zip(c, q), color=color, lw=lw)
         loop = np.vstack([pts, pts[:1]])
         ax.plot(loop[:, 0], loop[:, 1], loop[:, 2], color=color, lw=lw)
 
@@ -142,33 +162,36 @@ def plot_rigs_3d(est, gold, up_est, up_gold, path, skeleton=None, title="", regi
         Cw_est = s * T @ Ce[k] + b
         frustum(g, g.R.T, Cg[k], "tab:green", 2.0)
         frustum(est[k], Rw_est, Cw_est, "tab:red", 1.2)
-        ax.text(*(Cg[k] + [0, 0, 0.25]), g.name, fontsize=8)
+        ax.text(*(D @ Cg[k] + [0, 0, 0.25]), g.name, fontsize=8)
         pos_err.append(np.linalg.norm(Cw_est - Cg[k]) * 1000)
         rot_err.append(M.rotation_angle_deg(Rw_est.T @ g.R.T))
 
-    lo, hi = Cg.min(axis=0) - 1.0, Cg.max(axis=0) + 1.0
-    gx, gy = np.meshgrid(np.linspace(lo[0], hi[0], 12), np.linspace(lo[1], hi[1], 12))
-    up_g = np.asarray(up_gold, float) / np.linalg.norm(up_gold)
-    if abs(up_g[2]) > 0.9:                             # floor drawn for a z-up gold world
-        ax.plot_wireframe(gx, gy, np.zeros_like(gx), color="0.8", lw=0.5)
+    shown = [Cg @ D.T]
+    Xw = None
     if skeleton is not None:
-        Xw = s * skeleton @ T.T + b
+        Xw = (s * skeleton @ T.T + b) @ D.T
+        shown.append(Xw[np.isfinite(Xw).all(axis=1)])
+    shown = np.vstack(shown)
+    lo, hi = shown.min(axis=0) - 1.0, shown.max(axis=0) + 1.0
+    gx, gy = np.meshgrid(np.linspace(lo[0], hi[0], 12), np.linspace(lo[1], hi[1], 12))
+    ax.plot_wireframe(gx, gy, np.zeros_like(gx), color="0.8", lw=0.5)   # floor: height 0 of the gold world
+    if Xw is not None:
         for i, j in HALPE26_BONES:
             if np.isfinite(Xw[[i, j]]).all():
                 ax.plot(*zip(Xw[i], Xw[j]), color="tab:blue", lw=2)
 
-    ax.set_xlabel("x (m)")
-    ax.set_ylabel("y (m)")
-    ax.set_zlabel("z (m)")
-    top = max(2.5, float(Cg[:, 2].max()) + 0.8)
+    ax.set_xlabel("horizontal (m)")
+    ax.set_ylabel("horizontal (m)")
+    ax.set_zlabel("height (m)")
+    top = max(2.5, float(shown[:, 2].max()) + 0.8)
     ax.set_xlim(lo[0], hi[0])
     ax.set_ylim(lo[1], hi[1])
     ax.set_zlim(0, top)
     ax.set_box_aspect((hi[0] - lo[0], hi[1] - lo[1], top))      # metric proportions
     ax.view_init(elev=24, azim=-58)
     ax.set_title(f"{title}\n{len(gold)} cameras, lab world frame ({label})\n"
-                 f"camera position error median {np.median(pos_err):.0f} mm, orientation error median "
-                 f"{np.median(rot_err):.2f}°", fontsize=10)
+                 f"camera position error median {np.median(pos_err):.0f} mm (registration fitted on all cameras), "
+                 f"orientation error median {np.median(rot_err):.2f}°", fontsize=10)
     fig.tight_layout()
     fig.savefig(path, dpi=110)
     plt.close(fig)

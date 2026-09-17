@@ -155,3 +155,13 @@ def test_rig_figure_is_written(tmp_path):
     path = tmp_path / "rig.png"
     plot_rigs(est, gold, [0, -1, 0], UP_GOLD, str(path), title="synthetic")
     assert path.stat().st_size > 10000
+
+
+def test_display_rotation_puts_the_gold_vertical_up_the_figure():
+    """OpenCap's world is Y-down: drawn as is, the rig lies on its side."""
+    from humancalib.evaluation.plot_rig import display_rotation
+    for up in ([0, 0, 1], [0, -1, 0], [0, 0, -1], [1, 1, 0]):
+        D = display_rotation(up)
+        u = np.asarray(up, float) / np.linalg.norm(up)
+        assert np.allclose(D @ u, [0, 0, 1])
+        assert np.allclose(D @ D.T, np.eye(3)) and np.isclose(np.linalg.det(D), 1.0)
