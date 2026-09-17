@@ -42,7 +42,9 @@ Florian (§6).
 ### Ablations (en grande partie faites)
 BA / sans BA ; v1 → v4 ; nombre d'images ; 200 vs 50 Hz ; 5 vs 9 caméras ; moteurs ;
 jambes vs jambes+tronc ; **durée de marche nécessaire** (tronquer à 2, 5, 10, 20 s ;
-poses déjà calculées) ; **couverture spatiale** (tapis / couloir / cercle) chiffrée.
+poses déjà calculées) → livrer une **recommandation chiffrée « nombre d'images optimal »
+temps contre précision** (demande de Florian, 17/09 ; COMFI est déjà coupé à 1000 images
+= 25 s) ; **couverture spatiale** (tapis / couloir / cercle) chiffrée.
 
 ### Praticité
 Temps de calcul, secondes de vidéo utilisées, matériel nul ; incertitude de la gold
