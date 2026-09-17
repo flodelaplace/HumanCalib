@@ -10,7 +10,7 @@ smartphones proches, tapis roulant, webcams. Toutes les données sont sous
 | **IMOVE-23** | grand couloir, 10 caméras | 10 Miqus 1080p, 100 Hz (2 en portrait) | Qualisys XML par sujet | 11 sujets × 1 aller-retour | `imove.py` |
 | **OpenCap** | 5 iPhones en arc serré | 5 × 720×1280 portrait, 60 Hz, **pas de synchro matérielle** | damier, intrinsèques génériques du modèle d'iPhone | 9 sujets × 1 marche naturelle | `opencap.py` |
 | **LBMC** | tapis roulant | 9 Miqus portrait 1088×1920, 60 Hz | Qualisys wand (résidu 0,19 mm), **un seul rig** | 2 participants × marche | `lbmc.py` |
-| **COMFI** (LAAS-CNRS, Toulouse) | marche circulaire, 4 webcams 1280×720 à 40 Hz | **À FAIRE** : dossier caméras et marqueurs en cours de réception | 18 participants | à écrire |
+| **COMFI** (LAAS-CNRS, Toulouse) | marche circulaire, 4 webcams 1280×720 à 40 Hz, horodatages logiciels | ArUco + marqueurs mocap, caméra→monde, par session | 14 participants × 2 marches (circulaire, rectiligne) | `comfi.py` |
 
 La démo Pose2Sim (4 Qualisys, 100 images, sujet sur une poutre) a été calculée mais
 **écartée** : pas de marche, stature inconnue (03 §9).
@@ -62,11 +62,21 @@ d'image de 11–13 % ; la version ÷64 équivaut à ne pas corriger. Le converti
 Qualisys de Pose2Sim (`calibration.py` l. 149–152) a le même défaut : à signaler.
 Deux participants (157 cm F, 174 cm M), marqueurs c3d 120 Hz avec noms ISB.
 
-**COMFI.** Vidéos 1280×720 à 40 Hz, horodatages logiciels par caméra (départs décalés
-de ~19 ms, intervalles 24 ms médian, jusqu'à 72 ms) : il faudra recaler les images sur
-les horodatages. Fiches participants `metadata/*.yaml` (taille, poids, sexe). Reste à
-vérifier : nature de la calibration fournie, repère commun avec la mocap, rig unique ou
-non pour les 18 participants.
+**COMFI** (`E:\DATASET MARKERLESS\Toulouse`, lecteur `comfi.py`). Gold dans
+`cam_params/<participant>/` : intrinsèques OpenCV par damier (5 coefficients,
+reprojection ~0,25 px) et `cam_to_world/camera_N_extrinsics.yaml` = **caméra→monde**
+(t = centre de la caméra, m), chaque caméra recalée sur le repère mocap par une mire
+ArUco portant des marqueurs (ajustement de Söderkvist, rms ~1 mm). Cohérent avec la
+chaîne `cam_to_cam` à 0,0–0,09° et 0 mm. Monde **Z vers le haut**, caméras à 1,1 m, en
+deux paires stéréo qui se font face à 5,2 m (0,8 m dans la paire). **Rig recalibré par
+session** (16 calibrations / 18 participants ; les caméras 4 et 6 changent de place) :
+pas de répétabilité inter-participant à rig fixe, mais deux marches par participant
+(circulaire 65–130 s, rectiligne ~8 s) sur le même rig. Vidéos 1280×720 à 40 Hz,
+horodatages logiciels : même nombre d'images partout, départs à ±20 ms, pas de dérive ;
+le lecteur choisit pour chaque instant de la caméra 0 l'image la plus proche des autres
+(≤ 1 image de correction, données du jeu seulement). Stature dans `metadata/<id>.yaml`.
+**Utilisables : 14 participants** (15 avec vidéos ; 4162 sans `cam_to_world`). Pas
+d'évaluation cinématique prévue sur ce jeu (décision Florian).
 
 ## Préparation (commandes)
 
