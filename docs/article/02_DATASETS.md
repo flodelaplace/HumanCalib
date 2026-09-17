@@ -53,6 +53,14 @@ dans les résultats de l'article (voir 05) ; les résultats « resynchronisés �
 servent d'analyse de sensibilité. La `mocapToVideoTransform` de Session1 est dégénérée
 (sans effet sur la comparaison de calibrations).
 
+**OpenCap, fenêtres par essai.** Visibilité du participant relevée sur planches d'images pour les
+25 marches naturelles (5 caméras chacune) : `~/humancalib_eval/OpenCap/_visibility/visibility_all.csv`
+et `windows_proposed.json`. Cam2 filme le participant de face (entier dès le début, au fond) ;
+Cam0 et Cam4 ne le voient entier que ~110–130 images et bornent la fenêtre. Fenêtre « au moins
+3 caméras entières » : typiquement [−90, +80] images autour de l'instant officiel (~170 images),
+de [−60, +60] (s8) à [−150, +80] (s3). Un opérateur traverse parfois le champ avant l'entrée du
+sujet (s2 walking1, Cam4).
+
 **LBMC.** `Calib.toml` a les bons K, R, t pour les vidéos redressées, mais ses
 coefficients de distorsion sont **divisés par 64** (facteur des intrinsèques Qualisys
 en 1/64 pixel, appliqué à tort aux coefficients sans dimension) et les tangentiels ne sont
