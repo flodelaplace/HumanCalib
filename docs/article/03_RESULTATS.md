@@ -17,6 +17,7 @@ essais sont rapportés, échecs compris. Fichiers détaillés : `~/humancalib_ev
 | OpenCap (resync par essai, sensibilité) | 9 sujets | **2,06** [1,67–2,14] | 118 | 143 | 2,5 % | 0 |
 | OpenCap (fenêtres du jeu seules) | **À FAIRE** (résultats article) | | | | | |
 | LBMC (tapis) | 2 | **1,47 / 3,08** | 60 / 97 | 103 / 187 | 3,0 / 5,1 % | 0 |
+| COMFI (test, 1 participant) | 2 (circulaire 1000 img / rectiligne 282 img) | **2,06 / 1,19** | 32 / 26 | 61 / 68 | 1,4 / 1,8 % | 0 |
 
 Verticale : BioCV 0,32° médiane ; IMOVE 0,89 / 0,31° ; LBMC 0,66 / 1,44°.
 
@@ -128,4 +129,18 @@ Voir 02. Correction validée sur les images (−11 à −13 % d'erreur en bord).
 verticale 13,7° (sujet en déséquilibre sur une poutre : hors hypothèse), échelle non
 évaluable. Utilisable seulement comme illustration.
 
-## 10. Niveau 2 (angles articulaires Pose2Sim) — **À FAIRE**, rien de lancé.
+## 10. COMFI, premier participant (1012)
+
+Appariement vidéo ↔ calibration vérifié par permutations (identité 6,8 px, meilleure
+alternative 17 px). Répétabilité entre nos calibrations circulaire et rectiligne (sans
+gold) : **1,04°** médiane, 1,84° max. Test hors échantillon (calibration sur un essai,
+points de l'autre) : MRE **nous 2,2–2,9 px contre gold 6,8–8,4 px** — l'inverse d'OpenCap ;
+dispersion de longueur de jambe mitigée (nous 1,8 / 2,3 %, gold 1,1 / 2,6 %). La gold
+COMFI (recalage ArUco indépendant par caméra, webcams 720p) n'est donc probablement pas
+cohérente avec les images à mieux que ~1–2° ; nos 1,2–2,1° mélangent notre bruit (~1°)
+et le sien. Le `cam_to_cam` fourni a rmse = 0 : dérivé du `cam_to_world`, pas un contrôle
+indépendant. Positions (26–32 mm), forme (0,3 %), échelle et verticale restent évaluables.
+**À FAIRE** : 14 participants × 2 marches (~2,5 h) ; contrôle de la gold avec les
+marqueurs mocap si disponibles.
+
+## 11. Niveau 2 (angles articulaires Pose2Sim) — **À FAIRE**, rien de lancé.
