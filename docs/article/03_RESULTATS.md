@@ -164,3 +164,15 @@ indépendant. Positions (26–32 mm), forme (0,3 %), échelle et verticale reste
 marqueurs mocap si disponibles.
 
 ## 11. Niveau 2 (angles articulaires Pose2Sim) — **À FAIRE**, rien de lancé.
+
+## 12. Durée de marche nécessaire (18/09, `~/humancalib_eval/duration_results_best.csv`)
+
+Mêmes détections, fenêtre de D secondes où le plus de caméras voient le sujet, étape linéaire + BA
+du pipeline (mêmes réglages). Durée minimale pour atteindre l'erreur de l'essai entier + 0,2° :
+BioCV 1–2 s (4 essais : 2 s → 0,25–0,89°) ; IMOVE 4–8 s (grand couloir : il faut couvrir le volume ;
+16 s donnent même mieux que l'aller-retour entier, 0,31 / 0,43°) ; COMFI circulaire 2–4 s, plafond
+~1,3–2° indépendant de la durée (référence ArUco) ; LBMC (tapis) 0,5–1 s, plateau immédiat : marcher
+plus longtemps au même endroit n'apporte rien. Temps de calcul linéaire + BA : 5–60 s.
+**Recommandation** : 2 s de marche vue par toutes les caméras suffisent dans un labo de taille
+moyenne ; dans un grand volume, 10 à 15 s qui parcourent tout l'espace. C'est la couverture
+spatiale, pas la durée, qui compte au-delà de quelques secondes.

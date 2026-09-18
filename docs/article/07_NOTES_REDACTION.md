@@ -80,7 +80,7 @@ les échecs.
 - Marcher en traversant tout le volume (aller-retour, diagonales), pas sur place ; sur tapis,
   marcher autour du tapis pour la calibration.
 - Caméras synchronisées à l'image près ; intrinsèques calibrées par caméra si possible.
-- Quelques secondes de marche suffisent **[chiffre à venir de l'étude de durée]**.
+- 2 s de marche vue par toutes les caméras suffisent dans un labo moyen (BioCV) ; 10–15 s couvrant le volume dans un grand espace (IMOVE) ; au-delà, c'est la couverture spatiale qui compte (03 §12).
 - Contrôler le MRE de la pire caméra (critère ci-dessus) ; refaire un essai sinon.
 - Donner la stature ; attendre ~1–2 % d'erreur d'échelle.
 
