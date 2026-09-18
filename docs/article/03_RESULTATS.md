@@ -176,3 +176,12 @@ plus longtemps au même endroit n'apporte rien. Temps de calcul linéaire + BA :
 **Recommandation** : 2 s de marche vue par toutes les caméras suffisent dans un labo de taille
 moyenne ; dans un grand volume, 10 à 15 s qui parcourent tout l'espace. C'est la couverture
 spatiale, pas la durée, qui compte au-delà de quelques secondes.
+
+## 13. COMFI complet (18/09) : notre calibration bat la référence face à la mocap
+
+14 participants × 2 marches = 28 calibrations, 0 échec. Mêmes détections MeTRAbs triangulées avec la
+gold ArUco puis avec HumanCalib, comparées aux centres articulaires mocap (`joint_center_positions.csv`,
+genou = milieu des épicondyles, etc.) : PA-MPJPE par image médiane **gold 56,3 mm, HumanCalib 53,9 mm ;
+HumanCalib meilleur dans 28/28 essais, Wilcoxon apparié p < 10⁻⁴** (`~/humancalib_eval/comfi_mocap_eval.json`).
+Sur ce jeu, l'écart « contre la gold » (rotation 0,6–2,4°) mesure donc surtout l'erreur de la référence.
+Pour l'article : COMFI est évalué contre la mocap, pas contre sa calibration de référence.

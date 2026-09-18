@@ -41,9 +41,8 @@ les échecs.
   rectiligne 0,68–1,19°, circulaire 1,3–2,1° (**[à jour ?]** 14 participants en cours).
   Échelle 1–2 % (jambes ; RTMPose jambes+tronc), verticale < 1°.
 - **Q2 reconstruction** : PA-MPJPE induite par la calibration (médianes) : BioCV 8,9 mm,
-  IMOVE 7,5 mm, OpenCap 4,6 mm, LBMC 3,4 mm ; COMFI ~40 mm mais la gold ArUco y est au moins
-  aussi imprécise que nous (face aux centres articulaires mocap : PA-MPJPE par image gold 51 /
-  nous 49 mm, 1012). **La rotation relative surestime l'impact pratique** : 1,8° d'orientation
+  IMOVE 7,5 mm, OpenCap 4,6 mm, LBMC 3,4 mm ; COMFI ~40 mm d'écart à la gold, mais **face à la mocap notre calibration bat la gold ArUco dans
+  28/28 essais** (PA-MPJPE par image 53,9 contre 56,3 mm, Wilcoxon p < 10⁻⁴) : résultat fort à mettre en avant. **La rotation relative surestime l'impact pratique** : 1,8° d'orientation
   sur OpenCap donnent < 7 mm d'erreur de forme là où la personne marche (compensation des
   erreurs d'orientation autour du volume de travail).
 - **Q3 fiabilité** : 0 échec MeTRAbs ; RTMPose 4/16 échecs complets + 1 partiel (BioCV).
