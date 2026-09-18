@@ -15,7 +15,7 @@ essais sont rapportés, échecs compris. Fichiers détaillés : `~/humancalib_ev
 | BioCV | 18 | **0,62** [0,48–0,81] ; 14/18 < 1°, 17/18 < 2° | 55 | 101 | 1,2 % | 0 |
 | IMOVE-23 | 2 (s2, s3) | **0,42 / 0,65** | 54 / 83 | 130 / 167 | 1,5 / 2,3 % | 0 |
 | OpenCap (resync par essai, sensibilité) | 9 sujets | **2,06** [1,67–2,14] | 118 | 143 | 2,5 % | 0 |
-| OpenCap (fenêtres du jeu seules) | **À FAIRE** (résultats article) | | | | | |
+| **OpenCap (article : synchro Mesh2Sim, fenêtre ≥ 3 caméras entières)** | 18 (9 sujets × 2) | **1,84** [1,57–1,91] ; pire paire 2,65 | 102 | 107 | 1,1 % | 0 |
 | LBMC (tapis) | 2 | **1,47 / 3,08** | 60 / 97 | 103 / 187 | 3,0 / 5,1 % | 0 |
 | COMFI (test, 1 participant) | 2 (circulaire 1000 img / rectiligne 282 img) | **2,06 / 1,19** | 32 / 26 | 61 / 68 | 1,4 / 1,8 % | 0 |
 
@@ -78,6 +78,18 @@ LBMC : RTMPose 3,27 / 3,17° contre MeTRAbs 1,47 / 3,08° ; même plafond des de
   4,4 px avec Cam2 seule corrigée et 240 images. Bien synchronisé et bien fenêtré, OpenCap
   atteint le MRE de BioCV et ~1,5°. Règle retenue pour l'article : synchro vérifiée image par
   image sur chaque essai retenu, fenêtre [−30, +120].
+
+- **Résultats article (18/09)** : synchro vidéo↔mocap par caméra de Mesh2Sim (`_MOCAP_SYNC.json`,
+  validée par plateformes de force ±1,5 image), fenêtre = images où ≥ 3 caméras voient le participant
+  entier (`_PARTICIPANT_PRESENCE.json`, YOLO + marqueurs mocap, validé à 4 images près contre un
+  relevé visuel). Par sujet (w1/w2) : s2 1,73/1,85 · s3 1,55/1,60 · s4 1,87/1,90 · s5 1,95/2,11 ·
+  s7 1,91/1,82 · s8 2,13/2,10 · s9 1,87/1,76 · s10 1,44/1,51 · s11 0,89/0,81. MRE 2,4 px.
+  **Répétabilité entre les deux marches : 0,03–0,16°** pour ~1,8° d'écart à la gold → erreur
+  systématique par session. Meilleur essai s11 w3 : 0,81°, 4 caméras à 0,5–0,8°, Cam2 (frontale) 2,5°.
+- **Synchro Mesh2Sim contre manuelle (s2, s8 w1, plan croisé 2×2)** : la fenêtre ne change presque
+  rien (±0,05°) ; la synchro manuelle gagne ~0,1° et 0,4–0,7 px, par Cam2 (Mesh2Sim +3/+4 images,
+  caméra frontale où le calage temporel est peu sensible). Synchro manuelle des 16 autres essais en
+  cours (Florian).
 
 ## 5. La gold est-elle en cause ? Test de cohérence hors échantillon
 
