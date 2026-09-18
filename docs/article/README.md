@@ -15,6 +15,7 @@ Florian) et sur `D:\FLO\Calibration dataset\` ; les figures dans
 | [04_PLAN_EXPERIENCES.md](04_PLAN_EXPERIENCES.md) | Métriques retenues, plan des runs, taille d'échantillon, statistiques |
 | [05_DECISIONS.md](05_DECISIONS.md) | Journal des décisions méthodologiques et des erreurs corrigées |
 | [06_REFERENCES.md](06_REFERENCES.md) | Bibliographie vérifiée (tables anthropométriques, seuils cliniques, jeux de données) |
+| [07_NOTES_REDACTION.md](07_NOTES_REDACTION.md) | Plan de l'article, messages clés, chiffres à reprendre, figures, ce qui manque |
 
 Documents liés dans le dépôt :
 - `docs/EVALUATION_PROTOCOL.md` : protocole complet et journal daté (source primaire, très détaillé).
