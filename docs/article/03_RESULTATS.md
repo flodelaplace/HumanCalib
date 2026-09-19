@@ -1,4 +1,4 @@
-# 03 — Résultats obtenus (état au 17/09/2026)
+# 03 — Résultats obtenus (état au 19/09/2026, 05h ; IMOVE sujets 4–13 en cours)
 
 Conventions : « rot » = rotation relative médiane entre paires de caméras, en degrés
 (1° ≈ 1,75 cm/m ≈ 16 px à f = 913) ; « 7 ddl » = erreur de position des centres de
@@ -17,7 +17,7 @@ essais sont rapportés, échecs compris. Fichiers détaillés : `~/humancalib_ev
 | OpenCap (resync par essai, sensibilité) | 9 sujets | **2,06** [1,67–2,14] | 118 | 143 | 2,5 % | 0 |
 | **OpenCap (article : synchro Mesh2Sim, fenêtre ≥ 3 caméras entières)** | 18 (9 sujets × 2) | **1,84** [1,57–1,91] ; pire paire 2,65 | 102 | 107 | 1,1 % | 0 |
 | LBMC (tapis) | 2 | **1,47 / 3,08** | 60 / 97 | 103 / 187 | 3,0 / 5,1 % | 0 |
-| COMFI (test, 1 participant) | 2 (circulaire 1000 img / rectiligne 282 img) | **2,06 / 1,19** | 32 / 26 | 61 / 68 | 1,4 / 1,8 % | 0 |
+| COMFI (14 participants × rectiligne + circulaire ; référence ArUco, voir §13) | 28 | **1,25** [0,94–1,63] ; rectiligne 1,00, circulaire 1,59 | 35 (26 / 63) | 118 | 1,9 % | 0 |
 
 Verticale : BioCV 0,32° médiane ; IMOVE 0,89 / 0,31° ; LBMC 0,66 / 1,44°.
 
@@ -41,7 +41,12 @@ s11 1,40°, s9 3,06°, s2 w3 1,95° — suffisants quand l'essai est bien synchr
 - Bootstrap de l'IC 95 % de la médiane : 9 × 1 essai → largeur 0,81° ; 9 × 2 → **0,38°** ;
   7 × 2 (0,59°) bat 9 × 1. → **deux essais par participant**.
 
-## 3. Deux moteurs, BioCV, 16 essais appariés
+## 3. Deux moteurs, BioCV, 18 essais appariés (P18_W02 RTMPose ajouté le 18/09)
+
+Mise à jour 18 essais (`~/humancalib_eval/article/table2_engines.md`) : RTMPose **5 échecs complets**
+(+ P18_W02 7,9°) **+ 2 partiels** (une caméra > 10° : P18_W01 122°, P06_W01 23°, médianes 0,49 et 1,22°) ;
+MeTRAbs 0/18. Sur les 11 essais réussis par les deux : MeTRAbs 0,57° [0,50–0,69], RTMPose 0,45°
+[0,40–0,57] ; 7 ddl 39 / 37 mm ; |échelle − 1| 1,8 / 2,1 %. Tableau historique à 16 essais ci-dessous.
 
 | | MeTRAbs | RTMPose + VideoPose3D |
 |---|---|---|
@@ -185,3 +190,39 @@ genou = milieu des épicondyles, etc.) : PA-MPJPE par image médiane **gold 56,3
 HumanCalib meilleur dans 28/28 essais, Wilcoxon apparié p < 10⁻⁴** (`~/humancalib_eval/comfi_mocap_eval.json`).
 Sur ce jeu, l'écart « contre la gold » (rotation 0,6–2,4°) mesure donc surtout l'erreur de la référence.
 Pour l'article : COMFI est évalué contre la mocap, pas contre sa calibration de référence.
+
+## 14. Erreur de reconstruction induite par la calibration (PA-MPJPE marqueurs, 18–19/09)
+
+Marqueurs mocap bruts projetés dans chaque caméra avec la gold, retriangulés avec notre calibration,
+puis similitude ajustée sur les points eux-mêmes (PA-MPJPE, convention vision). Isole l'effet de la
+calibration sur la reconstruction dans le volume où la personne marche (`~/humancalib_eval/marker_mpjpe.json`).
+
+| Jeu | Essais | PA-MPJPE moyenne, médiane des essais (mm) | Étendue | p95 médian (mm) | 4 ddl (mm) |
+|---|---|---|---|---|---|
+| BioCV | 18 | **8,9** | 3,0–38,3 (P17_W02, 2,61°) | 21,4 | 35 |
+| IMOVE | 2 | **7,5** | 6,5–8,4 | 14,4 | 66 |
+| OpenCap | 18 | **4,6** | 2,8–7,1 | 7,9 | 38 |
+| LBMC | 2 | **3,4** | 2,1–4,7 | 6,7 | 55 |
+| COMFI | 28 | 38,9 (écart à une gold moins précise que nous, §13) | 27,0–66,3 | 86,1 | 80 |
+
+Lecture : 1,8° d'orientation relative sur OpenCap ne donnent que 4,6 mm d'erreur de forme là où la
+personne marche (erreurs d'orientation compensées par les positions autour du volume de travail).
+COMFI : l'écart est grand parce que la référence ArUco est elle-même moins cohérente avec la mocap
+(§13) ; ne pas le présenter comme une erreur de HumanCalib.
+
+## 15. Critère d'acceptation sans référence (88 calibrations, 19/09)
+
+MRE de chaque caméra converti en angle (MRE / focale, mrad). Règle figée le 18/09 : accepter si la
+pire caméra ≤ 15 mrad et ≤ 3,5 × la médiane des caméras. Sur 88 calibrations (tous jeux, deux
+moteurs, `~/humancalib_eval/mre_vs_error_trials.csv`, `article/table3_acceptance.md`) :
+
+| | Calibrations | Acceptées | Rejetées |
+|---|---|---|---|
+| Correctes (toutes caméras < 10°) | 81 | 81 | 0 |
+| Échecs complets ou partiels | 7 (tous RTMPose BioCV) | 0 | 7 |
+
+Pire caméra : correctes ≤ 10,3 mrad, échecs ≥ 41,8 mrad (écart ×4 ; le seuil seul suffit, la règle
+du rapport n'est pas nécessaire sur ces données). En revanche, parmi les calibrations réussies, le MRE
+ne prédit pas la précision fine : Spearman ρ = +0,03 toutes confondues (n = 83) ; dans un même jeu,
+BioCV MeTRAbs ρ = 0,79, COMFI ρ = 0,64, OpenCap ρ = 0,10. Pour rot > 1,5° : AUC 0,55. → Le MRE
+détecte les échecs, il ne classe pas les réussites.

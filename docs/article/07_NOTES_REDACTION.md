@@ -12,7 +12,7 @@ les tableaux de `~/humancalib_eval/article/` avant d'écrire. Langue de l'articl
 
 ## Message central (une phrase)
 Quelques secondes de marche d'une personne suffisent à calibrer un rig multi-caméras sans mire :
-sur cinq jeux de données et ~80 calibrations, l'erreur de forme reconstruite dans le volume de
+sur cinq jeux de données et 88 calibrations, l'erreur de forme reconstruite dans le volume de
 travail est de quelques millimètres, l'orientation relative des caméras de 0,4 à 2°, aucune
 calibration n'échoue avec MeTRAbs, et un critère de reprojection sans référence détecte tous
 les échecs.
@@ -38,23 +38,27 @@ les échecs.
 ## Résultats — points à écrire
 - **Q1 précision (MeTRAbs)** : BioCV 0,62° [0,48–0,81] (18) ; IMOVE 0,42–0,65° (2, **[à jour ?]**
   11 sujets en cours) ; OpenCap 1,84° [1,57–1,91] (18) ; LBMC 1,47 / 3,08° (tapis) ; COMFI
-  rectiligne 0,68–1,19°, circulaire 1,3–2,1° (**[à jour ?]** 14 participants en cours).
+  28 calibrations 1,25° [0,94–1,63] (rectiligne 1,00°, circulaire 1,59° ; contre une référence ArUco
+  moins précise que nous, voir Q2).
   Échelle 1–2 % (jambes ; RTMPose jambes+tronc), verticale < 1°.
 - **Q2 reconstruction** : PA-MPJPE induite par la calibration (médianes) : BioCV 8,9 mm,
-  IMOVE 7,5 mm, OpenCap 4,6 mm, LBMC 3,4 mm ; COMFI ~40 mm d'écart à la gold, mais **face à la mocap notre calibration bat la gold ArUco dans
+  IMOVE 7,5 mm, OpenCap 4,6 mm, LBMC 3,4 mm (03 §14) ; COMFI 38,9 mm d'écart à la gold (28 essais), mais **face à la mocap notre calibration bat la gold ArUco dans
   28/28 essais** (PA-MPJPE par image 53,9 contre 56,3 mm, Wilcoxon p < 10⁻⁴) : résultat fort à mettre en avant. **La rotation relative surestime l'impact pratique** : 1,8° d'orientation
   sur OpenCap donnent < 7 mm d'erreur de forme là où la personne marche (compensation des
   erreurs d'orientation autour du volume de travail).
-- **Q3 fiabilité** : 0 échec MeTRAbs ; RTMPose 4/16 échecs complets + 1 partiel (BioCV).
+- **Q3 fiabilité** : 0 échec MeTRAbs (68 calibrations MeTRAbs, tous jeux) ; RTMPose sur BioCV
+  5/18 échecs complets + 2 partiels (une caméra fausse, médiane trompeusement bonne).
   Répétabilité : OpenCap 0,03–0,16° entre deux marches d'un même rig (erreur systématique par
   session, pas du bruit) ; BioCV 0,40°. **Critère d'acceptation sans référence** : MRE de la pire
   caméra ≤ ~15 mrad (MRE / focale) et ≤ 3,5 × la médiane des caméras → détecte 100 % des échecs
-  complets et partiels, sans fausse alarme (61 calibrations). Mais le MRE ne prédit pas la
-  précision fine entre calibrations réussies (ρ = −0,07, sauf dans un même labo, BioCV ρ = 0,8).
+  complets et partiels (7/7), sans fausse alarme (81/81), sur 88 calibrations ; correctes ≤ 10,3 mrad,
+  échecs ≥ 41,8 mrad (03 §15, `article/table3_acceptance.md`). Mais le MRE ne prédit pas la
+  précision fine entre calibrations réussies (ρ = +0,03 toutes confondues ; dans un même labo
+  BioCV ρ = 0,79, COMFI 0,64).
 - **Ablations** : plus d'images / BA plus long / cumul d'essais : sans effet ; 200 vs 50 Hz :
   sans effet ; synchronisation : décisive (OpenCap : 4–8 images de décalage doublent le MRE) ;
   géométrie : arc de 5 caméras A 0,51° vs B 1,39° ; tapis : rotations mal contraintes ;
-  **durée de marche nécessaire [à jour ?]** (`duration_results_best.csv` ; BioCV P09 : 0,5 s
+  **durée de marche nécessaire** (03 §12, `duration_results_best.csv` ; BioCV P09 : 0,5 s
   2,36°, 1 s 1,05°, 2 s 0,89°, 4 s 0,71° = essai entier) ; marche rectiligne meilleure que
   circulaire sur COMFI (à expliquer : trajectoire circulaire plus loin des paires de caméras ?).
 
@@ -72,7 +76,7 @@ les échecs.
    des proportions (~3 %, ANSUR II) ; choix des segments selon la définition des points du
    détecteur (hanche RTMPose antérieure → ajouter le tronc).
 5. **Choix du détecteur** : MeTRAbs (3D natif, centres articulaires) robuste ; RTMPose +
-   VideoPose3D aussi précis quand il réussit mais ~25 % d'échecs (cause non élucidée,
+   VideoPose3D aussi précis quand il réussit mais 7/18 calibrations inutilisables sur BioCV (cause non élucidée,
    ambiguïté d'orientation du 3D relevé suspectée) → à utiliser avec le critère d'acceptation.
 
 ## Recommandations pratiques (encadré possible)

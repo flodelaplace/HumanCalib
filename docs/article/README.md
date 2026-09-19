@@ -26,5 +26,5 @@ Règles que l'on s'est fixées pour l'article :
 - rapporter la **distribution par essai**, échecs compris, jamais le meilleur essai seul ;
 - aucune constante d'échelle ajustée sur les données d'évaluation ;
 - les métriques principales sont figées avant les runs définitifs (voir 04) ;
-- la resynchronisation d'OpenCap n'est pas une contribution : on n'utilise que les
-  fenêtres fournies par le jeu (décision du 17/09, voir 05).
+- la resynchronisation d'OpenCap n'est pas une contribution ni une méthode décrite ; la
+  synchronisation utilisée est documentée dans 05 (décisions successives du 17/09).
