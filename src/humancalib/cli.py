@@ -27,6 +27,7 @@ Three steps still run in their own process, each for a stated reason:
 import argparse
 import datetime
 import importlib
+import json
 import importlib.util
 import logging
 import os
@@ -60,6 +61,7 @@ STEPS = {
     "linear": ("humancalib.pipeline.run_calib_linear", "chunked linear calibration"),
     "outliers": ("humancalib.pipeline.detect_outlier_frames", "per-camera outlier-frame drop"),
     "ba": ("humancalib.pipeline.run_ba", "bundle adjustment with OOM retry"),
+    "reselect": ("humancalib.pipeline.reselect_person", "geometric person re-selection"),
     "evaluate": ("humancalib.postprocessing.evaluate_calibration", "MRE evaluation"),
     "visualize": ("humancalib.postprocessing.visualize_results", "3D animation / TRC export"),
     "scale": ("humancalib.postprocessing.scale_scene", "metric scaling and orientation"),
@@ -103,6 +105,16 @@ def build_run_parser():
     p.add_argument("--outlier_x_median", type=float, default=5.0)
     p.add_argument("--ref_cam", type=int, default=None)
     p.add_argument("--ba_jac", choices=("analytic", "numeric"), default="analytic")
+    p.add_argument("--scale_method", choices=("head", "segments"), default="segments",
+                   help="head: head height on --ref_frame. segments: leg segment lengths over the whole "
+                        "sequence against --height -- about 2 %% scale error on BioCV instead of 11 %%")
+    p.add_argument("--vertical_method", choices=("frame", "walk"), default="walk",
+                   help="frame: head to feet on --ref_frame. walk: body axis over the whole walk, "
+                        "walking direction removed -- about 0.7 deg on BioCV instead of 3")
+    p.add_argument("--person_selection", choices=("largest", "geometric", "motion"), default="geometric",
+                   help="largest: the largest detection per frame, per camera. geometric: after a "
+                        "first calibration, re-select in every camera the person the other cameras "
+                        "see, and calibrate again -- for a bystander close to one camera")
     return p
 
 
@@ -372,9 +384,9 @@ def run_pipeline(cfg):
 
     from humancalib.core.videos import camera_names
     from humancalib.pipeline import (create_cameras_from_toml, detect_outlier_frames,
-                                     run_ba, run_calib_linear, write_session)
+                                     reselect_person, run_ba, run_calib_linear, write_session)
     from humancalib.pipeline.frame_mapping import write_frame_mapping
-    from humancalib.pipeline.poses_cache import poses_are_cached
+    from humancalib.pipeline.poses_cache import poses_are_cached, covers_all_cameras
     from humancalib.postprocessing import evaluate_calibration, scale_scene
 
     env = child_env()
@@ -401,10 +413,21 @@ def run_pipeline(cfg):
 
     # 1. Pose extraction ------------------------------------------------------------------
     rng = f"  -> frame range: {cfg.start_frame or 0} to {cfg.end_frame if cfg.end_frame is not None else '<end>'}"
+    cached = None
     if cfg.pose_engine == "metrabs":
         _header("[1/7] Extracting 2D+3D poses with MeTRAbs (replaces steps 1+4)...")
         log.info(rng)
         cached = poses_are_cached(out, SUBSET, cfg.start_frame, cfg.end_frame)
+        n_videos = len(camera_names(vd))
+        if cached and not covers_all_cameras(cached, n_videos):
+            log.info(f"  -> Cached poses cover {cached.n_cameras} of {n_videos} cameras "
+                     "(interrupted extraction): extracting again")
+            cached = None
+        if cached and cfg.person_selection in ("geometric", "motion") and not os.path.isdir(
+                os.path.join(out, SUBSET, "candidates")):
+            log.info("  -> Cached poses have no candidate detections, which --person_selection "
+                     "geometric needs: extracting again")
+            cached = None
         if cached:
             log.info(f"  -> Found existing poses: {cached.n_cameras} cameras, {cached.n_frames} frames "
                   f"({cached.start}-{cached.end})")
@@ -419,7 +442,7 @@ def run_pipeline(cfg):
         log.info(rng)
         run_process("extract-rtmpose", [
             sys.executable, "-u", "-m", "humancalib.pose.rtmlib_inference",
-            "--video_dir", vd, "--output_dir", out, *ids, "--subset_name", SUBSET,
+            "--video_dir", vd, "--calib_toml", cfg.calib_toml, "--output_dir", out, *ids, "--subset_name", SUBSET,
             "--device", cfg.device, "--mode", cfg.mode, *frames,
             *(["--save_video"] if cfg.save_video else [])], env)
 
@@ -428,6 +451,21 @@ def run_pipeline(cfg):
     run_step("cameras", create_cameras_from_toml.main, [
         "--toml", cfg.calib_toml, "--output_dir", sub, "--gid", str(GID),
         "--cam_names", *camera_names(vd)])
+
+    fps_args = []
+    if cfg.person_selection == "motion":
+        import cv2
+        from humancalib.core.videos import list_videos
+        cap = cv2.VideoCapture(list_videos(vd)[0])
+        fps_args = ["--initial", "motion", "--fps", str(cap.get(cv2.CAP_PROP_FPS))]
+        cap.release()
+    if (cfg.person_selection == "geometric" and cfg.pose_engine == "metrabs" and cached) or \
+            cfg.person_selection == "motion":
+        # Cached poses may carry an earlier run's re-selection; start from the initial selection
+        # (extraction's largest box, or the walking person).
+        run_step("reselect", reselect_person.main, [
+            "--prefix", out, "--subset", SUBSET, *ids, "--engine", cfg.pose_engine, "--reset_to_largest",
+            *fps_args])
 
     if cfg.start_frame is not None and cfg.end_frame is not None:
         _header("[2.5] Creating frame mapping file...")
@@ -441,44 +479,86 @@ def run_pipeline(cfg):
         raise PipelineError("step 'session' failed")
 
     # 4. Lifting ------------------------------------------------------------------------------
-    if cfg.pose_engine == "metrabs":
-        _header("[4/7] Skipped (3D already extracted by MeTRAbs in step 1)")
-    else:
-        _header("[4/7] Lifting 2D -> 3D with VideoPose3D...")
+    def lift():
         run_process("lift", [
             sys.executable, "-u", "-m", "humancalib.pose.inference",
             "--prefix", out, *ids, "--target", SUBSET, "--dataset", DATASET,
             "--model", VP3D_MODEL, "--device", cfg.device], env, cwd=repo_root())
 
+    if cfg.pose_engine == "metrabs":
+        _header("[4/7] Skipped (3D already extracted by MeTRAbs in step 1)")
+    else:
+        _header("[4/7] Lifting 2D -> 3D with VideoPose3D...")
+        lift()
+
     # 5. Calibration ----------------------------------------------------------------------------
     _header("[5/7] Extrinsic calibration...")
-    log.info("  → Running linear calibration by chunks...")
-    linear_argv = (["--conf_threshold", str(cfg.conf_threshold)]
-                   + (["--ref_cam", str(cfg.ref_cam)] if cfg.ref_cam is not None else [])
-                   + [out, str(AID), str(PID), str(GID), SUBSET, str(cfg.frame_skip), DATASET])
-    run_step("linear", run_calib_linear.main, linear_argv)
+    def calibrate():
+        log.info("  → Running linear calibration by chunks...")
+        linear_argv = (["--conf_threshold", str(cfg.conf_threshold)]
+                       + (["--ref_cam", str(cfg.ref_cam)] if cfg.ref_cam is not None else [])
+                       + [out, str(AID), str(PID), str(GID), SUBSET, str(cfg.frame_skip), DATASET])
+        run_step("linear", run_calib_linear.main, linear_argv)
 
-    linear_json = os.path.join(out, "results", "linear_1_0.json")
-    if not os.path.isfile(linear_json):
-        raise PipelineError(f"linear calibration result not found: {linear_json}. "
-                            "Bundle adjustment not attempted; see the linear step's output above.")
+        linear_json = os.path.join(out, "results", "linear_1_0.json")
+        if not os.path.isfile(linear_json):
+            raise PipelineError(f"linear calibration result not found: {linear_json}. "
+                                "Bundle adjustment not attempted; see the linear step's output above.")
 
-    if cfg.auto_outlier_drop:
-        log.info("\n  → Detecting outlier frames (per camera)...")
-        new_drops = run_step("outliers", detect_outlier_frames.main, [
-            "--prefix", out, "--subset", SUBSET, *ids, "--calib", "linear_1_0",
-            "--video_dir", vd, "--abs_px", str(cfg.outlier_abs_px),
-            "--x_median", str(cfg.outlier_x_median), "--conf_threshold", str(cfg.conf_threshold)])
-        if new_drops:
-            log.info(f"\n  → Re-running linear calibration on cleaned data ({new_drops} outliers dropped)...")
-            run_step("linear", run_calib_linear.main, linear_argv)
+        if cfg.auto_outlier_drop:
+            log.info("\n  → Detecting outlier frames (per camera)...")
+            new_drops = run_step("outliers", detect_outlier_frames.main, [
+                "--prefix", out, "--subset", SUBSET, *ids, "--calib", "linear_1_0",
+                "--video_dir", vd, "--abs_px", str(cfg.outlier_abs_px),
+                "--x_median", str(cfg.outlier_x_median), "--conf_threshold", str(cfg.conf_threshold)])
+            if new_drops:
+                log.info(f"\n  → Re-running linear calibration on cleaned data ({new_drops} outliers dropped)...")
+                run_step("linear", run_calib_linear.main, linear_argv)
 
-    log.info("  → Bundle Adjustment (linear)...")
-    run_step("ba", run_ba.main, [
-        "--prefix", out, "--frame_skip", str(cfg.frame_skip),
-        "--lambda1", str(LAMBDA1), "--lambda2", str(LAMBDA2), "--target", "linear_1_0",
-        "--dataset", DATASET, "--obs_mask", "false", "--save_obs_mask", "true",
-        "--conf_threshold", str(cfg.conf_threshold), "--ba_jac", cfg.ba_jac])
+        log.info("  → Bundle Adjustment (linear)...")
+        run_step("ba", run_ba.main, [
+            "--prefix", out, "--frame_skip", str(cfg.frame_skip),
+            "--lambda1", str(LAMBDA1), "--lambda2", str(LAMBDA2), "--target", "linear_1_0",
+            "--dataset", DATASET, "--obs_mask", "false", "--save_obs_mask", "true",
+            "--conf_threshold", str(cfg.conf_threshold), "--ba_jac", cfg.ba_jac])
+
+    calibrate()
+
+    if cfg.person_selection in ("geometric", "motion"):
+        def lowest_mre_stage():
+            scores = {}
+            for stage in ("linear_1_0", "linear_1_0_ba"):
+                if os.path.isfile(os.path.join(out, "results", f"{stage}.json")):
+                    mre = run_step("evaluate", evaluate_calibration.main, [
+                        "--prefix", out, "--calib", stage, "--conf_threshold", str(cfg.conf_threshold)])
+                    if mre is not None:
+                        scores[stage] = float(mre)
+            return best_calibration(scores)
+
+        # Two rounds: the first re-selects on a calibration still wrong for the
+        # bystander's camera, the second on the corrected one. "Changed" counts
+        # differences from extraction's own selection, so it does not shrink
+        # between rounds and is not a convergence test.
+        for round_ in (1, 2):
+            _header(f"[5b/7] Geometric person re-selection, round {round_}...")
+            base = lowest_mre_stage()
+            changed = run_step("reselect", reselect_person.main, [
+                "--prefix", out, "--subset", SUBSET, *ids, "--calib", base,
+                "--engine", cfg.pose_engine, "--conf_threshold", str(cfg.conf_threshold),
+                "--abs_px", str(cfg.outlier_abs_px), "--x_median", str(cfg.outlier_x_median), *fps_args])
+            with open(os.path.join(out, "results", "person_selection.json")) as f:
+                fraction = json.load(f)["changed_fraction"]
+            shutil.copyfile(os.path.join(out, "results", "person_selection.json"),
+                            os.path.join(out, "results", f"person_selection_round{round_}.json"))
+            if not changed:
+                log.info("  → No selection changed; the calibration stands.")
+                break
+            if cfg.pose_engine != "metrabs":
+                log.info("  → Lifting the corrected 2D poses again...")
+                lift()
+            log.info(f"  → {changed} selections differ from extraction's ({100 * fraction:.1f} %): "
+                     "calibrating again...")
+            calibrate()
 
     # 6. Evaluation -------------------------------------------------------------------------------
     _header("[6/7] Evaluation and Visualization...")
@@ -521,7 +601,8 @@ def run_pipeline(cfg):
                 "--frame_idx", str(mapped), "--input_toml", cfg.calib_toml,
                 "--export_toml", os.path.join(out, "results", "Calib_scene_calibrated.toml"),
                 "--video_dir", vd, "--conf_threshold", str(cfg.conf_threshold),
-                "--pose_engine", cfg.pose_engine])
+                "--pose_engine", cfg.pose_engine, "--scale_method", cfg.scale_method,
+                "--vertical_method", cfg.vertical_method])
 
             final = f"{best}_oriented_scaled"
             if os.path.isfile(os.path.join(out, "results", f"{final}.json")):

@@ -106,12 +106,20 @@ CAM_COLOR   = ["#2196F3", "#4CAF50", "#FF9800", "#9C27B0",
                "#00BCD4", "#FFEB3B", "#795548", "#607D8B"]
 
 
-def draw_camera(ax, R_w2c, t_w2c, color, label, scale=0.15):
-    """Draw a pyramid representing a camera in the world frame."""
+def draw_camera(ax, R_w2c, t_w2c, color, label, scale=0.15, K=None):
+    """Draw a pyramid representing a camera in the world frame.
+
+    With K the pyramid has the image's own proportions (a portrait camera is drawn
+    portrait), and a tick on the top edge shows which way the image is up."""
     C = (-R_w2c.T @ t_w2c.reshape(3, 1)).flatten()
-    
-    w, h, f = 0.8, 0.6, 1.0
-    corners_cam = np.array([[w, h, f], [-w, h, f], [-w, -h, f], [w, -h, f]]) * scale
+
+    if K is not None:
+        K = np.asarray(K, float)
+        w, h, f = K[0, 2] / K[0, 0], K[1, 2] / K[1, 1], 1.0     # half-extents of the image plane
+    else:
+        w, h, f = 0.8, 0.6, 1.0
+    corners_cam = np.array([[w, h, f], [-w, h, f], [-w, -h, f], [w, -h, f],
+                            [0.0, -h, f], [0.0, -1.5 * h, f]]) * scale   # last two: image-up tick
     corners_world = (R_w2c.T @ corners_cam.T).T + C
 
     # Mapping pour l'affichage Matplotlib : (X_cv, Y_cv, Z_cv) -> (X, Z, -Y)
@@ -121,7 +129,7 @@ def draw_camera(ax, R_w2c, t_w2c, color, label, scale=0.15):
     corners_plot[:, 1] = corners_world[:, 2]
     corners_plot[:, 2] = -corners_world[:, 1]
 
-    for corner in corners_plot:
+    for corner in corners_plot[:4]:
         ax.plot([C_plot[0], corner[0]], [C_plot[1], corner[1]], [C_plot[2], corner[2]],
                 color=color, linewidth=1.5, alpha=0.8)
     for i in range(4):
@@ -130,6 +138,8 @@ def draw_camera(ax, R_w2c, t_w2c, color, label, scale=0.15):
                 [corners_plot[i, 1], corners_plot[j, 1]],
                 [corners_plot[i, 2], corners_plot[j, 2]],
                 color=color, linewidth=1.5, alpha=0.8)
+    tick = corners_plot[4:6]
+    ax.plot(tick[:, 0], tick[:, 1], tick[:, 2], color=color, linewidth=3, alpha=0.9)
 
     ax.scatter(*C_plot, c=color, s=60, zorder=10, marker="o", depthshade=False)
     ax.text(C_plot[0], C_plot[1], C_plot[2] + 0.1, f"  {label}", color=color, fontsize=9, fontweight="bold", ha='center')
@@ -361,7 +371,8 @@ def make_animation(X3d_world, R_w2c, t_w2c, output_path, fps=15, step=1,
         # Draw cameras
         for i, (R, t) in enumerate(zip(R_w2c, t_w2c)):
             color = cam_colors[i % len(cam_colors)]
-            draw_camera(ax, R, t, color=color, label=f"Cam{i+1}", scale=scale)
+            draw_camera(ax, R, t, color=color, label=f"Cam{i+1}", scale=scale,
+                        K=None if K is None else K[i])
 
     log.info(f"Rendering {len(frames_to_render)} frames...")
     ani = animation.FuncAnimation(fig, draw_frame,

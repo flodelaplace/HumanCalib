@@ -68,6 +68,9 @@ def parse_args(predefined_args=None):
     parser.add_argument("--ba_out_tag", type=str, default="",
                         help="If set, BA result is saved as <target>_ba_<tag>.json so the baseline "
                              "<target>_ba.json is left untouched (for A/B experiments).")
+    parser.add_argument("--ba_tol", type=float, default=1e-7,
+                        help="least-squares stopping tolerance (ftol = xtol = gtol). "
+                             "Tighter converges further; measured gain on BioCV: none.")
     parser.add_argument("--ba_jac", type=str, default="analytic", choices=["numeric", "analytic"],
                         help="BA Jacobian: 'analytic' (default, exact, ~10-100x fewer objective "
                              "evals, same accuracy) or 'numeric' (legacy scipy finite-diff + sparsity).")

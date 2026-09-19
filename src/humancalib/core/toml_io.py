@@ -31,3 +31,18 @@ def load_toml(path):
         )
     with open(path, "rb") as f:
         return tomllib.load(f)
+
+
+def intrinsics_from_toml(toml_path, cam_names):
+    """(K list, distortion list) for `cam_names`, in that order, from a Pose2Sim TOML."""
+    import numpy as np
+
+    data = load_toml(toml_path)
+    K_list, dist_list = [], []
+    for name in cam_names:
+        if name not in data:
+            raise KeyError(f"Section '[{name}]' not found in {toml_path}")
+        sec = data[name]
+        K_list.append(np.array(sec["matrix"], dtype=np.float64))
+        dist_list.append(np.array(sec.get("distortions", [0, 0, 0, 0, 0]), dtype=np.float64))
+    return K_list, dist_list

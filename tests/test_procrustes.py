@@ -67,3 +67,24 @@ def test_scale_is_recovered_independently_of_translation():
         Y = s_true * X + np.array([500.0, -500.0, 0.0])
         _, _, s = procrustes_align(X, Y)
         assert s == pytest.approx(s_true, rel=1e-9)
+
+
+def test_linear_poses_are_upgraded_to_real_rotations_without_moving_projections():
+    """The linear solve returns general 3x3 matrices. Taking the nearest rotation moves
+    every projection; PnP on the same points returns a true rotation that still fits."""
+    import cv2
+    from humancalib.calibration.calib_linear import metric_upgrade_pnp
+
+    rng = np.random.default_rng(0)
+    K = np.array([[1200.0, 0, 960], [0, 1200.0, 540], [0, 0, 1]])
+    R = cv2.Rodrigues(np.array([0.2, -0.9, 0.1]))[0]
+    t = np.array([[0.4], [-0.2], [6.0]])
+    X = rng.uniform(-1.5, 1.5, (60, 3))
+    proj = (K @ (R @ X.T + t))
+    y = (proj[:2] / proj[2]).T
+
+    skewed = R @ np.diag([1.0, 1.3, 0.7])          # what the linear stage produces
+    R_out, t_out = metric_upgrade_pnp([skewed], [t], X, [y], [K])
+    assert R_out[0] @ R_out[0].T == pytest.approx(np.eye(3), abs=1e-9)
+    assert R_out[0] == pytest.approx(R, abs=1e-6)
+    assert t_out[0] == pytest.approx(t, abs=1e-6)

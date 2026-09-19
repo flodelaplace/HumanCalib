@@ -262,7 +262,7 @@ def build_jac_sparsity(C, N, J, ss2d_work, ss3d, bone_idx, invalid_mask, conf_th
 
 def _run_ba(K, R_w2c, t_w2c, x_all, sp2d_flat, ss2d, sp3d, ss3d, bone_idx,
             C, N, J, lambda1, lambda2, invalid_mask, conf_threshold, cost_history,
-            plot_path=None, jac_sparsity=None, loss="linear", f_scale=1.0,
+            plot_path=None, jac_sparsity=None, loss="linear", f_scale=1.0, tol=1e-7,
             obs_weight=None, jac_mode="numeric"):
     """Single pass of bundle adjustment optimization."""
     best_cost = cost_history[-1] if cost_history else float('inf')
@@ -296,9 +296,9 @@ def _run_ba(K, R_w2c, t_w2c, x_all, sp2d_flat, ss2d, sp3d, ss3d, bone_idx,
     max_evals = min(max(60000, 4 * n_params), 80000)
     kwargs = dict(
         verbose=0,
-        ftol=1e-7,
-        xtol=1e-7,
-        gtol=1e-7,
+        ftol=tol,
+        xtol=tol,
+        gtol=tol,
         max_nfev=max_evals,
         method="trf",
         loss=loss,
@@ -327,10 +327,32 @@ def _run_ba(K, R_w2c, t_w2c, x_all, sp2d_flat, ss2d, sp3d, ss3d, bone_idx,
     return from_theta(res["x"], C)
 
 
+def mean_bone_length(x_NJ3, bone_idx, invalid_mask=None):
+    """Median bone length of the triangulated skeletons, in the scene's own units."""
+    x = np.asarray(x_NJ3, float)
+    if invalid_mask is not None:
+        x = x.copy()
+        x.reshape(-1, 3)[np.asarray(invalid_mask).ravel()] = np.nan
+    lengths = [np.linalg.norm(x[:, a] - x[:, b], axis=-1) for a, b in np.asarray(bone_idx)]
+    with np.errstate(invalid="ignore"):
+        med = np.nanmedian(np.concatenate(lengths))
+    return float(med) if np.isfinite(med) else 0.0
+
+
+def bone_regularisation_useful(e_bone, x_NJ3, bone_idx, invalid_mask=None, rel_threshold=1e-3):
+    """Whether bone lengths vary enough, relative to their own size, to be worth a prior."""
+    if len(e_bone) == 0:
+        return False
+    scale = mean_bone_length(x_NJ3, bone_idx, invalid_mask)
+    if scale <= 0:
+        return False
+    return float(np.sqrt(np.mean(np.asarray(e_bone) ** 2)) / scale) > rel_threshold
+
+
 def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
             conf_threshold=0.5, bone_idx=None, n_iterations=2, outlier_threshold=2.0,
             plot_dir=None, loss="linear", f_scale=1.0, obs_weight_mode="none",
-            border_margin=20.0, img_size=(1920, 1080), jac_mode="numeric"):
+            border_margin=20.0, img_size=(1920, 1080), jac_mode="numeric", tol=1e-7):
 
     C = len(camid)
     N = sp2d.shape[1]
@@ -403,10 +425,12 @@ def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
         bone_energy = np.sum(e_bone**2)
         log.info(f"  Mean bone-length variance: {np.mean(e_bone**2):.6f}")
 
-        # Auto-balance lambda2: bone term should be ~10% of NLL
-        # If bone variance is negligible (e.g. with MeTRAbs metric 3D), disable
-        # the bone term to avoid runaway lambda2 and wasted optimization time.
-        if bone_energy > 1e-3:
+        # Auto-balance lambda2: bone term should be ~10% of NLL.
+        # The test is on the RELATIVE bone-length variation: an absolute threshold is a
+        # threshold on the scene's arbitrary units, and it silently disabled the bone
+        # term on the RTMPose path, whose 3D has no metric scale -- exactly the path
+        # that needs it most.
+        if bone_regularisation_useful(e_bone, x_all.reshape(N, J, 3), bone_idx, invalid_mask):
             target_ratio = 0.1
             lambda2 = np.sqrt(target_ratio * nll_energy / bone_energy)
             # Cap to avoid extreme values when bone_energy is tiny
@@ -415,8 +439,8 @@ def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
                   f"(NLL={nll_energy:.0f}, bone={bone_energy:.0f})")
         else:
             lambda2 = 0.0
-            log.info(f"  Bone variance negligible ({bone_energy:.6f}), "
-                  f"disabling bone regularization (lambda2=0)")
+            log.info("  Bone-length variation negligible relative to bone size, "
+                     "disabling bone regularization (lambda2=0)")
 
         # Build Jacobian sparsity pattern (only needed for the finite-diff path;
         # the analytic Jacobian supplies exact structure itself).
@@ -446,7 +470,7 @@ def ba_main(camid, K, R_w2c, t_w2c, sp2d, ss2d, sp3d, ss3d, lambda1, lambda2,
             K, R_w2c, t_w2c, x_all, sp2d_flat, ss2d_work, sp3d, ss3d,
             bone_idx, C, N, J, lambda1, lambda2, invalid_mask, conf_threshold,
             cost_history, plot_path=plot_path, jac_sparsity=jac_sp,
-            loss=loss, f_scale=f_scale, obs_weight=obs_weight, jac_mode=jac_mode
+            loss=loss, f_scale=f_scale, obs_weight=obs_weight, jac_mode=jac_mode, tol=tol
         )
 
         # Outlier rejection after all but the last iteration
@@ -618,7 +642,7 @@ if __name__ == "__main__":
         plot_dir=plot_dir,
         loss=args.ba_loss, f_scale=args.ba_f_scale, obs_weight_mode=args.ba_obs_weight,
         border_margin=args.ba_border_margin, img_size=(width, height),
-        jac_mode=args.ba_jac,
+        jac_mode=args.ba_jac, tol=args.ba_tol,
     )
 
     # Plot and save the optimisation cost curve

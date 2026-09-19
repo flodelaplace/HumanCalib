@@ -4,7 +4,10 @@ import os
 import numpy as np
 import json
 import itertools
+import cv2
 import scipy as sp
+
+from humancalib.core.geometry import normalize_pose
 
 # from numba import jit
 from humancalib.argument import parse_args
@@ -259,6 +262,35 @@ def calib_procrustes(p3d_CxNxJx3, s3d_CxNxJ, K_all, p2d_CxNxJx2, s2d_CxNxJ,
     return R_w2c, t_w2c, X_world
 
 
+def metric_upgrade_pnp(R_list, t_list, X, y, K):
+    """Turn the linear solve's camera matrices into real poses, by fitting them to the data.
+
+    The linear solution is projective: its 3x3 blocks are general matrices (determinants
+    0.01 to 3.3 on BioCV), so bundle adjustment started from cv2.Rodrigues of something
+    that is not a rotation. Taking the nearest rotation is not the fix -- it moves every
+    projection. Each camera's pose is re-estimated by PnP instead, from the same 3D points
+    and the same 2D observations, which keeps the fit and returns a true rotation.
+    """
+    out_R, out_t = [], []
+    X = np.asarray(X, dtype=np.float64)
+    for R, t, pts2d, k in zip(R_list, t_list, y, K):
+        R0, t0 = normalize_pose(R, np.asarray(t, dtype=np.float64).reshape(3))
+        pts2d = np.asarray(pts2d, dtype=np.float64)
+        ok = np.isfinite(X).all(axis=1) & np.isfinite(pts2d).all(axis=1)
+        solved = False
+        if ok.sum() >= 6:
+            rvec, tvec = cv2.Rodrigues(R0)[0], t0.reshape(3, 1)
+            solved, rvec, tvec = cv2.solvePnP(X[ok], pts2d[ok], np.asarray(k, dtype=np.float64), None,
+                                              rvec, tvec, useExtrinsicGuess=True, flags=cv2.SOLVEPNP_ITERATIVE)
+        if solved:
+            out_R.append(cv2.Rodrigues(rvec)[0])
+            out_t.append(tvec.reshape(3, 1))
+        else:
+            out_R.append(R0)
+            out_t.append(t0.reshape(3, 1))
+    return np.array(out_R), np.array(out_t)
+
+
 def main_linear(
     dirname, gid, aid, pid, bone_idx, joint_idx, bObs_mask, *,
     frame_start=None, frame_end=None, frame_skip=1, conf_threshold=0.5,
@@ -364,6 +396,8 @@ def main_linear(
         valid_3d = ~np.isnan(p3d_w_est_flat).any(axis=1)
     else:
         R_w2c_est, t_w2c_est, p3d_w_est = calib_linear(vc, n)
+        if R_w2c_est is not None:
+            R_w2c_est, t_w2c_est = metric_upgrade_pnp(R_w2c_est, t_w2c_est, p3d_w_est, y, K)
 
     if R_w2c_est is None:
         return None, None, None, None, None, None

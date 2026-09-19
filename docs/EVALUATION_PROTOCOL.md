@@ -1,0 +1,284 @@
+# Protocole d'évaluation de HumanCalib
+
+Document de travail pour l'article et la thèse. Il fixe **avant** de regarder les
+résultats ce qui est mesuré, comment, et avec quels paramètres, pour qu'aucun
+réglage ne soit ajusté a posteriori sur les données de validation.
+
+Code : `src/humancalib/evaluation/` (lecteurs de calibrations gold, métriques,
+pilotes par dataset), tests : `tests/test_eval_*.py`. Résultats :
+`D:\FLO\Calibration dataset\<Dataset>\<essai>\` (hors dépôt).
+
+---
+
+## 1. Questions
+
+| # | Question | Niveau |
+|---|---|---|
+| Q1 | Quelle est la justesse géométrique des extrinsèques estimés, face à une calibration de laboratoire ? | Géométrie |
+| Q2 | Quel est l'effet de cette calibration sur la cinématique articulaire et les paramètres spatio-temporels obtenus avec Pose2Sim ? | Aval |
+| Q3 | Quelle est la fidélité : dispersion entre plusieurs enregistrements du même dispositif ? | Fidélité |
+| Q4 | Qu'apportent les deux moteurs (MeTRAbs + Procrustes vs RTMPose + VideoPose3D), et à quoi le résultat est-il sensible (image de référence pour l'échelle, type de mouvement) ? | Sensibilité |
+
+La littérature de calibration à partir de l'humain (Takahashi 2018, Lee 2022,
+CasCalib, Xu 2021, Pätzold 2022, HSfM, Kineo, Yang 2026) s'arrête aux erreurs de
+pose de caméra ou au MPJPE, sur des jeux de vision (Human3.6M, Panoptic,
+EgoHumans) ou synthétiques. Aucune n'évalue la cinématique biomécanique ni ne
+compare à une calibration de laboratoire de biomécanique ; aucune ne sépare
+erreur de forme et erreur d'échelle, ni ne mesure la verticale. Le seul
+précédent sur l'effet d'une erreur de calibration sur les angles est Pose2Sim
+Part 1 (Pagnon et al. 2021 : ~1 cm de perturbation → < 0,5°), en simulation.
+
+## 2. Données
+
+| Dataset | Caméras | Vidéo | Gold | Qualité du gold | Référence cinématique |
+|---|---|---|---|---|---|
+| **BioCV** | 9 | 1920×1080, 200 fps, synchro matérielle | Mire de cercles + BA, alignée mocap, par participant | Bonne | `.mot` gold (`_RESULTS/_GOLD_BIOCV`), c3d |
+| **LBMC** | 9 Miqus | 1088×1920 (portrait), 60 fps | QTM baguette (σ 0,19 mm), TOML Pose2Sim | Très bonne | c3d (IK à faire) |
+| **IMOVE-23** | 10 Miqus | 1920×1080, 100 fps, marche ~130 s | QTM XML, 13 sessions | Bonne | `ik.mot` |
+| **OpenCap** | 5 iPhone | 720×1280 (portrait), 60 fps | Damier au mur, intrinsèques génériques | Faible | `.mot` mocap |
+
+Exclus : **Toulouse** (aucune calibration ni intrinsèque), **Fukuchi** (pas de vidéo).
+
+Pièges de conversion identifiés (chaque lecteur a un test) :
+
+* **BioCV** : le bloc 3×3 de la matrice monde→caméra vaut s·R (s ≈ 0,998). La
+  caméra est lue comme `[R | t/s]`, qui projette à l'identique. On utilise
+  `calibrationUpdate/` (alignement mocap raffiné).
+* **LBMC** : distorsions vraisemblablement divisées par 64 à la conversion
+  depuis QTM — à trancher par reprojection des marqueurs avant usage.
+* **IMOVE-23, OpenCap** : k3 ≠ 0 (fort sur IMOVE 22/23), non représentable dans
+  un TOML Pose2Sim à 4 coefficients : le writer refuse plutôt que de tronquer.
+* **Orientation** : vidéos portrait (LBMC, OpenCap) et vues tournées (IMOVE) —
+  la taille d'image doit correspondre aux intrinsèques.
+
+**Validation de chaque lecteur** avant tout résultat : reprojection de points
+3D connus avec la calibration lue, comparée aux projections fournies par le
+dataset. BioCV P03, caméra 08, points d'axes ±1 m de `markers2D` : écart
+0,35–1,9 px (une erreur de convention donnerait des centaines de pixels).
+
+## 3. Principe d'isolation
+
+* **Entrée de HumanCalib** : les vidéos et les **intrinsèques gold**. Seuls les
+  extrinsèques sont estimés, ce qui est la contribution évaluée.
+* **Convention commune** (`evaluation/rig.py`) : `x_cam = R·X + t`, monde→caméra,
+  mètres, centre `C = −Rᵀt`. Toute calibration est convertie à la lecture.
+* **Aval** : même vidéo, mêmes détections 2D, mêmes images, même configuration
+  Pose2Sim ; seul le fichier de calibration change. Toute différence est
+  imputable à la calibration.
+
+## 3 bis. Noms des configurations évaluées (pour l'article)
+
+Les noms « v1 » à « v4 » sont des étapes de développement ; l'article ne compare que les
+configurations ci-dessous. Chacune est un jeu d'options de `humancalib run`.
+
+| Nom | Moteur de pose | Options | Pour qui |
+|---|---|---|---|
+| **HumanCalib-M** (référence) | MeTRAbs | `--person_selection motion --scale_method segments --vertical_method walk` | Le meilleur compromis précision / temps (~12 min pour 9 caméras et 1250 images) |
+| **HumanCalib-R (full)** | RTMPose + VideoPose3D | idem, à la fréquence native de la vidéo | Sans TensorFlow ; le plus précis de ce chemin, mais le plus lent |
+| **HumanCalib-R (fast)** | RTMPose + VideoPose3D | idem, vidéo ramenée à ~50 Hz | Option rapide, précision moindre |
+| *Ablations* | — | `--person_selection largest`, `--scale_method head`, `--vertical_method frame` | Montrent ce qu'apporte chaque élément |
+
+Les trois configurations principales partagent la même sélection de personne, la même
+correction de distorsion, la même échelle et la même verticale : seul le moteur de pose et
+la fréquence d'images changent.
+
+## 4. Exécution de HumanCalib (paramètres figés)
+
+* Valeurs par défaut du pipeline : `frame_skip 10`, `conf_threshold 0.5`,
+  détection automatique des images aberrantes, caméra de référence automatique,
+  jacobienne analytique. Aucun réglage par essai.
+* Deux moteurs : `metrabs` et `rtmpose` (RTMPose + VideoPose3D).
+* Échelle : stature fournie par le dataset. Image de référence : règle
+  automatique n'utilisant que les détections de HumanCalib (jamais le gold) —
+  l'image où le plus de caméras voient tête et talons avec confiance, départagée
+  par la confiance moyenne. Sa sensibilité est mesurée (§8).
+* **Un échec compte** : le taux de réussite est un résultat. Un essai qui
+  échoue n'est pas relancé avec d'autres paramètres ; s'il l'est pour une
+  raison technique (panne, disque), c'est consigné.
+
+## 5. Niveau 1 — géométrie
+
+Notations : `d(R) = arccos((tr R − 1)/2)` ; Rᵢ monde→caméra ; Cᵢ centre.
+Verticale : HumanCalib `−y` (repère OpenCV, y vers le bas) ; BioCV, LBMC `+z`.
+
+**Principal — invariant à la similitude, sans alignement.** Pour chaque paire (i, j) :
+
+* erreur de rotation relative : `d( (R̂ᵢR̂ⱼᵀ)(RᵢRⱼᵀ)ᵀ )` ;
+* erreur de direction de translation relative, dans le repère de la caméra i :
+  `∠( R̂ᵢ(Ĉⱼ−Ĉᵢ), Rᵢ(Cⱼ−Cᵢ) )`.
+
+Rapportés en médiane et maximum, AUC à 1/2/5/10° de max(rotation, direction),
+et médiane par caméra. Les C(C−1)/2 paires ne sont pas indépendantes (6C−7
+degrés de liberté) : **pas de test statistique sur les paires**.
+
+**Secondaire — ce que HumanCalib estime à partir de la personne.**
+
+* Échelle : médiane des rapports de base `‖Ĉⱼ−Ĉᵢ‖ / ‖Cⱼ−Cᵢ‖` (et facteur
+  d'Umeyama). Écart à 1 en %.
+* Verticale : angle entre la verticale estimée et la verticale gold, comparées
+  via la rotation de jauge estimée **à partir des seules orientations**
+  (moyenne chordale de RᵢᵀR̂ᵢ).
+* Forme : écart des rapports de base à leur médiane (%) ; erreurs de position
+  et d'orientation après similitude 7 ddl (Umeyama), en leave-one-out.
+* **Erreur absolue de bout en bout** : position (mm) et orientation (°) par
+  caméra après alignement **4 ddl** (lacet autour de la verticale + translation,
+  échelle fixée à 1), en leave-one-out. L'erreur d'échelle et de verticale y
+  restent, volontairement.
+
+Pourquoi pas une similitude 7 ddl comme mesure principale : elle absorbe
+l'échelle, qui est justement estimée par la méthode ; et, sur 4 à 10 centres,
+elle répartit l'erreur d'une caméra sur les autres (d'où le leave-one-out).
+Pourquoi pas la base en mm comme invariant : elle ne l'est pas sous similitude,
+elle mélange forme et échelle.
+
+**Supplémentaire.** MRE en pixels (critère de convergence du BA, pas mesure de
+justesse — Lee 2025 et Pätzold 2022 montrent des classements inversés).
+
+## 6. Niveau 1 bis — erreur 3D induite par la calibration
+
+* Marqueurs mocap (repère gold) projetés avec la calibration gold → 2D sans
+  bruit → triangulés avec la calibration estimée → erreur 3D en mm (moyenne,
+  95ᵉ centile), après alignement 4 ddl puis 7 ddl ; erreur sur les distances
+  inter-marqueurs (invariante au rigide).
+* Longueur connue : BioCV `calib_00/*.grids` (mire de cercles, pas 78,5 mm),
+  LBMC damier (60 mm), triangulés avec la calibration estimée.
+
+## 7. Niveau 2 — aval (Pose2Sim)
+
+Deux exécutions Pose2Sim identiques (détection 2D, association, triangulation,
+filtrage, augmentation, mise à l'échelle et IK OpenSim) : calibration gold vs
+calibration HumanCalib.
+
+* **Mesure principale** : différence appariée HumanCalib − gold, par degré de
+  liberté ; biais et RMSE ; plan sagittal séparé des plans frontal et
+  transverse.
+* Contexte : chacune face au `.mot` de référence (MAE brut et cMAE, le modèle
+  Pose2Sim n'étant pas celui du gold).
+* Spatio-temporel (marche) : longueur et largeur de pas, vitesse — sensibles à
+  l'échelle, contrairement aux angles.
+* Écart-type des longueurs de segments triangulés (avant IK) : indicateur
+  secondaire seulement.
+
+Les erreurs indépendantes s'ajoutent en variance, avec une covariance non
+nulle a priori : on ne soustrait pas « erreur HumanCalib − erreur gold » ; on
+rapporte la différence appariée directe.
+
+## 8. Niveau 3 — fidélité et sensibilité
+
+* **Fidélité** : plusieurs enregistrements d'un même dispositif non déplacé.
+  BioCV : une calibration par participant pour tous ses essais ; IMOVE : sujets
+  partageant une calibration ({4,5,6}, {7,9,10}, {11,12,13}, {15,16,17}). Biais
+  = moyenne face au gold ; précision = dispersion entre calibrations.
+  Relancer la même séquence ne mesure que le non-déterminisme GPU de la pose
+  (MRE 4,03–4,06 px observée) : fait une fois, pour le chiffrer.
+* **Moteurs** : MeTRAbs vs RTMPose + VideoPose3D sur les mêmes essais. Un
+  résultat défavorable à RTMPose + VideoPose3D est un résultat (il motive la
+  recommandation de MeTRAbs), à condition que ce chemin ait tourné dans son
+  domaine d'usage : VideoPose3D est un modèle temporel entraîné à 50 Hz, donc
+  une vidéo à 100–200 Hz lui est donnée ramenée à ~50 Hz. Cette condition
+  d'entrée est fixée ici, avant résultats, et appliquée à tous les essais ; ce
+  n'est pas un réglage par essai.
+* **Image de référence** : échelle et verticale recalculées sur plusieurs images
+  valides du même essai.
+* **Type de mouvement** : marche, course, saut sur place (CMJ), tapis (LBMC).
+* Optionnel si le temps le permet : sous-ensembles de caméras, durée.
+* **Méthode v2 — sélection géométrique de la personne** (`--person_selection
+  geometric`), conçue après avoir vu les échecs de P06 et P10 (expérimentateur
+  au premier plan de la caméra 08). Règle fixée avant tout run v2 : après une
+  première calibration, triangulation robuste du sujet par consensus de
+  caméras (sous-ensemble de 3 caméras le plus cohérent, puis caméras à moins de
+  max(50 px, 5 × son erreur)), re-sélection dans chaque caméra de la détection
+  la plus proche de la reprojection, recalibration complète. Seuils = ceux de
+  la détection d'images aberrantes, aucun réglage par essai. Les résultats v1,
+  échecs compris, restent les résultats de la méthode v1. Parce que la règle
+  a été motivée par P06/P10, elle est aussi validée sur des participants jamais
+  examinés (P04, P17, P18), en v1 et en v2.
+
+## 9. Statistiques
+
+* **Unité : le sujet** (essais imbriqués). Jamais les images mises en commun
+  (autocorrélation ; limites d'agrément artificiellement serrées).
+* Description : médiane, intervalle interquartile, intervalles de confiance
+  bootstrap par sujet.
+* Bland-Altman avec mesures répétées (Bland & Altman 2007) sur les sorties
+  cinématiques.
+* Équivalence : borne fixée a priori et justifiée (erreur de mesure du système
+  à marqueurs, changement minimal détectable, ordre de grandeur de Pose2Sim
+  Part 1), pas les seuils de McGinley et al. 2009, qui portent sur la fiabilité
+  inter-séances et non sur la validité. Avec peu de sujets, intervalles de
+  confiance plutôt que tests.
+
+## 10. Plan d'expérience
+
+À confirmer après le premier essai (temps de calcul mesuré) :
+
+| Dataset | Sujets | Essais | Moteurs | Calibrations |
+|---|---|---|---|---|
+| BioCV | 6 (sans errata) | 3 WALK + 2 RUN + 1 CMJ | 2 | 72 |
+| IMOVE-23 | 6, dont deux groupes à calibration partagée | marche (fenêtres de passage) | 2 | ~24 |
+| LBMC | 2 | gait, sit-stand, mmh | 2 | 12 |
+| OpenCap | 5 | walking | 2 | 10 |
+
+BioCV P08 (sauts d'images) et P04 (WALK_05 absent) sont évités en premier choix.
+
+## 11. Arborescence des résultats
+
+```
+D:\FLO\Calibration dataset\<Dataset>\<Participant>_<Essai>\
+  input\Calib_scene.toml     intrinsèques gold (entrée HumanCalib)
+  gold\Calib_gold.toml       calibration gold complète (Pose2Sim)
+  gold\meta.json             provenance, stature
+  metrabs\  rtmpose\         sorties HumanCalib par moteur
+  eval\                      métriques (JSON/CSV)
+```
+
+## 12. Références vérifiées
+
+* Lee et al., Extrinsic Camera Calibration From a Moving Person, RA-L 2022, 10.1109/LRA.2022.3192629
+* Takahashi et al., Human Pose as Calibration Pattern, CVPRW 2018
+* Pätzold, Bultmann, Behnke, GCPR 2022, arXiv 2209.07393
+* Lee, Nishino, Nobuhara 2025, arXiv 2502.12546
+* Yang et al. 2026, arXiv 2604.17567 ; Kineo, arXiv 2510.24464 ; HSfM, CVPR 2025, arXiv 2412.17806 ; CasCalib, arXiv 2405.06845 ; Xu et al., CVPR 2021, arXiv 2104.08568
+* Pagnon et al., Pose2Sim Part 1, Sensors 2021, 10.3390/s21196530 ; Part 2, Sensors 2022, 10.3390/s22072712
+* Uhlrich et al., OpenCap, PLoS Comput Biol 2023, 10.1371/journal.pcbi.1011462
+* Kanko et al., J Biomech 2021, 10.1016/j.jbiomech.2021.110665 et 10.1016/j.jbiomech.2021.110414
+* Needham et al., J Biomech 2022, 10.1016/j.jbiomech.2022.111338
+* McGinley et al., Gait Posture 2009, 10.1016/j.gaitpost.2008.09.003
+* Bland & Altman, J Biopharm Stat 2007, 10.1080/10543400701329422
+* Zhang & Scaramuzza, trajectory evaluation, IROS 2018 ; Umeyama, TPAMI 1991, 10.1109/34.88573
+* Challis & Kerwin, J Biomech 1992, 10.1016/0021-9290(92)90040-8
+
+## 13. Journal
+
+| Date | Étape |
+|---|---|
+| 2026-09-14 | Protocole rédigé. Lecteur BioCV validé par reprojection. Premier essai BioCV P03_WALK_01 (MeTRAbs) lancé. |
+| 2026-09-15 | Batch BioCV marche (P03 P06 P09 P10 P13 P16 × WALK_01/02 × 2 moteurs). Coupure de la machine vers 3 h 25 (Docker « unexpected EOF ») : relance technique, consignée. Bugs corrigés puis essais relancés avec les mêmes paramètres : décalage d'une image entre caméras (P09, P16 : crash de la détection d'images aberrantes) ; métrique d'angle lisant 0° sur les matrices non orthonormées de l'étape linéaire RTMPose ; conteneur RTMPose sur le code du dépôt. Décision : les échecs dus à une personne au premier plan (caméra 08 de P06, P10) **restent des échecs**. |
+| 2026-09-15 | Méthode v2 (sélection géométrique de la personne) implémentée et testée sur données synthétiques ; runs v2 MeTRAbs programmés après le test à 50 Hz, sur les 12 marches puis P04, P17, P18. |
+| 2026-09-15 | Premier run v2 réel (P10_WALK_01, essai de développement) : caméra 08 112° → 13°, autres 2–4° → 0,5–0,8°. Diagnostic par oracle gold : la re-sélection choisit comme l'oracle, mais (1) les images où le sujet n'est pas détecté gardent la seule autre personne, et le seuil relatif de l'étape « images aberrantes » ne les écarte pas quand la médiane de la caméra est haute ; (2) un seul tour, sur une première calibration fausse pour la caméra 08. **Règle v2 révisée sur les essais de développement P10 et P06 uniquement** : image sans personne si la meilleure détection dépasse max(50 px, 5 × médiane de la caméra) face au sujet de consensus ; jusqu'à deux tours de re-sélection. P04, P17, P18 restent non examinés pour la validation. |
+| 2026-09-15 | v2 révisée validée sur P10_WALK_01 (développement) : 2,5 px, 0,36° médiane / 1,1° max, 31 mm, 0 % mauvaise personne. Échelle : étude hors ligne de trois estimateurs face au gold (calibrations existantes, sans GPU) — tête sur une image (actuel) 11,2 % d'erreur absolue moyenne ; segments de jambe × ratio Drillis–Contini (0,491 × stature, Winter 2009) 2,1 % ; longueurs MeTRAbs métriques, sans stature, 2,5 % ; bras exclus (articulations virtuelles ≠ repères anatomiques, +5 à +10 %). **Méthode v3 = v2 + échelle par segments de jambe**, ratio de la littérature non ajusté ; pas de combinaison des estimateurs (ce serait un ajustement sur les données). L'estimateur MeTRAbs est rapporté comme variante sans stature. |
+| 2026-09-15 | Verticale, étude hors ligne (10 calibrations) : une image (actuel) ~3° ; axe du corps médian 3–8° (inclinaison du tronc) ; plan du sol sur les appuis instable (0,1–37°, bande d'appuis trop étroite) ; **axe du corps médian moins sa composante le long de la direction de marche (donnée par les appuis) : médiane ~0,65°**, retenu. BA robuste (soft_l1 / cauchy, f_scale = 5 fixé d'après le bruit des keypoints) : négatif — soft_l1 dégrade les essais propres (0,44° → 1,06°) et casse certains essais, cauchy reste à l'étape linéaire ; BA inchangé. **v3 = v2 + échelle par segments de jambe + verticale sur toute la marche.** |
+| 2026-09-16 | **Batch v3 terminé : 18 marches BioCV (9 caméras).** 14/18 essais à 0,26–0,82° de rotation relative médiane et 2,5–3,4 px, échelle |1,6| % médiane, verticale 0,55° médiane, forme 60 mm. 4 échecs (P03_W2, P06_W1, P10_W2, P18_W1), tous dus à une personne en trop. Validation (P04, P17, P18, jamais examinés avant de figer la v3) : 5/6 essais réussis. RTMPose + VideoPose3D reste à 6–15° même avec l'échelle et la verticale v3, à 50 comme à 200 Hz. **v4** (sélection initiale par mouvement) testée sur 4 essais de développement : P06_W1 11,1° → 1,3°, P18_W1 11,4° → 0,8°, sans dégrader P10_W1 (0,36°) ni P04_W1 (0,40 → 0,57°). P18 devient un essai de développement (règle v4 conçue après son échec) ; validation restante jamais examinée : P19, P24, P26, P27. |
+| 2026-09-16 | **v4 sur les 18 marches** : rotation relative médiane 0,62° (v3 : 0,68°), **pire essai 2,61° contre 11,36°**, MRE 2,94 px, échelle 1,2 %, verticale 0,32°, forme 55 mm. Les 4 échecs de la v3 sont réparés (P03_W02 5,78 → 1,39° ; P06_W01 11,12 → 1,25° ; P10_W02 9,26 → 0,34° ; P18_W01 11,36 → 0,84°). Deux essais se dégradent : P17_W02 (0,73 → 2,61°) et P06_W02 (0,82 → 1,46°), à instruire avant de faire de la v4 le défaut. Densité du BA : aucune amélioration en passant de 130 à 650 images (0,72 / 0,72 / 0,72° sur P16_W02), pour 6 à 25 fois plus de temps — le BA converge, la limite est le bruit des keypoints (2–3 px) et les intrinsèques. **RTMPose corrigé : 200 Hz nettement meilleur que 50 Hz** (P16_W02 : 0,31° contre 2,24° ; 6,2 px contre 21 px ; 26 mm contre 973 mm), au prix de 27 min contre 5,7 min. |
+| 2026-09-16 | **Biais de méthode corrigés sur le chemin RTMPose + VideoPose3D**, tous en sa défaveur : 2D jamais corrigée de la distorsion (k1 = −0,15 sur BioCV) alors que MeTRAbs l'était ; terme de longueur d'os désactivé par un seuil absolu sur une scène en unités arbitraires ; étape linéaire renvoyant [s·R | t] et non une rotation (relevé métrique par PnP, l'orthonormalisation directe déplaçant toutes les projections : MRE linéaire 234 → 1704 px) ; sélection de la personne non appliquée. Après correction, P16_WALK_02 : MRE linéaire 234 → 33 px, BA 107 → 21 px, rotation relative 8,2° → 2,2°, forme 2938 → 973 mm (MeTRAbs v3 : 0,72° et 66 mm). Reste : le poids du terme d'os retombe à zéro car quelques triangulations aberrantes font exploser la variance ; une mesure robuste serait nécessaire. |
+| 2026-09-15 | Test RTMPose + VideoPose3D à 50 Hz (§8) programmé après le batch : vidéos réduites en gardant une image sur k à l'identique sur toutes les caméras, sorties dans `rtmpose_50hz`. |
+| 2026-09-16 | **BA « poussé » : la grille ratio d'images × tolérance ne donne rien** (P16_W02, P09_W01, P13_W02, mêmes poses et même étape linéaire). Tolérance : de 1e-7 à 1e-9 l'écart est ≤ 0,02° et ≤ 0,01 px ; 1e-10 gagne 0,02° et 0,06 px sur un seul essai pour 13 fois le temps (107 s contre 8 s) ; 1e-12 ne converge pas en 25 min. Images : passer de 1/10 à toutes les images **dégrade** deux essais sur trois (P13_W02 0,26 → 0,44° ; P09_W01 0,68 → 0,76°) pour 18 à 35 fois le temps ; le troisième est stable (P16_W02 0,72 → 0,74°). Combiner les deux (1/2 des images et 1e-8) ne fait pas mieux que le réglage courant. **Conclusion : le BA est convergé à 1/10 d'images et 1e-7 ; la limite est le bruit des keypoints (2–3 px) et les intrinsèques fixes, pas l'optimiseur.** Aucun mode « optimisation poussée » ne sera proposé dans l'article ; le résultat négatif y est rapporté. |
+| 2026-09-16 | **Cinquième biais contre RTMPose, trouvé en relançant les essais : la sélection par mouvement vidait la caméra de face.** L'oscillation des jambes est mesurée dans l'image pour RTMPose (en 3D pour MeTRAbs) : la caméra vers laquelle le sujet marche la voit raccourcie et ne déclare « marche » que sur 8 à 31 % des images, contre 60 à 85 % pour ses voisines. Comme l'étape linéaire exige chaque os visible dans **toutes** les caméras à la fois (`core/filtering.py`, `joints2orientations`), cette seule caméra vidait l'intersection : P09_WALK_01 n'avait plus une seule orientation valide et la calibration échouait (exit 1) ; P16_WALK_02 ne survivait que sur un chunk. Diagnostic : la caméra 04 de P09 n'a que 7 % de keypoints au-dessus du seuil de confiance après sélection, contre 92 % avec la sélection « plus grande boîte » ; MeTRAbs, lui, garde 94 % sur la même caméra. **Correctif (`gate` adaptatif)** : une caméra suit la fenêtre des autres au lieu de son propre verdict si (1) elle déclare la marche moins de 0,7 fois le taux médian des caméras **et** (2) elle voit toujours quelqu'un bouger (quartile bas de la vitesse ≥ 0,4 × seuil). Les deux conditions sont nécessaires : le taux seul ne sépare pas la caméra de face (0,51–0,79 du médian) de celle qui n'a qu'un opérateur assis (0,63–0,77), le quartile de vitesse si (0,29–0,37 contre 0,03–0,12). Mesuré contre l'oracle gold sur 7 marches de développement : RTMPose gagne sur les deux axes (P09 63→75 % d'images gardées et 87,1→89,1 % de bonnes personnes ; P16 66→76 % et 87,9→89,4 % ; P13 67→74 % et 89,9→90,8 %), **MeTRAbs est strictement inchangé** — vérifié sur les 18 marches, 0 caméra concernée, donc aucun résultat MeTRAbs à refaire. Retirer la barrière partout, au lieu de l'adapter, coûterait 6 à 7 points à MeTRAbs (96,1→89,3 ; 98,1→92,0 ; 97,0→91,3). |
+| 2026-09-16 | **Les deux régressions de la v4 instruites (P17_WALK_02, P06_WALK_02) : ce n'est pas la personne, c'est le volume couvert.** Diagnostic par oracle gold : la v4 choisit *mieux* la personne que la v3 sur ces deux essais — 98–100 % de bonnes détections dans chaque caméra, 0 % de mauvaise personne, même bruit de keypoints (~2 px), et *plus* d'images vues (P17 caméra 03 : 79 → 95 % ; P06 caméra 00 : 83 → 98 %). La dégradation est déjà présente à l'étape linéaire (P17 2,85 → 4,67° ; P06 1,09 → 3,07°), le BA n'en rattrape qu'une partie (0,73 → 2,61° ; 0,82 → 1,46°) : c'est un problème de **conditionnement**, pas d'optimisation. Cause mesurée sur la trajectoire du bassin triangulée avec la calibration gold : la sélection par mouvement ne garde que la fenêtre de marche et supprime les phases debout, les demi-tours et les pas latéraux, qui portaient la diversité spatiale. P06_WALK_02 : étendue transversale 2,67 m et deuxième axe de l'ACP 0,42 m en v3 (parcours 18,2 m), contre 0,21 m et 0,04 m en v4 (parcours 9,3 m) — le deuxième axe s'effondre d'un facteur dix. P17_WALK_02 : 0,46 → 0,10 m. Contrôle sur P18_WALK_01, où la v4 gagne : l'« étendue » de la v3 (27 m, parcours 92 m) n'est pas de la couverture mais les triangulations aberrantes de la mauvaise personne. **Piste à tester avant de faire de la v4 le défaut : se servir du mouvement pour identifier la personne (quelle détection) sans restreindre les images à la fenêtre de marche**, la re-sélection géométrique prenant ensuite le relais hors marche. |
+| 2026-09-16 | **Échelle : le biais de +5 % de RTMPose vient de la convention des keypoints, pas de la géométrie.** Vérification sans calibration estimée : les jambes sont triangulées avec les caméras **gold** (l'échelle y est juste par construction) et comparées au rapport de Drillis–Contini (cuisse 0,245 H, jambe 0,246 H). RTMPose mesure 0,950 ± 0,020 du modèle (8 marches propres ; P06 et P10 exclues, leurs extractions `rtmpose` d'origine sont polluées par le passant de la caméra 08), MeTRAbs 0,988 ± 0,015 (18 marches). Comme le facteur d'échelle vaut 0,491 H / longueur mesurée, cela prédit +5,2 % pour RTMPose et +1,2 % pour MeTRAbs — **et c'est bien ce qu'on observe : sur les 18 marches MeTRAbs, le rapport d'échelle mesuré contre le gold est l'inverse du rapport de jambe, corrélation 0,969, écart médian 0,66 %, maximum 1,26 %.** Cause localisée en comparant les deux moteurs triangulés avec le gold sur les mêmes images : la hanche Halpe26 de RTMPose est **85 mm en avant** et 32 mm en dessous du centre articulaire de MeTRAbs (décalage latéral 6–12 mm seulement), convention COCO/Halpe qui annote la face avant du bassin et non la tête fémorale ; la cheville est 20 mm plus bas. D'où deux structures d'erreur opposées : MeTRAbs cuisse **+8 à +13 %** et jambe **−10 à −15 %**, qui *se compensent* ; RTMPose cuisse −4 à −7 % et jambe −1 à −7 %, qui *s'additionnent*. La bonne échelle de MeTRAbs est donc en partie fortuite. **Aucune correction appliquée** : une constante par moteur serait ajustée sur BioCV seul (un labo, neuf caméras) ; décision de l'utilisateur de ne rien corriger avant d'avoir IMOVE, OpenCap et LBMC. Plancher de la méthode, même avec une constante parfaite par moteur : 1,5 % d'écart-type (MeTRAbs), 2,1 % (RTMPose). Piste de vérification absolue non exploitée : BioCV fournit `markers.c3d` pour les 18 marches (aucun lecteur c3d installé dans l'environnement). |
+| 2026-09-16 | **Vérification absolue de l'échelle avec les marqueurs BioCV (`markers.c3d`, ezc3d installé).** Les centres articulaires Visual3D fournis par le jeu de données servent de référence : vérifié que `LEFT_KNEE` est exactement le milieu des épicondyles et `LEFT_ANKLE` le milieu des malléoles (0,0 mm d'écart) ; la hanche vient de la régression Visual3D (les marqueurs du bassin sont à zéro dans 19–34 % des images de marche, occlusion — **images invalides masquées**, il reste 45–66 % d'images utilisables, largement assez pour une médiane). Décomposition du biais d'échelle en deux parts indépendantes : (1) **le modèle de Drillis–Contini lui-même surestime la jambe de 1,6 %** (écart-type 2,4 % sur 18 marches) — part commune aux deux moteurs, irréductible sans anthropométrie individuelle ; (2) la convention des keypoints : MeTRAbs cuisse **+5,1 %** et jambe **−4,2 %** face à l'anatomie réelle, qui se compensent en partie (+0,7 % net, écart-type 2,1 %) ; RTMPose cuisse **−9,7 %** et jambe +2,7 % (−3,9 % net, écart-type 1,4 %). Biais d'échelle prédit par ces mesures : **+0,9 % pour MeTRAbs, +5,8 % pour RTMPose**, contre +1,1 % et +5,0 % observés face au gold — mécanisme confirmé de bout en bout. À noter : RTMPose est **plus répétable** (1,4 %) que MeTRAbs (2,1 %) tout en étant plus biaisé ; c'est donc lui qui se prêterait le mieux à une constante par moteur, si elle était un jour justifiée sur d'autres jeux de données. Réserve : ces « vraies » longueurs restent celles d'un modèle marqueurs (le README de BioCV le dit lui-même), pas une vérité anatomique. |
+| 2026-09-16 | **Chaîne de segments plutôt que les jambes seules : piste prometteuse, à confirmer.** Question posée : pourquoi n'utiliser que les jambes ? Estimateurs comparés sur le gold (chaque segment = médiane sur toutes les images dont les articulations sont vues par ≥ 5 caméras sur 9, jamais une seule image, jamais de projection verticale ; somme des segments). **Fait établi (18 marches, MeTRAbs)** : l'échelle implicite passe de 1,010 ± 0,016 (jambes seules) à 0,971 ± **0,005** (jambes + tronc bassin→cou) — la dispersion entre sujets est divisée par trois. **Mécanisme anthropométrique vérifié sur les marqueurs** : corrélation **−0,913** entre jambe/taille et tronc/taille (jambes longues ⇒ tronc court) ; variabilité inter-sujets de la jambe 2,4 %, du tronc 5,1 %, **de leur somme 0,8 %**. La chaîne est donc un meilleur *modèle*, pas seulement une meilleure mesure. **Résultat provisoire (4 marches RTMPose finales)** : 1,034 ± 0,011 → 0,974 ± 0,002, soit **les deux moteurs à 0,3 % l'un de l'autre** (contre 2,4 % avec les jambes seules) : le biais résiduel de −2,9 % serait alors une erreur *commune* des proportions de Drillis–Contini face à notre chaîne de keypoints, et non une affaire de convention propre à chaque moteur — une constante partagée serait bien plus défendable que deux constantes par moteur. À confirmer sur les 18 marches RTMPose (évaluation en attente, `chain_eval.py`). Limite : BioCV ne fournit **aucun marqueur de tête** (acromion, C7, clavicule, xiphoïde, T10 au plus haut), donc le segment cou→tête ne peut pas être validé ; les chaînes qui l'incluent restent invérifiables. **Piège rencontré** : ne jamais analyser les fichiers de pose d'un essai dont le calcul tourne encore — une lecture en cours d'écriture a donné un tronc de 1,18 m pour un sujet d'1,68 m et faussé une première conclusion. |
+| 2026-09-16 | **Règle de choix de l'estimateur d'échelle, écrite AVANT de voir les autres jeux de données.** Le critère ne peut pas être « le plus petit écart sur BioCV » : ce serait un ajustement sur le jeu d'évaluation. Trois filtres fixés indépendamment des chiffres : (1) extrémités anatomiquement définies — élimine toute chaîne visant le sommet de la tête (aucun moteur n'a de vertex : tête MeTRAbs à 0,888 de la stature, RTMPose à 0,966) et les bras ; (2) ne pas dépendre d'une compensation d'erreurs — faiblesse des jambes seules, dont le faible biais chez MeTRAbs vient de trois erreurs qui s'annulent (Drillis–Contini +1,6 %, cuisse +5,1 %, jambe −4,2 %), annulation propre au moteur que RTMPose n'a pas (+5 %) ; (3) mesurable sur tous les jeux de données (stature connue). Restent **jambes seules** et **jambes + tronc**. **Défaut gelé pour la série en cours : jambes seules**, sans correction. Les deux estimateurs sont calculés sur chaque essai et l'article rapporte les deux (analyse de sensibilité, pas un choix caché). **Test de bascule pré-enregistré** : on adopte jambes + tronc si et seulement si, sur IMOVE, OpenCap et LBMC, **(a)** sa dispersion y est aussi plus petite qu'avec les jambes seules **et (b)** son décalage reste le même (≈ 0,971–0,974, soit +2,9 %) d'un jeu de données à l'autre *et* d'un moteur à l'autre. La condition (b) est décisive : un décalage reproductible est une constante du modèle face à notre chaîne de keypoints et justifie une constante unique partagée ; un décalage qui change de labo est un artefact de BioCV et on garde les jambes seules. Aucune constante par moteur ne sera introduite. Rappel de portée : l'échelle n'affecte que les grandeurs métriques — ni les angles articulaires, ni la forme du rig (7 ddl) n'en dépendent. |
+| 2026-09-16 | **OpenCap reconnu, et la compensation anthropométrique s'y réplique.** Inventaire : 10 sujets (subject2–11, pas de subject6 en vidéo — « chose not to share their videos publicly »), **5 caméras** iPhone13,3 (contre 9 sur BioCV), 2 sessions dont **seule Session1 contient la marche** : 6 essais par sujet (`walking1-3`, `walkingTS1-4`), 7 à 10 s en vidéo brute à 60 fps, soit **54 essais** disponibles. Stature et masse dans `sessionMetadata.yaml` (1,60–1,96 m). Calibration : un `cameraIntrinsicsExtrinsics.pickle` par caméra, convention **monde→caméra** confirmée (det(R) = 1,0000 ; centres optiques en arc, 1,4 à 5,9 m entre caméras), **translation en millimètres**. **Pièges** : (1) `k3 = 0,2134` non nul sur les **90 caméras** (intrinsèques génériques du modèle d'iPhone, `overwriteDeployedIntrinsics: false`) — notre lecture TOML porte déjà 5 coefficients (`toml_io.py`), seule l'écriture `write_pose2sim_toml` tronque à 4 et refuse : correctif additif à faire **après** le batch en cours ; (2) vidéos en **portrait** 720×1280 alors que `imageSize` est stocké `[1280, 720]`, ordre inverse — les intrinsèques (`cx = 366 ≈ 720/2`, `cy = 639 ≈ 1280/2`) confirment le portrait ; (3) **caméras non synchronisées** — `raw_start` varie de 300 à 432 images pour le même essai, soit jusqu'à 2,2 s d'écart ; `_RAW_WINDOWS.json` (765 entrées `sujet/Session/Cam/Essai`) donne `raw_start`, `sync_frames`, `fps` et permet d'élargir la fenêtre autour du point de synchro pour exploiter les 10 s brutes au lieu des 1,4 s du clip `syncdWithMocap` ; (4) **`mocapToVideoTransform.yaml` de Session1 est invalide sur les 9 sujets** (det = 0, 1re et 3e lignes identiques) alors que celui de Session0 est correct — sans conséquence ici, longueurs de segments et comparaison de calibrations étant invariantes par transformation rigide. **Vérité anthropométrique** : modèles `_scaled.osim` (fémur, tibia) et marqueurs `.trc` incluant `R_HJC`/`L_HJC` (centres de hanche fonctionnels, absents de BioCV où le bassin était occulté 19–34 % du temps) ; le mocap ne couvre toutefois que la fenêtre courte (158 images à 100 Hz). **Résultat : jambe/0,491 H = 0,976 ± 0,024 sur OpenCap contre 0,984 ± 0,024 sur BioCV** — le biais de Drillis–Contini est reproductible à moins d'un point près entre deux labos. **Et la compensation anthropométrique se réplique** (marqueurs `.trc`, 10 sujets) : jambe/H 2,5 %, tronc/H 3,6 %, **somme 0,9 %**, corrélation **−0,800** — contre 2,4 %, 5,1 %, 0,8 % et −0,913 sur BioCV. La part « modèle » de la condition (b) de la règle d'échelle est donc validée sur un second jeu de données ; la part « mesure » reste à faire (extraction OpenCap). |
+| 2026-09-16 | **IMOVE-23 reconnu.** 23 sujets (Subject_2 à Subject_25), **un seul essai par sujet** (`t1_walking`), **10 caméras** à 100 Hz en 1920×1080. Stature dans `Demographics/IMOVE23_Demographics.xlsx` (`Height_cm`). Calibration : un `Subject_XX_calibration.txt` par sujet, en **XML Qualisys** (`<transform x y z r11..r33>` en millimètres, `<intrinsic sensorMaxU=1920 sensorMaxV=1080 focalLengthU/V>`) — parseur à écrire, sur le modèle de `biocv.py`. **Trois points décisifs.** (1) **Coût** : les essais durent 13 163 images, soit 2 min 11 s et 1,7 Go — onze fois le volume d'un essai BioCV. Traités entiers, ils coûteraient ~2 h 45 chacun, soit 63 h pour les 23 : il **faut** découper une fenêtre. (2) **`Timing_IMOVE23.xlsx` ne décrit pas la visibilité multi-caméras** : il donne, par groupe de caméras (`26;27;28` et `24;25;29`), les images où une caméra voit le sujet arriver **de face**, et sert à Mesh2Sim en mono-caméra. Ses fenêtres ne se recouvrent jamais (médiane −250 images sur 111 passages), ce qui pourrait faire croire à tort que les caméras ne voient jamais le sujet ensemble. **Vérifié sur les vidéos : à l'image 3245, en plein dans le « trou », 8 caméras sur 10 voient le sujet.** La fenêtre de calibration sera donc centrée sur un **aller-retour** vu par les 10 caméras — un aller-retour parcourant le couloir dans les deux sens, c'est aussi la diversité de trajectoire qui manquait aux essais BioCV régressés. (3) **Deux caméras sont tournées** (`viewrotation` 270 et 90 pour les caméras 22 et 23) : dans les vidéos normales le sujet apparaît **couché à 90°**, ce qui met en échec les détecteurs de pose. Il faudra utiliser leurs fichiers `Rotated_*` (1080×1920) **avec les intrinsèques tournées en conséquence**, sous peine de perdre deux caméras sur dix. |
+| 2026-09-16 | **OpenCap : trois essais calculés, et la calibration gold s'avère trop imprécise pour juger une rotation au degré près.** Avec la fenêtre centrée (172, 172 et 136 images) : rotation relative médiane **2,23° / 1,79° / 2,43°**, échelle **1,001 / 0,996 / 1,007**, forme 4,07 / 1,88 / 1,60 %. La méthode est donc **stable et reproductible** sur ce jeu (5 caméras, 60 Hz, portrait, sujets de 1,69 à 1,96 m), et l'estimateur d'échelle par segments y est excellent — une validation sur un second jeu de données. **Mais la référence ne tient pas.** Test de cohérence interne (triangulation avec 4 caméras, reprojection dans la cinquième, **avec la gold seule, sans aucune de nos estimations**) : OpenCap **49,1 px de médiane** (Cam0 49, Cam1 39, **Cam2 119**, Cam3 59, Cam4 47) contre **2,3 / 2,6 / 3,2 px** sur trois essais BioCV — soit **15 à 20 fois pire**. Sur les mêmes détections, notre propre calibration est six fois plus cohérente que la gold (8,4 px de médiane). Réserve : notre BA minimise cette reprojection, il est donc juge et partie sur ce second point ; le premier, lui, ne nous fait pas intervenir. Ordre de grandeur : à f = 913 px et un sujet à ~4 m, 49 px correspondent à ~3° — **la magnitude de ce que nous « mesurons »**. Vérification complémentaire : **retirer Cam2 n'améliore pas** l'erreur (2,23 → 2,49 ; 1,79 → 2,02 ; 2,43 → 2,44) et la meilleure configuration à 4 caméras l'inclut toujours : l'erreur est **diffuse**, pas imputable à une caméra. Origine de la piste : l'utilisateur avait déjà rencontré des difficultés avec la caméra 2 d'OpenCap dans Mesh2Sim en multi-caméra. **Conséquence pour l'article : OpenCap ne servira pas de référence de rotation** (ce rôle revient à BioCV, gold à 2,5 px) mais reste utile pour l'échelle et comme cas de robustesse à 5 caméras. |
+| 2026-09-16 | **Correction de l'entrée précédente : la caméra 2 d'OpenCap est désynchronisée, la calibration gold n'est pas en cause.** L'entrée ci-dessus concluait, sur un test de cohérence interne à 49 px contre 2,5 px pour BioCV, que la gold d'OpenCap était trop imprécise pour juger une rotation. Le chiffre est exact, l'imputation était prématurée. **Ce qui est établi** : en triangulant avec quatre caméras et en reprojetant dans la cinquième à l'image f+k, sur un **échantillon d'images figé avant le balayage** (163 images, ±150), quatre caméras sur cinq ont leur minimum à k = 0 — leur synchronisation est donc correcte — tandis que **la caméra 2 présente une cuvette nette à k ≈ −105 images (1,75 s), son erreur passant de 63 px à 11 px**. Le décalage survit jusque dans les clips `syncdWithMocap` fournis par le jeu de données. Vérifications écartant les autres causes : `_RAW_WINDOWS.json` donne exactement l'image de départ des clips officiels (corrélation 1,000 sur les cinq caméras), notre découpage démarre exactement où il doit (corrélation 1,000, deux tests indépendants), les vidéos brutes ne perdent aucune image (annoncé = décodé) alors que les clips en annoncent 95 pour 86 décodées, et la convention de calibration est confirmée visuellement (reprojection tombant sur le sujet dans les cinq vues) ainsi que par Mesh2Sim (R monde→caméra, t en millimètres, centre = −Rᵀt). **Deux erreurs de méthode commises et à ne pas reproduire** : (1) estimer un décalage sans figer l'échantillon d'images — le minimum se place alors là où il reste le moins d'images, ce qui a produit un « −106 sur 15 images » et un « 2,8 px » illusoires ; (2) juger une synchronisation à l'œil entre une vue frontale et des vues de profil, où la phase de marche n'est pas comparable. **Réserve importante** : ces décalages sont estimés **avec la gold**, donc tout résultat qui en découle est une borne supérieure — l'article exige une synchronisation estimée sans la référence. Une corrélation de signaux 2D (taille apparente, écartement des chevilles) a été essayée et échoue (35 à 146 images d'erreur), la marche étant périodique. |
+| 2026-09-16 | **OpenCap avec synchronisation corrigée : la reprojection rejoint BioCV, l'erreur angulaire non — le facteur limitant est le conditionnement.** Trois essais recalculés (fenêtre 240 images, décalages estimés par reprojection) : rotation relative **2,14° / 1,61° / 1,19°**, échelle **1,011 / 1,004 / 1,028**, forme du rig **0,87 / 0,64 / 0,92 %** (contre 4,07 / 1,88 / 1,60 % avant). **Décomposition fenêtre vs synchronisation** (subject3_walking1, seule variable changée à chaque fois) : fenêtre 172 sans décalage 2,426° ; fenêtre 240 sans décalage 2,130° ; fenêtre 240 avec décalages 1,192°. La fenêtre élargie n'apporte que −12 %, **la resynchronisation −44 %** — et ses décalages ne valaient que 5 à 8 images (83–133 ms), d'où une **sensibilité très forte au désalignement**. **Résultat principal : les MRE d'OpenCap rejoignent ceux de BioCV** (3,11 à 4,37 px après BA contre 2,77 à 3,53 px) alors que l'erreur de rotation reste **deux à trois fois plus grande** (1,19–2,14° contre 0,54–0,71°). Sur subject2_walking1, corriger Cam2 fait passer le MRE linéaire de 18,75 à 6,39 px et le MRE après BA de 9,34 à 4,37 px **sans bouger la rotation** (2,231 → 2,140°). Avec cinq caméras en arc devant un sujet qui marche vers elles, la famille des rigs qui expliquent aussi bien les observations est large : **le MRE ne suffit pas à juger une calibration**, ce qui justifie directement les métriques relatives retenues au §5. **Décalage établi** : Cam2 de subject2_walking1 est décalée d'environ 100 images (cuvette nette, fond à 10,5 px contre 63 px à k = 0, sur échantillon figé et filtré) ; aucun autre décalage n'est détectable de façon fiable sur cet essai. **Piège de méthode, troisième variante de la journée** : figer l'échantillon d'images ne suffit pas, il faut aussi le filtrer sur la visibilité du sujet et **refuser un minimum dont le fond dépasse le bruit de mesure** — un minimum à 148 px ne désigne pas un décalage mais des données qui ne collent nulle part. **Pistes non tranchées** : refaire une calibration BioCV restreinte à 5 caméras pour isoler l'effet du conditionnement, et calibrer une session OpenCap sur ses 6 marches cumulées (les caméras ne bougent pas de la session) plutôt que sur un seul essai de 240 images. |
+| 2026-09-17 | **OpenCap : cumuler des essais n'améliore pas la rotation — l'erreur est systématique.** Sujet 2, cinq essais resynchronisés un par un (décalage estimé par essai : walking1 Cam2 ≈ −105 images, walkingTS1 Cam2 −88, walking3 et walkingTS2 seulement ±8 sur une ou deux caméras). Essais seuls : w1 2,14°, w2 1,61°, w3 1,85°, TS1 3,07°, TS2 2,93° (7 ddl 43–107 mm). Poses fusionnées puis calibrées ensemble : w1+w2+w3 (720 images) **2,17°**, TS1+TS2 (480) 3,11°, les cinq (1200) 2,42°. Le triple de données donne la moyenne des essais seuls, comme la grille BA sur BioCV l'avait montré avec le nombre d'images. Causes compatibles, qu'aucune quantité de données ne corrige : intrinsèques génériques du modèle d'iPhone, déphasage sous-image entre téléphones non synchronisés matériellement (jusqu'à ±8 ms à 60 Hz), arc de caméras serré. La marche avec balancement du tronc dégrade (~3°) au lieu d'aider. **Décision** : sur OpenCap on rapporte des essais seuls en marche naturelle. |
+| 2026-09-17 | **Deux moteurs sur BioCV, essai par essai : même précision quand la calibration réussit, mais RTMPose+VideoPose3D échoue 2 fois sur 9 et l'échec se voit sans gold.** Neuf essais communs : rotation médiane MeTRAbs 0,56° / RTMPose 0,57° ; sans les deux échecs (n = 7) 0,56 / 0,57°, position 7 ddl 39 / 39 mm, écart d'échelle 0,9 / 3,5 % (hanche Halpe26). Échecs RTMPose : P06_WALK_02 (27,6°) et P10_WALK_01 (170°). C'est l'étape linéaire qui casse (33° et 134°, contre 2–17° pour les RTMPose réussis et 1–4,7° pour MeTRAbs ; le BA ne rattrape qu'en dessous de ~17°) : une ou deux caméras où RTMPose voit mal le sujet (score 2D > 0,5 sur 20–30 % des images, dont la caméra 08 au passant), alors que l'étape linéaire exige l'os dans toutes les caméras, ce qui laisse 15–34 images contre ~1300 pour MeTRAbs. **Le MRE final signale l'échec** : 67–72 px contre 5,5–17,7 px pour les RTMPose réussis et 2,4–5,2 px pour MeTRAbs, dont les deux moins bons essais (P17_WALK_02, P03_WALK_02) ont aussi le MRE le plus haut. Piste non testée, car elle change la méthode : une étape linéaire qui tolère une caméra manquante. |
+| 2026-09-17 | **Échelle depuis la stature : jambes+tronc est plus stable d'un moteur et d'un jeu à l'autre.** Erreur bout-en-bout (triangulation avec notre calibration, stature, vraie échelle par Umeyama 7 ddl), biais / écart-type : BioCV MeTRAbs (18) jambes +1,02 / 1,54 %, jambes+tronc −2,85 / 0,44 % ; OpenCap MeTRAbs (3) +1,51 / 1,43 %, −1,73 / 0,39 % ; BioCV RTMPose, calibrations réussies seulement (7) +4,27 / 1,14 %, −1,92 / 0,91 %. Jambes+tronc divise la dispersion par 2 à 3 et son biais varie de ~1 point entre groupes, contre 3,3 points pour les jambes seules. La règle pré-enregistrée (§ échelle) reste en attente d'IMOVE et de LBMC avant de trancher ; les calibrations ratées sont exclues de ces statistiques, car leur échelle n'a pas de sens. |
+| 2026-09-17 | **Combien d'essais : l'erreur dépend de l'essai plus que du participant.** BioCV MeTRAbs, bootstrap par participant de l'IC95 de la médiane de rotation : 9 participants × 1 essai → largeur 0,81° ; 9 × 2 → 0,38° ; 7 × 2 (0,59°) fait mieux que 9 × 1. Variance entre essais d'un même participant 0,31 contre 0,17 entre participants (ICC ≈ 0,04) : quelques essais ratés (P17_WALK_02, P03_WALK_02) dominent. On rapporte donc la distribution par essai avec deux essais par participant. |
+| 2026-09-17 | **Correction et complément de l'entrée « deux moteurs » : 16 essais appariés, RTMPose échoue 4 fois, et la visibilité n'explique pas tout.** Sept essais RTMPose de plus. Échecs RTMPose (> 5°) : P06_WALK_02 28°, P10_WALK_01 170°, **P17_WALK_01 118°, P17_WALK_02 113°** — 4/16, contre 0/16 pour MeTRAbs. Sans eux (n = 12) : rotation MeTRAbs 0,58° [0,52–0,70] contre RTMPose 0,46° [0,42–0,57], position 7 ddl 48 contre 38 mm, écart d'échelle 1,4 contre 5,2 % ; Wilcoxon apparié p = 0,18. Le MRE final signale toujours les échecs (55–1306 px contre 5,5–17,7). **Mais l'entrée précédente attribuait les échecs à une caméra mal vue ; c'est faux pour P17** : RTMPose y voit le sujet sur 38 à 96 % des images selon la caméra, et l'étape linéaire dispose de jusqu'à 435 images. Les angles de 113 à 170° évoquent plutôt une ambiguïté d'orientation du 3D relevé par VideoPose3D ; la cause reste à établir. |
+| 2026-09-17 | **OpenCap sur 9 sujets, et la gold d'OpenCap explique moins bien les images que notre calibration.** Une marche naturelle par sujet, décalages de synchronisation estimés essai par essai (petits, 6–12 images sur 1–3 caméras chez 6 sujets sur 9) : rotation relative médiane **2,06° [1,67–2,14]**, position 7 ddl 118 mm, 4 ddl 143 mm, écart d'échelle 2,5 %, aucun échec. Test de cohérence : mêmes points 2D MeTRAbs non distordus, triangulés puis reprojetés avec notre calibration puis avec la gold. La gold fait mieux ou aussi bien que nous sur BioCV (18/18 ; 1,9–2,5 px contre 2,1–4,7) et IMOVE (2/2 ; 2,8 contre 2,9), mais **moins bien sur OpenCap (12/12 ; 2,8–6,9 px contre 2,2–4,7)**. La référence d'OpenCap n'est donc pas cohérente avec les images à mieux que ~2° près : les ~2° mesurés sont un désaccord avec une gold imparfaite (intrinsèques génériques identiques sur les 90 iPhones, déphasage résiduel), pas une erreur imputable à la méthode seule. Sur BioCV, les trois essais les moins bons ont aussi le plus grand écart de MRE avec la gold. |
+| 2026-09-17 | **IMOVE-23 : deux sujets calibrés, au niveau de BioCV.** Lecteur validé (fe12dbf, prise `_00N` variable corrigée en f5021d1). Un aller-retour par sujet, 10 caméras dont les deux tournées, 50 Hz. Sujet 2 : rotation **0,42°**, 7 ddl 54 mm, échelle 1,015, verticale 0,89°, MRE 3,6 px ; sujet 3 : **0,65°**, 83 mm, 1,023, 0,31°, 3,5 px. Caméras tournées 22/23 : 0,24/0,31° et 0,47/0,18° en 7 ddl, ce qui valide la rotation des intrinsèques. Aucun décalage de synchronisation détecté (Qualisys). Échelle depuis la stature sur les quatre groupes (n ≥ 10 sauf IMOVE) : jambes+tronc biais −1,1 à −2,9 %, dispersion 0,4–1,3 % ; jambes seules +1,0 à +4,9 %, 0,5–1,9 %. |
+| 2026-09-17 | **Correction : notre calibration n'est pas meilleure que la gold d'OpenCap — l'avantage disparaît hors échantillon.** L'entrée précédente concluait que la gold reprojette moins bien les images que notre calibration (12/12). Or nos points 2D sont ceux-là mêmes que notre ajustement de faisceaux minimise. Validation croisée sur le sujet 2 : calibration faite sur un essai, évaluée sur les points d'un autre essai du même rig (12 couples). **La gold l'emporte** : MRE 2,8–6,3 px contre 5,5–11,2 px pour nous (10/12) ; dispersion robuste de la longueur cuisse+tibia triangulée, critère jamais optimisé, 1,37–1,73 % contre 1,66–2,75 % (12/12). Sur BioCV (P09, P10, P16, 6 couples), la gold garde son petit avantage (MRE 1,95–2,29 contre 2,05–2,64 px ; jambe à égalité). Notre calibration absorbe donc un défaut propre à chaque essai OpenCap, très probablement la synchronisation résiduelle. Le MRE de la gold varie d'ailleurs de 2,8 à 6,3 px selon l'essai avec les mêmes caméras : le défaut est dans les essais, pas dans la gold. **Leçon de méthode** : un MRE calculé sur les points qui ont servi à calibrer ne départage jamais deux calibrations ; il faut des points d'un autre essai. |
