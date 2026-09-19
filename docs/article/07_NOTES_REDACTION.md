@@ -72,9 +72,12 @@ les échecs.
 3. **Une calibration de référence n'est pas une vérité** : sur OpenCap et COMFI, la « gold » n'est
    pas plus cohérente avec les images que notre calibration ; tester hors échantillon ou contre la
    mocap (jamais sur les points qui ont servi à calibrer).
-4. **Échelle depuis la stature** : 1–2 % d'erreur, plancher fixé par la variabilité individuelle
-   des proportions (~3 %, ANSUR II) ; choix des segments selon la définition des points du
-   détecteur (hanche RTMPose antérieure → ajouter le tronc).
+4. **Échelle depuis la stature** : 1–2 % d'erreur sur BioCV et OpenCap, jusqu'à 4–5 % sur IMOVE et
+   LBMC. Décomposition mesurée contre la mocap (03 §16) : la table 0,491 × stature surestime la jambe
+   de ces participants (ratio réel 0,442–0,474) et MeTRAbs mesure des jambes 1–6 % plus longues que
+   les centres articulaires ; les deux biais se compensent en partie. Le plancher vient donc de la
+   variabilité individuelle et de la définition des points du détecteur, pas de la calibration ;
+   choix des segments selon le détecteur (hanche RTMPose antérieure → ajouter le tronc).
 5. **Choix du détecteur** : MeTRAbs (3D natif, centres articulaires) robuste ; RTMPose +
    VideoPose3D aussi précis quand il réussit mais 7/18 calibrations inutilisables sur BioCV (cause non élucidée,
    ambiguïté d'orientation du 3D relevé suspectée) → à utiliser avec le critère d'acceptation.

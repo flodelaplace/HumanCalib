@@ -226,3 +226,34 @@ du rapport n'est pas nécessaire sur ces données). En revanche, parmi les calib
 ne prédit pas la précision fine : Spearman ρ = +0,03 toutes confondues (n = 83) ; dans un même jeu,
 BioCV MeTRAbs ρ = 0,79, COMFI ρ = 0,64, OpenCap ρ = 0,10. Pour rot > 1,5° : AUC 0,55. → Le MRE
 détecte les échecs, il ne classe pas les réussites.
+
+## 16. D'où vient le biais d'échelle (IMOVE contre mocap, 20/09)
+
+L'échelle est surestimée sur tous les jeux : BioCV +0,6 %, OpenCap +0,5 %, COMFI +1,8 %, IMOVE
++1,5 à +4,6 %, LBMC +4,0 % (médianes par jeu, `~/humancalib_eval/article/table_trials.csv`).
+Décomposition sur IMOVE, où la mocap donne les centres articulaires HJC, KJC, AJC
+(`~/humancalib_eval/imove_scale_analysis.txt`) :
+
+| Sujet | Stature déclarée | Jambe mocap | Ratio réel jambe/stature | Jambe MeTRAbs | MeTRAbs − mocap | Erreur d'échelle |
+|---|---|---|---|---|---|---|
+| 2 | 1,90 m | 0,888 m | 0,467 | 0,919 m | +3,5 % | +1,5 % |
+| 3 | 1,72 m | 0,815 m | 0,474 | 0,826 m | +1,3 % | +2,3 % |
+| 4 | 1,81 m | 0,832 m | 0,460 | 0,868 m | +4,4 % | +2,4 % |
+| 5 | 1,65 m | 0,744 m | 0,451 | 0,787 m | +5,9 % | +2,9 % |
+| 6 | 1,85 m | 0,818 m | 0,442 | 0,869 m | +6,2 % | +4,6 % |
+| 7 | 1,68 m | 0,754 m | 0,449 | 0,791 m | +5,0 % | +4,3 % |
+
+Deux biais de sens opposés :
+1. **La table (0,491 × stature) ne décrit pas ces participants** : leur ratio mesuré est 0,442–0,474
+   (moyenne 0,457). À jambe parfaitement mesurée, l'échelle serait fausse de +3,6 à +11,1 %. Une part
+   vient peut-être des statures déclarées : la hauteur mesurée en marche (marqueur APEX − talon) est
+   2 à 6 % plus basse que la stature du tableau démographique (sujet 2 : 1,826 contre 1,900 m).
+2. **MeTRAbs mesure des jambes 1,3 à 6,2 % plus longues** que la chaîne HJC–KJC–AJC : ses points
+   articulaires ne coïncident pas avec les centres articulaires du modèle biomécanique.
+
+Les deux se compensent partiellement, d'où les +1,5 à +4,6 % observés. **À écrire tel quel** : le
+plancher d'échelle n'est pas une erreur de calibration mais la somme de la variabilité individuelle
+des proportions et de la définition des points du détecteur. Deux suites possibles (à trancher) :
+étalonner le ratio jambe/stature propre au détecteur sur un seul jeu de développement, puis
+l'appliquer sans retouche aux autres (tester hors échantillon) ; ou recommander une mesure
+supplémentaire (longueur de jambe ou hauteur de hanche), qui rend l'échelle quasi exacte.
