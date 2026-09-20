@@ -1,4 +1,4 @@
-# 03 — Résultats obtenus (état au 19/09/2026, 05h ; IMOVE sujets 4–13 en cours)
+# 03 — Résultats obtenus (état au 20/09/2026, 07h — tous les runs prévus sont faits)
 
 Conventions : « rot » = rotation relative médiane entre paires de caméras, en degrés
 (1° ≈ 1,75 cm/m ≈ 16 px à f = 913) ; « 7 ddl » = erreur de position des centres de
@@ -13,7 +13,7 @@ essais sont rapportés, échecs compris. Fichiers détaillés : `~/humancalib_ev
 | Jeu | Essais | rot médiane [IQR] | 7 ddl (mm) | 4 ddl (mm) | |échelle − 1| | Échecs |
 |---|---|---|---|---|---|---|
 | BioCV | 18 | **0,62** [0,48–0,81] ; 14/18 < 1°, 17/18 < 2° | 55 | 101 | 1,2 % | 0 |
-| IMOVE-23 | 2 (s2, s3) | **0,42 / 0,65** | 54 / 83 | 130 / 167 | 1,5 / 2,3 % | 0 |
+| IMOVE-23 | 11 sujets | **0,42** [0,36–0,58] ; pire paire 1,05 | 48 | 167 | 2,3 % | 0 |
 | OpenCap (resync par essai, sensibilité) | 9 sujets | **2,06** [1,67–2,14] | 118 | 143 | 2,5 % | 0 |
 | **OpenCap (article : synchro Mesh2Sim, fenêtre ≥ 3 caméras entières)** | 18 (9 sujets × 2) | **1,84** [1,57–1,91] ; pire paire 2,65 | 102 | 107 | 1,1 % | 0 |
 | LBMC (tapis) | 2 | **1,47 / 3,08** | 60 / 97 | 103 / 187 | 3,0 / 5,1 % | 0 |
@@ -210,22 +210,24 @@ personne marche (erreurs d'orientation compensées par les positions autour du v
 COMFI : l'écart est grand parce que la référence ArUco est elle-même moins cohérente avec la mocap
 (§13) ; ne pas le présenter comme une erreur de HumanCalib.
 
-## 15. Critère d'acceptation sans référence (88 calibrations, 19/09)
+## 15. Critère d'acceptation sans référence (130 calibrations, 20/09)
 
 MRE de chaque caméra converti en angle (MRE / focale, mrad). Règle figée le 18/09 : accepter si la
 pire caméra ≤ 15 mrad et ≤ 3,5 × la médiane des caméras. Sur 88 calibrations (tous jeux, deux
-moteurs, `~/humancalib_eval/mre_vs_error_trials.csv`, `article/table3_acceptance.md`) :
+moteurs, `~/humancalib_eval/mre_vs_error_trials.csv`, `article/table3_acceptance.md` ; ceci exclut les 13
+essais où RTMPose ne produit aucune calibration, cas où il n'y a rien à juger) :
 
 | | Calibrations | Acceptées | Rejetées |
 |---|---|---|---|
-| Correctes (toutes caméras < 10°) | 81 | 81 | 0 |
+| Correctes (toutes caméras < 10°) | 123 | 123 | 0 |
 | Échecs complets ou partiels | 7 (tous RTMPose BioCV) | 0 | 7 |
 
 Pire caméra : correctes ≤ 10,3 mrad, échecs ≥ 41,8 mrad (écart ×4 ; le seuil seul suffit, la règle
 du rapport n'est pas nécessaire sur ces données). En revanche, parmi les calibrations réussies, le MRE
-ne prédit pas la précision fine : Spearman ρ = +0,03 toutes confondues (n = 83) ; dans un même jeu,
-BioCV MeTRAbs ρ = 0,79, COMFI ρ = 0,64, OpenCap ρ = 0,10. Pour rot > 1,5° : AUC 0,55. → Le MRE
-détecte les échecs, il ne classe pas les réussites.
+ne prédit pas la précision fine : Spearman ρ = +0,35 toutes confondues (n = 125, tiré par les
+différences entre jeux) ; dans un même jeu et un même moteur, BioCV MeTRAbs ρ = 0,79, COMFI MeTRAbs
+0,64, COMFI RTMPose 0,71, IMOVE 0,63, mais OpenCap 0,10 et BioCV RTMPose 0,15. Pour rot > 1,5° :
+AUC 0,70. → Le MRE détecte les échecs ; il ne classe les réussites que dans certains labos.
 
 ## 16. D'où vient le biais d'échelle (IMOVE contre mocap, 20/09)
 
@@ -257,3 +259,28 @@ des proportions et de la définition des points du détecteur. Deux suites possi
 étalonner le ratio jambe/stature propre au détecteur sur un seul jeu de développement, puis
 l'appliquer sans retouche aux autres (tester hors échantillon) ; ou recommander une mesure
 supplémentaire (longueur de jambe ou hauteur de hanche), qui rend l'échelle quasi exacte.
+
+## 17. Les deux moteurs sur quatre jeux (20/09) — la fiabilité, pas la précision, les sépare
+
+RTMPose + VideoPose3D a été relancé sur OpenCap (18) et COMFI (28) avec exactement le protocole de
+MeTRAbs (mêmes vidéos découpées, mêmes intrinsèques, même sélection de personne, échelle jambes+tronc).
+`~/humancalib_eval/article/table2b_engines_by_dataset.md` :
+
+| Jeu | Essais | MeTRAbs : échecs | RTMPose : sans sortie + complets + partiels | Rotation MeTRAbs | Rotation RTMPose |
+|---|---|---|---|---|---|
+| BioCV | 18 | 0 | 0 + 5 + 2 | 0,57 [0,50–0,69] | 0,45 [0,40–0,57] |
+| OpenCap | 18 | 0 | 0 + 0 + 0 | 1,84 [1,57–1,91] | 1,97 [1,72–2,27] |
+| LBMC | 2 | 0 | 0 + 0 + 0 | 2,28 | 3,22 |
+| COMFI | 28 | 0 | 13 + 0 + 0 | 1,48 [1,26–1,85] | 1,74 [1,59–2,09] |
+
+- **MeTRAbs : 0 échec sur 66 essais appariés. RTMPose : 20 sur 66 inutilisables (30 %)**, en trois modes :
+  aucune sortie (13, COMFI), calibration complètement fausse (5, BioCV), une seule caméra fausse (2, BioCV).
+- **Les échecs COMFI sont expliqués** : 13 des 14 marches **rectilignes** échouent (essais courts, 282
+  images, 4 caméras : après filtre de visibilité il ne reste que ~6 images vues par ≥ 2 caméras),
+  contre **0 des 14 circulaires**. MeTRAbs réussit ces mêmes essais (0,68° de médiane sur les rectilignes).
+  Les échecs BioCV, eux, restent inexpliqués.
+- **Quand il réussit, RTMPose vaut MeTRAbs** : meilleur sur BioCV, un peu moins bon sur OpenCap
+  (1,97 contre 1,84°, Wilcoxon apparié p = 0,25), COMFI (1,74 contre 1,48°) et LBMC.
+- **Les biais d'échelle sont de signes opposés** : sur OpenCap, MeTRAbs +0,5 % et RTMPose −1,4 % ;
+  sur COMFI circulaire, −1,5 % pour RTMPose. Les deux détecteurs encadrent la valeur vraie, ce qui
+  confirme §16 : le biais vient de la définition des points articulaires, pas de la calibration.

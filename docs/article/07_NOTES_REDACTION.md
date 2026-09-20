@@ -12,7 +12,7 @@ les tableaux de `~/humancalib_eval/article/` avant d'écrire. Langue de l'articl
 
 ## Message central (une phrase)
 Quelques secondes de marche d'une personne suffisent à calibrer un rig multi-caméras sans mire :
-sur cinq jeux de données et 88 calibrations, l'erreur de forme reconstruite dans le volume de
+sur cinq jeux de données et 143 tentatives de calibration, l'erreur de forme reconstruite dans le volume de
 travail est de quelques millimètres, l'orientation relative des caméras de 0,4 à 2°, aucune
 calibration n'échoue avec MeTRAbs, et un critère de reprojection sans référence détecte tous
 les échecs.
@@ -36,8 +36,8 @@ les échecs.
 7. **Limites et recommandations pratiques.**
 
 ## Résultats — points à écrire
-- **Q1 précision (MeTRAbs)** : BioCV 0,62° [0,48–0,81] (18) ; IMOVE 0,42–0,65° (2, **[à jour ?]**
-  11 sujets en cours) ; OpenCap 1,84° [1,57–1,91] (18) ; LBMC 1,47 / 3,08° (tapis) ; COMFI
+- **Q1 précision (MeTRAbs)** : BioCV 0,62° [0,48–0,81] (18) ; IMOVE 0,42° [0,36–0,58] (11 sujets,
+  10 caméras : le jeu le plus précis) ; OpenCap 1,84° [1,57–1,91] (18) ; LBMC 1,47 / 3,08° (tapis) ; COMFI
   28 calibrations 1,25° [0,94–1,63] (rectiligne 1,00°, circulaire 1,59° ; contre une référence ArUco
   moins précise que nous, voir Q2).
   Échelle 1–2 % (jambes ; RTMPose jambes+tronc), verticale < 1°.
@@ -46,8 +46,10 @@ les échecs.
   28/28 essais** (PA-MPJPE par image 53,9 contre 56,3 mm, Wilcoxon p < 10⁻⁴) : résultat fort à mettre en avant. **La rotation relative surestime l'impact pratique** : 1,8° d'orientation
   sur OpenCap donnent < 7 mm d'erreur de forme là où la personne marche (compensation des
   erreurs d'orientation autour du volume de travail).
-- **Q3 fiabilité** : 0 échec MeTRAbs (68 calibrations MeTRAbs, tous jeux) ; RTMPose sur BioCV
-  5/18 échecs complets + 2 partiels (une caméra fausse, médiane trompeusement bonne).
+- **Q3 fiabilité** : 0 échec MeTRAbs (77 calibrations, tous jeux). RTMPose sur 66 essais appariés
+  (BioCV, OpenCap, LBMC, COMFI) : **20 inutilisables (30 %)** en trois modes — 13 sans aucune sortie
+  (COMFI, marches rectilignes courtes à 4 caméras), 5 complètement fausses (BioCV), 2 partielles.
+  Aucun échec sur OpenCap ni LBMC : la fragilité dépend de la configuration, pas du moteur seul (03 §17).
   Répétabilité : OpenCap 0,03–0,16° entre deux marches d'un même rig (erreur systématique par
   session, pas du bruit) ; BioCV 0,40°. **Critère d'acceptation sans référence** : MRE de la pire
   caméra ≤ ~15 mrad (MRE / focale) et ≤ 3,5 × la médiane des caméras → détecte 100 % des échecs
@@ -79,7 +81,7 @@ les échecs.
    variabilité individuelle et de la définition des points du détecteur, pas de la calibration ;
    choix des segments selon le détecteur (hanche RTMPose antérieure → ajouter le tronc).
 5. **Choix du détecteur** : MeTRAbs (3D natif, centres articulaires) robuste ; RTMPose +
-   VideoPose3D aussi précis quand il réussit mais 7/18 calibrations inutilisables sur BioCV (cause non élucidée,
+   VideoPose3D aussi précis quand il réussit (p = 0,25 sur OpenCap) mais 30 % d'essais inutilisables (cause non élucidée,
    ambiguïté d'orientation du 3D relevé suspectée) → à utiliser avec le critère d'acceptation.
 
 ## Recommandations pratiques (encadré possible)
