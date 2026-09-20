@@ -55,8 +55,8 @@ les échecs.
   caméra ≤ ~15 mrad (MRE / focale) et ≤ 3,5 × la médiane des caméras → détecte 100 % des échecs
   complets et partiels (7/7), sans fausse alarme (81/81), sur 88 calibrations ; correctes ≤ 10,3 mrad,
   échecs ≥ 41,8 mrad (03 §15, `article/table3_acceptance.md`). Mais le MRE ne prédit pas la
-  précision fine entre calibrations réussies (ρ = +0,03 toutes confondues ; dans un même labo
-  BioCV ρ = 0,79, COMFI 0,64).
+  précision fine entre calibrations réussies (ρ = +0,38 sur n = 123, tiré par les différences entre
+  jeux ; à jeu fixé BioCV MeTRAbs +0,79, COMFI +0,64, mais OpenCap +0,10).
 - **Ablations** : plus d'images / BA plus long / cumul d'essais : sans effet ; 200 vs 50 Hz :
   sans effet ; synchronisation : décisive (OpenCap : 4–8 images de décalage doublent le MRE) ;
   géométrie : arc de 5 caméras A 0,51° vs B 1,39° ; tapis : rotations mal contraintes ;

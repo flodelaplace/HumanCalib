@@ -224,10 +224,13 @@ essais où RTMPose ne produit aucune calibration, cas où il n'y a rien à juger
 
 Pire caméra : correctes ≤ 10,3 mrad, échecs ≥ 41,8 mrad (écart ×4 ; le seuil seul suffit, la règle
 du rapport n'est pas nécessaire sur ces données). En revanche, parmi les calibrations réussies, le MRE
-ne prédit pas la précision fine : Spearman ρ = +0,35 toutes confondues (n = 125, tiré par les
-différences entre jeux) ; dans un même jeu et un même moteur, BioCV MeTRAbs ρ = 0,79, COMFI MeTRAbs
-0,64, COMFI RTMPose 0,71, IMOVE 0,63, mais OpenCap 0,10 et BioCV RTMPose 0,15. Pour rot > 1,5° :
-AUC 0,70. → Le MRE détecte les échecs ; il ne classe les réussites que dans certains labos.
+ne prédit pas la précision fine. Valeurs recalculées depuis `niveau1/donnees/essais.csv`
+(n = 123 calibrations correctes) : Spearman ρ = +0,38 entre MRE médian et rotation, +0,28 avec le
+MRE de la pire caméra. Cette corrélation globale est tirée par les différences entre jeux ; à jeu et
+moteur fixés : BioCV MeTRAbs +0,79, COMFI MeTRAbs +0,64, COMFI RTMPose +0,71, IMOVE +0,63, mais
+OpenCap MeTRAbs +0,10 et BioCV RTMPose −0,16. → Le MRE détecte les échecs ; il ne classe les
+réussites que dans certains labos. (Une version antérieure annonçait ρ = +0,35 sur n = 125 : elle
+comptait deux échecs partiels parmi les réussites.)
 
 ## 16. D'où vient le biais d'échelle (IMOVE contre mocap, 20/09)
 
