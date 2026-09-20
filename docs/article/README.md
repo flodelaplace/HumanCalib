@@ -17,6 +17,11 @@ Florian) et sur `D:\FLO\Calibration dataset\` ; les figures dans
 | [06_REFERENCES.md](06_REFERENCES.md) | Bibliographie vérifiée (tables anthropométriques, seuils cliniques, jeux de données) |
 | [07_NOTES_REDACTION.md](07_NOTES_REDACTION.md) | Plan de l'article, messages clés, chiffres à reprendre, figures, ce qui manque |
 
+Export prêt à l'emploi pour la rédaction (sur le disque de Florian) :
+`D:\FLO\Calibration dataset\Article_pour_ClaudeScience\` — brief d'entrée, ces mêmes docs, et le
+sous-dossier `niveau1/` : métriques documentées, chiffres essai par essai, caméra par caméra et paire
+par paire (`donnees/*.csv`), tableaux et figures. Régénéré par `~/humancalib_eval/export_niveau1.py`.
+
 Documents liés dans le dépôt :
 - `docs/EVALUATION_PROTOCOL.md` : protocole complet et journal daté (source primaire, très détaillé).
 - `src/humancalib/evaluation/` : lecteurs de chaque jeu (`biocv.py`, `opencap.py`, `imove.py`, `lbmc.py`),
