@@ -380,3 +380,50 @@ jeux, aucun sur OpenCap ni LBMC. Sur les essais réussis par les deux, la préci
 **Critère d'acceptation, 140 calibrations** : 125 correctes acceptées, **15 échecs rejetés**, aucune
 fausse alarme. Pire caméra : correctes ≤ 10,3 mrad, échecs ≥ 32,1 mrad. Les 8 échecs IMOVE,
 complets comme partiels, sont tous détectés.
+
+## 20. Échelle mesurée de haut en bas : récapitulatif des biais et nouvelle méthode (21/09)
+
+Erreur d'échelle bout-en-bout = facteur Umeyama 7 ddl face à la référence − 1. Médiane [écart-type]
+par jeu ; calibrations ratées exclues (rotation médiane ≥ 5° ou pire paire ≥ 10° : 15 RTMPose).
+Rapport tête/stature fixé sur **BioCV seul** : BioCV est donc dans l'échantillon et ne compte pas
+comme validation.
+
+**MeTRAbs, 77 calibrations recalculées réellement** (`eval/metrabs_v4_stature`, rotations
+identiques à v4 sur les 77) :
+
+| Jeu | n | Jambes × 0,491 (v4) | Tête → sol (nouveau) | ≤ 1 % : jambes → tête | 4 ddl (mm) : jambes → tête |
+|---|---|---|---|---|---|
+| BioCV (dév.) | 18 | +0,60 [1,56] | +0,01 [0,95] | 39 → 67 % | 101 → 67 |
+| OpenCap | 18 | +1,02 [1,53] | +0,58 [1,21] | 50 → 61 % | 84 → 82 |
+| IMOVE | 11 | +2,27 [1,22] | +1,57 [1,07] | 9 → 36 % | 167 → 136 |
+| LBMC | 2 | +4,03 [1,45] | +2,01 [1,29] | 0 → 0 % | 145 → 98 |
+| COMFI | 28 | +1,85 [1,66] | +0,10 [1,49] | 18 → 50 % | 118 → 90 |
+
+**Hors BioCV (59 calibrations)** : erreur absolue médiane **1,89 → 1,04 %** (Wilcoxon apparié
+p = 9·10⁻⁵) ; ≤ 1 % : 25 → 49 % ; ≤ 2 % : 53 → 78 % ; pire cas 5,1 → 3,8 %. Sur les 77 : 1,77 →
+0,92 % ; position 4 ddl médiane 117 → 82 mm. L'évaluation hors ligne (rapport appliqué aux
+calibrations existantes, `scale_study.py`) prédisait les mêmes chiffres à 0,05 point près.
+
+**RTMPose (évaluation hors ligne, 47 calibrations réussies)** : jambes + tronc −2,07 [0,67] sur
+BioCV, −0,93 / +1,28 / +0,80 / −1,53 % sur OpenCap / IMOVE / LBMC / COMFI (|erreur| médiane hors
+BioCV 1,18 %) ; sommet du crâne Halpe26 → sol (rapport 0,983 fixé sur BioCV) : 1,28 %, plus
+dispersé (écart-type jusqu'à 2 %). **RTMPose garde jambes + tronc.**
+
+Ce qui reste :
+- **Cible de 1 % atteinte en biais sur BioCV, OpenCap et COMFI, pas sur IMOVE (+1,6 %) ni LBMC
+  (+2,0 %, 2 essais).** Écart-type entre essais 1,0 à 1,5 % sur tous les jeux : c'est le bruit de
+  mesure d'un essai.
+- Le rapport bandeau/stature mesuré par MeTRAbs varie selon le jeu (0,907 LBMC, 0,911 IMOVE,
+  0,920 OpenCap, 0,925 COMFI, 0,926 BioCV). **Ce n'est pas la chaussure** : BioCV, OpenCap et
+  IMOVE sont chaussés, COMFI et LBMC pieds nus (vérifié sur les vidéos).
+- **Ce n'est pas la posture de marche** : sur IMOVE, le marqueur APEX (vertex) de la cinématique
+  mocap culmine à 0,99 × stature en marche (0,97–1,005, 9 sujets).
+- Deux causes restent possibles, sans moyen de trancher sur nos données : la stature déclarée
+  (sur IMOVE, APEX − talon mesuré était déjà 2 à 6 % sous la stature du tableau démographique, §16)
+  et la façon dont MeTRAbs place le bandeau selon le point de vue (caméras hautes et inclinées
+  d'IMOVE et LBMC).
+- La référence d'échelle COMFI est la calibration ArUco du jeu, moins juste que la nôtre (§13) :
+  ses chiffres d'échelle sont indicatifs.
+
+Fichiers : `~/humancalib_eval/scale_study.py`, `scale_study.csv` (toutes les mesures, deux
+moteurs), `scale_stature_vs_segments.csv` (77 calibrations recalculées), `stature_batch.sh`.

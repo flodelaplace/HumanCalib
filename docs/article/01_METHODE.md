@@ -30,22 +30,39 @@ verticale vers le haut.
 
 Les noms de configurations (v1 à v4, échelle « seg ») sont définis dans
 `docs/EVALUATION_PROTOCOL.md` §3 bis. **v4 = sélection par le mouvement + échelle par
-segments + verticale sur la marche** ; c'est la seule version évaluée dans l'article.
+segments + verticale sur la marche** ; c'est la version des résultats de niveau 1 et 2.
+L'échelle « stature » (§2, 21/09) ne change que le facteur d'échelle : rotations, forme et
+verticale sont identiques à v4 (vérifié sur les 77 calibrations).
 
 ## 2. Échelle métrique depuis la stature
 
-Principe : les segments sont triangulés sur toutes les images vues par assez de caméras,
-leurs longueurs médianes sont sommées et comparées à une fraction de la stature issue de
-la littérature. Aucune constante n'est ajustée sur nos données.
+**MeTRAbs : le corps mesuré de haut en bas** (méthode retenue le 21/09, remplace les jambes).
+Sur ~400 images réparties sur la marche, chacune triangulée par consensus de caméras :
 
-| Moteur | Segments | Fraction de la stature | Pourquoi |
-|---|---|---|---|
-| MeTRAbs | cuisse + tibia (centres hanche, genou, cheville) | 0,245 + 0,246 = **0,491** (Drillis & Contini ; de Leva 1996 donne 0,492 pour des centres articulaires) | ses hanches sont des centres articulaires |
-| RTMPose | cuisse + tibia + tronc (milieu des hanches → cou) | 0,491 + 0,288 = **0,779** | sa hanche Halpe26 est ~85 mm en avant du centre : cuisse trop longue, tronc trop court, les deux se compensent |
+- **haut** = milieu des quatre marqueurs virtuels du bandeau de tête du squelette MeTRAbs
+  (`lfronthead`, `rfronthead`, `lbackhead`, `rbackhead`) ;
+- **sol** = 2ᵉ centile, sur l'essai, du marqueur de semelle le plus bas de chaque image
+  (talons, orteils, 1er, 4ᵉ et 5ᵉ métatarses) ;
+- hauteur retenue = **95ᵉ centile** de (haut − sol) le long de la verticale estimée
+  (instants de simple appui, jambe tendue) ;
+- cette hauteur vaut **0,9255 × stature**. Ce rapport a été fixé **une seule fois, sur BioCV
+  seul** (jeu de développement, 18 calibrations, écart-type 0,009), puis appliqué sans retouche
+  aux quatre autres jeux. Il couvre l'écart bandeau → vertex et l'affaissement de la tête en
+  marche.
 
-Résultats et raisons détaillées dans 03 §6 et 05. Le plancher de cette approche est la
-variabilité individuelle des proportions (écart-type ~3 % du rapport jambes/taille dans
-ANSUR II) : on ne peut pas attendre mieux que ~1,5 % sans mesure du sujet.
+Pourquoi : l'ancienne règle (cuisse + tibia = 0,491 × stature, Drillis & Contini) fait passer
+toute la variabilité individuelle des proportions dans l'échelle (ratio jambe/stature réel de
+0,442 à 0,474 sur IMOVE, écart-type ~2,5 % entre sujets). Mesurer toute la hauteur n'expose qu'à
+la partie tête → vertex (~7 % de la stature). Hors BioCV (59 calibrations), l'erreur absolue
+médiane passe de 1,9 à 1,0 % (03 §20).
+
+**RTMPose : cuisse + tibia + tronc (milieu des hanches → cou) = 0,491 + 0,288 = 0,779 ×
+stature**, inchangé : sa hanche Halpe26 est ~85 mm en avant du centre (cuisse trop longue, tronc
+trop court, les deux se compensent). Son point « tête » (sommet du crâne) a été testé de la
+même façon : pas de gain (1,2 → 1,3 % hors BioCV), il est plus bruité.
+
+Option `--scale_method` : `stature` (défaut ; MeTRAbs 87 points, repli sur les segments pour
+les autres squelettes), `segments` (ancienne règle, gardée pour comparaison), `head`.
 
 ## 3. Ce que la méthode suppose
 

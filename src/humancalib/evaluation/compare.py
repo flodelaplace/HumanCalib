@@ -120,7 +120,7 @@ def main(argv=None):
     parser.add_argument("--engine", required=True, choices=("metrabs", "rtmpose"))
     parser.add_argument("--run", default=None,
                         help="output folder name when it is not the engine's (e.g. rtmpose_50hz)")
-    parser.add_argument("--scale_method", default="head", choices=("head", "segments"))
+    parser.add_argument("--scale_method", default="head", choices=("head", "segments", "stature"))
     parser.add_argument("--vertical_method", default="frame", choices=("frame", "walk"))
     parser.add_argument("--out_name", default=None,
                         help="eval/ sub-folder to write to (default: the run name)")
@@ -167,7 +167,7 @@ def main(argv=None):
     chosen = int(order[0])
     top = order[coverage[order] == coverage[chosen]]
     others = [int(f) for f in np.sort(top)[np.linspace(0, len(top) - 1, min(args.n_ref_frames, len(top))).astype(int)]]
-    if args.scale_method == "segments" and args.vertical_method == "walk":
+    if args.scale_method in ("segments", "stature") and args.vertical_method == "walk":
         others = []     # neither scale nor vertical depends on the frame any more
 
     # 4. sensitivity first, so the chosen frame's result is the one left in results/

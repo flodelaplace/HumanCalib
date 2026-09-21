@@ -13,6 +13,14 @@ Chaque entrée : décision, raison, conséquence. Le détail daté est dans
   à ~0,7 % (validée en leave-one-dataset-out) mais Florian ne veut pas « dire la
   constante » ; la règle retenue se justifie par la définition des points (hanche
   Halpe26 antérieure) et par la littérature, pas par un ajustement.
+- **Échelle MeTRAbs révisée le 21/09 (Florian) : hauteur tête → sol mesurée sur la marche**,
+  rapportée à 0,9255 × stature. Florian juge la multiplication des jambes par un ratio de table
+  méthodologiquement faible et demande un biais d'environ 1 % au plus. Le rapport 0,9255 est
+  **empirique, fixé sur BioCV seul** (jeu de développement), jamais retouché après avoir vu les
+  autres jeux ; les chiffres principaux sont donc ceux des **quatre jeux hors BioCV**. Ce n'est
+  pas la « constante corrective » refusée le 17/09 : celle-ci corrigeait a posteriori l'erreur
+  d'un estimateur, alors qu'ici on change de mesure, la hauteur entière au lieu d'une fraction.
+  RTMPose garde jambes + tronc (le sommet du crâne Halpe26 n'apporte rien).
 - **Table anthropométrique : Drillis & Contini 0,491, citée avec de Leva 1996** (0,492,
   centres articulaires, vérifié). ANSUR II donnerait 0,477–0,486 ; à présenter en
   sensibilité, pas en méthode.

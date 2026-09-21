@@ -105,9 +105,11 @@ def build_run_parser():
     p.add_argument("--outlier_x_median", type=float, default=5.0)
     p.add_argument("--ref_cam", type=int, default=None)
     p.add_argument("--ba_jac", choices=("analytic", "numeric"), default="analytic")
-    p.add_argument("--scale_method", choices=("head", "segments"), default="segments",
+    p.add_argument("--scale_method", choices=("head", "segments", "stature"), default="stature",
                    help="head: head height on --ref_frame. segments: leg segment lengths over the whole "
-                        "sequence against --height -- about 2 %% scale error on BioCV instead of 11 %%")
+                        "sequence against --height. stature: head band height above the floor over the "
+                        "walk against --height (MeTRAbs; RTMPose falls back to segments) -- about 1 %% "
+                        "median scale error on four held-out datasets instead of 1.9 %% for segments")
     p.add_argument("--vertical_method", choices=("frame", "walk"), default="walk",
                    help="frame: head to feet on --ref_frame. walk: body axis over the whole walk, "
                         "walking direction removed -- about 0.7 deg on BioCV instead of 3")

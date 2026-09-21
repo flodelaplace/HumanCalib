@@ -86,6 +86,18 @@ LEGS = {
 # (+1 to +2 %, where legs + trunk gives -2 to -3 %). docs/EVALUATION_PROTOCOL.md, journal.
 TRUNK = {"halpe26": (19, 18)}
 
+# Top-down stature (scale_method "stature"), bml_movi_87 only: the mid-point of the four virtual head
+# markers (lfronthead, rfronthead, lbackhead, rbackhead) above the floor given by the lowest sole
+# markers (heels, toes, 1st/4th/5th metatarsals). Measured over the walk, the 95th centile of that
+# height is HEAD_BAND_RATIO x stature: the head band sits below the vertex, and the head dips during
+# gait. The ratio was set once, on the BioCV development set only (median of 18 calibrations, sd
+# 0.009), then applied unchanged to OpenCap, IMOVE, LBMC and COMFI (docs/article/03_RESULTATS.md
+# §20). It replaces 0.491 x stature for the legs, whose between-subject spread (2.4 % of stature)
+# went straight into the scale. RTMPose keeps the segments: its head keypoint gave no gain.
+HEAD_BAND = {"bml_movi_87": (5, 36, 6, 37)}
+SOLE = {"bml_movi_87": (21, 52, 23, 54, 22, 53, 32, 63, 33, 64)}
+HEAD_BAND_RATIO = 0.9255
+
 
 def segment_scale(p2d_all, s2d_all, K, R_w2c, t_w2c, legs, height, conf_threshold=0.5, step=2, trunk=None):
     """Metres per calibration unit, from segment lengths over the whole sequence.
@@ -126,6 +138,35 @@ def segment_scale(p2d_all, s2d_all, K, R_w2c, t_w2c, legs, height, conf_threshol
     if np.isfinite(torso).sum() < 10:
         return None
     return height * (LEG_RATIO + TRUNK_RATIO) / (np.nanmedian(thigh) + np.nanmedian(shank) + np.nanmedian(torso))
+
+
+def stature_scale(p2d_all, s2d_all, K, R_w2c, t_w2c, top, sole, up, height, conf_threshold=0.5, n_max=400):
+    """Metres per calibration unit, from the head band's height above the floor over the walk.
+
+    `up` is the unit vertical in calibration coordinates. The floor is the 2nd centile of the
+    per-frame lowest sole marker; the head height is the 95th centile over about n_max frames spread
+    over the sequence, each triangulated by camera consensus. Returns None when too few frames could
+    be triangulated.
+    """
+    from humancalib.pipeline.reselect_person import robust_triangulate
+
+    C = p2d_all.shape[0]
+    Ps = np.array([K[c] @ np.hstack([R_w2c[c], np.asarray(t_w2c[c]).reshape(3, 1)]) for c in range(C)])
+    joints = list(top) + list(sole)
+    head, low = [], []
+    for f in range(0, p2d_all.shape[1], max(1, p2d_all.shape[1] // n_max)):
+        X, used = robust_triangulate(p2d_all[:, f, joints, :], s2d_all[:, f, joints] > conf_threshold, Ps,
+                                     50.0, 5.0, 3)
+        if used.sum() < 3:
+            continue
+        h = X @ up
+        head.append(np.nanmean(h[:len(top)]) if np.isfinite(h[:len(top)]).any() else np.nan)
+        low.append(np.nanmin(h[len(top):]) if np.isfinite(h[len(top):]).any() else np.nan)
+    head, low = np.asarray(head), np.asarray(low)
+    if np.isfinite(head).sum() < 20 or np.isfinite(low).sum() < 20:
+        return None
+    measured = np.nanpercentile(head, 95) - np.nanpercentile(low, 2)
+    return height * HEAD_BAND_RATIO / measured
 
 
 def walking_vertical(p2d_all, s2d_all, K, R_w2c, t_w2c, feet, head, ankles, conf_threshold=0.5,
@@ -245,9 +286,10 @@ def main(argv=None):
     parser.add_argument("--vertical_method", default="walk", choices=["frame", "walk"],
                         help="frame: head to feet on --frame_idx. walk: body axis over the whole walk "
                              "with the walking direction removed (see walking_vertical)")
-    parser.add_argument("--scale_method", default="segments", choices=["head", "segments"],
+    parser.add_argument("--scale_method", default="stature", choices=["head", "segments", "stature"],
                         help="head: head height on --frame_idx. segments: leg segment lengths over "
-                             "all frames against stature (orientation still uses --frame_idx)")
+                             "all frames against stature. stature: head band height above the floor over "
+                             "the walk (MeTRAbs 87 joints; other layouts fall back to segments)")
     parser.add_argument("--pose_engine", default="rtmpose", choices=["rtmpose", "metrabs"],
                         help="Pose engine used: determines joint format for scaling")
     args = parser.parse_args(argv)
@@ -369,7 +411,21 @@ def main(argv=None):
     measured_height = abs(head_3d_new[1])
     
     scale_factor = args.height / measured_height
-    if args.scale_method == "segments":
+    method = args.scale_method
+    if method == "stature" and layout["name"] in HEAD_BAND:
+        st = stature_scale(p2d_all, s2d_all, K, R_w2c_orig, t_w2c_orig, HEAD_BAND[layout["name"]],
+                           SOLE[layout["name"]], -y_axis, args.height, args.conf_threshold)
+        if st is None:
+            log.warning("Too few frames to measure the head band height; using the leg segments instead")
+            method = "segments"
+        else:
+            log.info(f"Scale from the head band height over the walk: {st:.4f} "
+                     f"(head height on frame {args.frame_idx}: {scale_factor:.4f})")
+            scale_factor = st
+    elif method == "stature":
+        log.info(f"No head band markers in the {layout['name']} layout; scale from the segments")
+        method = "segments"
+    if method == "segments":
         seg = segment_scale(p2d_all, s2d_all, K, R_w2c_orig, t_w2c_orig, layout["legs"], args.height,
                             args.conf_threshold, trunk=layout.get("trunk"))
         what = "leg and trunk segments" if layout.get("trunk") else "leg segments"
