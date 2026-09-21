@@ -287,3 +287,43 @@ MeTRAbs (mêmes vidéos découpées, mêmes intrinsèques, même sélection de p
 - **Les biais d'échelle sont de signes opposés** : sur OpenCap, MeTRAbs +0,5 % et RTMPose −1,4 % ;
   sur COMFI circulaire, −1,5 % pour RTMPose. Les deux détecteurs encadrent la valeur vraie, ce qui
   confirme §16 : le biais vient de la définition des points articulaires, pas de la calibration.
+
+## 18. Niveau 2 : effet de la calibration sur les angles articulaires (21/09, 77 essais)
+
+Chaîne **Pose2Sim 0.10.43** exécutée deux fois par essai sur les **mêmes détections 2D**, en ne
+changeant que la calibration (référence du jeu, puis la nôtre) ; protocole complet dans
+`08_NIVEAU2_METHODE.md`. Données : `niveau2/donnees/*.csv` du dossier de rédaction.
+
+| Jeu | Essais | Écart médian entre les deux chaînes | Pire ddl | ddl équivalents à 2° |
+|---|---|---|---|---|
+| BioCV | 18 | **0,61°** | 1,12° | **9/9** |
+| OpenCap | 18 | **0,52°** | 0,85° | **9/9** |
+| IMOVE | 11 | **0,93°** | 1,67° | 7/9 |
+| LBMC | 2 | 0,48° | 0,91° | (2 essais : test non interprétable) |
+| COMFI | 28 | 4,24° | 10,02° | 0/9 — voir la réserve ci-dessous |
+
+Équivalence déclarée si la borne haute de l'IC 95 % du RMSD moyen reste sous 2° (McGinley), avec
+correction de Bonferroni sur les 9 ddl. Sur IMOVE, les deux ddl qui échouent sont les **rotations
+axiales** (bassin 1,61°, hanche 1,40° de moyenne) : la moyenne passe, la borne haute non.
+
+**Face à l'optoélectronique** (IK mocap des jeux qui en fournissent une ; décalage temporel estimé
+une fois par essai et appliqué aux deux variantes) :
+
+| Jeu | Essais | Référence contre mocap | Nous contre mocap | Écart |
+|---|---|---|---|---|
+| BioCV | 18 | 6,16° | 6,18° | **+0,02°** |
+| IMOVE | 11 | 11,41° | 11,48° | **+0,07°** |
+| OpenCap | 18 | 4,43° | 4,43° | **0,00°** |
+
+**C'est le message du niveau 2** : l'écart markerless–mocap est de 4 à 11° selon le jeu, et changer
+de calibration ne le déplace que de quelques centièmes de degré. L'effet de la calibration est donc
+d'un ordre de grandeur inférieur aux autres sources d'erreur de la chaîne (modèle, jeu de marqueurs,
+détection de pose).
+
+**Réserves.** COMFI se lit à part : sa référence ArUco est moins juste que notre calibration face à
+la mocap (§13), donc l'écart de 4,24° y mesure le désaccord entre deux calibrations dont la moins
+bonne sert d'étalon, pas notre erreur ; les reconstructions 3D y diffèrent de 15 cm. LBMC n'a que
+deux essais. Deux défauts ont été trouvés et corrigés pendant ces runs : la fenêtre de validité de
+la référence BioCV (hors fenêtre, l'écart apparent montait à 15°) et l'ambiguïté de sens de l'axe de
+marche sur les allers-retours d'IMOVE (un sujet sortait à 180°, corrigé en fixant le sens sur
+l'orientation du corps).
