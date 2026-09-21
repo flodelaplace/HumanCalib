@@ -320,6 +320,22 @@ de calibration ne le déplace que de quelques centièmes de degré. L'effet de l
 d'un ordre de grandeur inférieur aux autres sources d'erreur de la chaîne (modèle, jeu de marqueurs,
 détection de pose).
 
+**COMFI, face à sa propre mocap (21/09).** Le jeu fournit ses angles articulaires
+(`mocap/aligned/<id>/<tâche>/joint_angles.csv`), ce qui permet de trancher : notre calibration
+donne-t-elle des angles plus proches de la mocap que la sienne ? Son modèle n'étant pas celui de
+Pose2Sim, le signe et le décalage constant de chaque ddl sont fixés **une fois sur la chaîne de
+référence** puis appliqués aux deux, de sorte que seule la comparaison entre chaînes s'interprète.
+
+| | Écart médian à la mocap |
+|---|---|
+| Calibration ArUco du jeu | 8,19° |
+| **Notre calibration** | **7,21°** |
+
+**Meilleur dans 24 essais sur 27** (Wilcoxon apparié p < 0,0001), et sur **les 12 ddl sans
+exception** : hanche 0,4–1,5°, genou 0,6–0,7°, cheville 1,1–1,5°, subtalaire 0,4–1,6° de gain.
+C'est la confirmation angulaire du résultat 3D de §13 (28/28 en PA-MPJPE) : sur COMFI, l'écart entre
+les deux chaînes vient de la référence, pas de nous. Données : `comfi_angles_vs_mocap.csv`.
+
 **Réserves.** COMFI se lit à part : sa référence ArUco est moins juste que notre calibration face à
 la mocap (§13), donc l'écart de 4,24° y mesure le désaccord entre deux calibrations dont la moins
 bonne sert d'étalon, pas notre erreur ; les reconstructions 3D y diffèrent de 15 cm. LBMC n'a que
