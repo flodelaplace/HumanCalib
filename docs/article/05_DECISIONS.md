@@ -20,7 +20,12 @@ Chaque entrée : décision, raison, conséquence. Le détail daté est dans
   autres jeux ; les chiffres principaux sont donc ceux des **quatre jeux hors BioCV**. Ce n'est
   pas la « constante corrective » refusée le 17/09 : celle-ci corrigeait a posteriori l'erreur
   d'un estimateur, alors qu'ici on change de mesure, la hauteur entière au lieu d'une fraction.
-  RTMPose garde jambes + tronc (le sommet du crâne Halpe26 n'apporte rien).
+  RTMPose garde jambes + tronc. Même procédure pour les deux moteurs : test tête → sol identique
+  (rapport fixé sur BioCV), remplacement seulement si gain hors BioCV. MeTRAbs 1,89 → 1,04 %
+  (p = 9·10⁻⁵) → remplacée ; RTMPose 1,18 → 1,28 % (p = 0,81, plus dispersé) → gardée. À écrire
+  explicitement dans l'article (remarque de Claude Science du 21/09 : sans cette explication, deux
+  règles différentes ressemblent à un choix opportuniste par moteur). Asymétrie déclarée : MeTRAbs
+  rapport empirique (dév. BioCV), RTMPose rapport de table.
 - **Table anthropométrique : Drillis & Contini 0,491, citée avec de Leva 1996** (0,492,
   centres articulaires, vérifié). ANSUR II donnerait 0,477–0,486 ; à présenter en
   sensibilité, pas en méthode.

@@ -57,9 +57,29 @@ la partie tête → vertex (~7 % de la stature). Hors BioCV (59 calibrations), l
 médiane passe de 1,9 à 1,0 % (03 §20).
 
 **RTMPose : cuisse + tibia + tronc (milieu des hanches → cou) = 0,491 + 0,288 = 0,779 ×
-stature**, inchangé : sa hanche Halpe26 est ~85 mm en avant du centre (cuisse trop longue, tronc
-trop court, les deux se compensent). Son point « tête » (sommet du crâne) a été testé de la
-même façon : pas de gain (1,2 → 1,3 % hors BioCV), il est plus bruité.
+stature**, rapport de la littérature, inchangé depuis v4. La hanche Halpe26 est ~85 mm en avant du
+centre articulaire : la cuisse sort trop longue et le tronc trop court, les deux se compensent.
+
+**Deux règles, une par moteur : pourquoi, et comment le choix a été fait.** Ce n'est pas un choix
+au cas par cas, mais une seule procédure appliquée aux deux moteurs :
+1. la mesure tête → sol a été testée **sur les deux moteurs, de façon identique** : même
+   définition du sol et du centile, rapport tête/stature fixé sur BioCV seul, évaluation sur les
+   quatre autres jeux ;
+2. la règle en place n'est remplacée que si la nouvelle mesure fait mieux hors BioCV.
+   - **MeTRAbs** : erreur absolue médiane 1,89 → 1,04 % (59 calibrations, Wilcoxon p = 9·10⁻⁵),
+     donc la règle est remplacée.
+   - **RTMPose** : 1,18 → 1,28 % (36 calibrations réussies, p = 0,81), avec une dispersion plus
+     grande sur tous les jeux (écart-type jusqu'à 2,0 % contre 1,2 %), donc la règle est gardée.
+3. La raison tient à la définition des points. MeTRAbs prédit un squelette 3D de surface complet
+   (87 points, dont quatre marqueurs de bandeau et dix marqueurs de semelle), cohérent entre les
+   vues. Halpe26 n'a qu'un point « tête », détecté en 2D sur le contour du crâne : il dépend de la
+   coiffure et de l'angle de vue, et se triangule donc moins bien.
+
+**L'asymétrie est à déclarer :**
+- **MeTRAbs** : le rapport 0,9255 est **empirique**, fixé sur un seul jeu de développement.
+- **RTMPose** : 0,779 vient d'une **table anthropométrique**, sans aucun ajustement.
+
+Les chiffres de validation de la règle MeTRAbs sont donc ceux des quatre jeux hors BioCV.
 
 Option `--scale_method` : `stature` (défaut ; MeTRAbs 87 points, repli sur les segments pour
 les autres squelettes), `segments` (ancienne règle, gardée pour comparaison), `head`.

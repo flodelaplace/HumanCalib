@@ -425,5 +425,40 @@ Ce qui reste :
 - La référence d'échelle COMFI est la calibration ArUco du jeu, moins juste que la nôtre (§13) :
   ses chiffres d'échelle sont indicatifs.
 
+**Erreur de reconstruction des marqueurs après alignement 4 ddl** (MPJPE, médiane par jeu,
+jambes → tête) : BioCV 35,0 → 22,7 mm, OpenCap 49,7 → 47,3, IMOVE 79,0 → 62,7, COMFI 80,0 → 73,1,
+**LBMC 55,3 → 73,0** (2 essais). La PA-MPJPE est inchangée : elle est invariante par similitude
+(écarts ≤ 0,02 mm, bruit numérique). LBMC s'explique : l'alignement 4 ddl se fait sur les centres
+des caméras, pas sur les points ; l'erreur sur le sujet additionne l'échelle, la verticale
+(0,7° et 1,4° sur ces deux essais) et la position du sujet dans le volume. Sur ces deux essais,
+l'échelle surestimée compensait en partie les autres termes. La position des caméras (4 ddl),
+elle, s'améliore aussi sur LBMC (145 → 98 mm).
+
+**Export régénéré (21/09)** : `Article_pour_ClaudeScience/niveau1/donnees/essais.csv`, où les lignes
+MeTRAbs viennent maintenant de `eval/metrabs_v4_stature`. Changent : `echelle_erreur_pct`,
+`pos4ddl_mm`, `pos4ddl_pire_mm`, `mpjpe_4ddl_mm`. Identiques : rotation, 7 ddl, PA-MPJPE, échecs et
+critère d'acceptation (vérifié ligne à ligne sur les 140 calibrations). Les lignes RTMPose ne
+changent pas. L'ancien fichier est gardé sous `~/humancalib_eval/essais_v4_segments.csv`.
+
+**Contrôle niveau 2 : les angles ne sont PAS invariants au facteur d'échelle dans cette chaîne.**
+On a relancé Pose2Sim sur les 3 essais où l'échelle change le plus. Tout est identique à la
+variante hc (mêmes détections, même configuration, même stature déclarée) ; seule change
+l'échelle de notre calibration (variante hcst). RMSD médian sur les 9 ddl :
+
+| Essai | Échelle jambes → tête | hcst vs hc | hc vs gold | hcst vs gold |
+|---|---|---|---|---|
+| BioCV P16_WALK_01 | +3,2 → −1,0 % | 0,60° | 0,76° | 0,58° |
+| IMOVE subject7 | +4,3 → +0,1 % | 0,68° | 1,97° | 1,68° |
+| OpenCap subject11 walking2 | +3,3 → +0,2 % | 0,49° | 0,68° | 0,36° |
+
+Un changement d'échelle de 3 à 4 % déplace les angles d'environ 0,5 à 0,7°, soit le même ordre de
+grandeur que l'écart entre les deux chaînes. Et la nouvelle échelle **rapproche des angles gold
+sur les 3 essais**. Cause probable, non isolée : Pose2Sim combine les points 3D avec la stature
+déclarée dans la configuration (augmentation LSTM normalisée par la stature, mise à l'échelle
+OpenSim). Une erreur d'échelle n'y est donc pas une simple homothétie : la taille du corps
+triangulé ne correspond plus à la stature déclarée. Réserve : 3 essais, choisis parce que leur
+échelle change le plus ; sur un essai typique, où l'échelle bouge de 1 à 2 %, l'effet sera plus
+faible. Fichiers : `~/humancalib_eval/level2_check_stature.csv`, `level2/<essai>/hcst/`.
+
 Fichiers : `~/humancalib_eval/scale_study.py`, `scale_study.csv` (toutes les mesures, deux
 moteurs), `scale_stature_vs_segments.csv` (77 calibrations recalculées), `stature_batch.sh`.
