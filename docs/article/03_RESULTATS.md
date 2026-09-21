@@ -343,3 +343,40 @@ deux essais. Deux défauts ont été trouvés et corrigés pendant ces runs : la
 la référence BioCV (hors fenêtre, l'écart apparent montait à 15°) et l'ambiguïté de sens de l'axe de
 marche sur les allers-retours d'IMOVE (un sujet sortait à 180°, corrigé en fixant le sens sur
 l'orientation du corps).
+
+## 19. RTMPose sur IMOVE, et comparaison des moteurs sur les cinq jeux (21/09)
+
+RTMPose + VideoPose3D relancé sur les 11 sujets IMOVE, pour que la comparaison des moteurs couvre
+aussi le rig à 10 caméras. Même protocole que MeTRAbs (mêmes vidéos, intrinsèques, sélection de
+personne ; échelle jambes + tronc).
+
+| Sujet | RTMPose | MeTRAbs | Verdict |
+|---|---|---|---|
+| 5, 12 | **0,25° et 0,38°** | 0,37° et 0,31° | réussis |
+| 2, 3, 4, 9, 11 | 8 à 139° | 0,28 à 1,21° | échecs complets |
+| 6, 7, 13 | 1,6 à 2,5° (médiane), une paire à 69–179° | 0,35 à 0,52° | échecs partiels |
+| 10 | — | 0,38° | sans sortie (pas assez de points de pied pour l'échelle) |
+
+**RTMPose : 9 échecs sur 11 ; MeTRAbs : 0.** Quand RTMPose réussit, il vaut MeTRAbs, voire mieux
+(sujet 5). L'hypothèse d'une gêne due aux caméras tournées ne tient pas ici : la préparation redresse
+les vidéos des caméras 22 et 23, qui sont même les deux meilleures pour RTMPose. L'échec vient d'un
+déficit de détection général (72–90 % d'images exploitables contre 90–100 % pour MeTRAbs) et d'un
+effondrement sur une caméra (Cam26 : 17 % contre 91 %), sans cause géométrique apparente
+(distance et résolution comparables à des caméras qui fonctionnent).
+
+**Comparaison des moteurs, cinq jeux, 77 essais appariés** (`niveau1/02_SYNTHESE.md` §2) :
+
+| Jeu | Essais | MeTRAbs : échecs | RTMPose : sans sortie + complets + partiels |
+|---|---|---|---|
+| BioCV | 18 | 0 | 0 + 5 + 2 |
+| IMOVE | 11 | 0 | 1 + 5 + 3 |
+| OpenCap | 18 | 0 | 0 + 0 + 0 |
+| LBMC | 2 | 0 | 0 + 0 + 0 |
+| COMFI | 28 | 0 | 13 + 0 + 0 |
+
+**MeTRAbs : 0 échec sur 77. RTMPose : 29 essais inutilisables sur 77 (38 %)**, concentrés sur trois
+jeux, aucun sur OpenCap ni LBMC. Sur les essais réussis par les deux, la précision est équivalente.
+
+**Critère d'acceptation, 140 calibrations** : 125 correctes acceptées, **15 échecs rejetés**, aucune
+fausse alarme. Pire caméra : correctes ≤ 10,3 mrad, échecs ≥ 32,1 mrad. Les 8 échecs IMOVE,
+complets comme partiels, sont tous détectés.
