@@ -69,11 +69,15 @@ Three modes (`--person_selection`):
 
 - **`motion`** *(default, evaluated method)* — the subject is the person
   **walking**. In each camera, every detection is tracked over ±0.2 s and its leg
-  swing (ankle relative to hip, in leg lengths per second) is measured. A frame
-  is kept only while at least half the cameras see someone walking, and each
-  camera keeps its fastest-swinging detection. Then geometric re-selection (next
-  item) runs. On six BioCV walks: wrong person in 2–5 % of kept frames, against
-  8–20 % for the largest box (`pipeline/motion_selection.py`).
+  swing (ankle relative to hip, in leg lengths per second; in 3D with MeTRAbs, in
+  the image with RTMPose) is measured. A frame is kept only while at least half
+  the cameras see someone walking, and each camera keeps its fastest-swinging
+  detection. A camera the subject walks straight at sees a foreshortened 2D
+  swing and flags walking far less often than the others; such a camera follows
+  the other cameras' decision instead of its own (adaptive gate — it only
+  triggers with RTMPose, MeTRAbs' swing being 3D). Then geometric re-selection
+  (next item) runs. On six BioCV walks: wrong person in 2–5 % of kept frames,
+  against 8–20 % for the largest box (`pipeline/motion_selection.py`).
 - **`geometric`** — starts from the largest detection. After a first
   calibration, the subject is triangulated from the cameras that agree, and each
   camera re-selects the detection closest to its reprojection; the rig is then
