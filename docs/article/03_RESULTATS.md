@@ -462,3 +462,35 @@ faible. Fichiers : `~/humancalib_eval/level2_check_stature.csv`, `level2/<essai>
 
 Fichiers : `~/humancalib_eval/scale_study.py`, `scale_study.csv` (toutes les mesures, deux
 moteurs), `scale_stature_vs_segments.csv` (77 calibrations recalculées), `stature_batch.sh`.
+
+## 21. Niveau 2 final : échelle tête → sol et repère recalé sur la gold (22/09, 77 essais)
+
+**Remplace les chiffres du §18.** Même chaîne Pose2Sim, mêmes détections, avec deux changements.
+Notre calibration est à l'échelle tête → sol (§20). Les deux variantes sont mises dans un repère
+unique : recalage 4 ddl de notre repère monde sur la gold, puis repère canonique calculé sur la
+gold (`08_NIVEAU2_METHODE` §3). 77/77 essais, aucun échec, aucun retournement.
+
+| Jeu | Essais | Écart entre chaînes, v4 → final | ddl équivalents à 2°, v4 → final | à 1°, v4 → final |
+|---|---|---|---|---|
+| BioCV | 18 | 0,65 → **0,58°** | 9/9 → **9/9** | 3/9 → 2/9 |
+| OpenCap | 18 | 0,53 → **0,57°** | 9/9 → **9/9** | 8/9 → 7/9 |
+| IMOVE | 11 | 0,80 → **0,90°** | 7/9 → **7/9** | 0/9 → 0/9 |
+| LBMC | 2 | 0,43 → 0,64° | descriptif | descriptif |
+| COMFI | 28 | 4,47 → 4,64° | exclu | exclu |
+
+Écart = médiane des médianes par essai des RMSD par ddl. IMOVE : pas d'équivalence démontrée à 2°
+sur la rotation du bassin (borne haute 2,85°) ni sur la rotation de hanche (2,35°).
+
+**Face à la mocap** (écart médian de chaque chaîne) : BioCV 6,18° avec la gold / 6,21° avec la
+nôtre ; IMOVE 11,44 / 11,45° ; OpenCap 4,45 / 4,49°. **COMFI face à ses propres angles** : 7,74°
+avec l'ArUco du jeu, **7,36° avec la nôtre**, meilleure sur 23 essais sur 27 (Wilcoxon p < 10⁻⁴).
+
+Pourquoi l'écart monte légèrement face à v4 et à la version intermédiaire (0,42° sur BioCV) : le
+recalage 4 ddl laisse notre erreur de verticale dans la comparaison, alors qu'un repère calculé par
+variante l'effaçait. Ces chiffres sont les plus conservateurs des trois et restent 3 à 5 fois sous
+le seuil clinique de 2°.
+
+Fichiers : `~/humancalib_eval/level2_angles.csv`, `level2_equivalence*.csv`, `level2_vs_mocap.csv`,
+`comfi_angles_vs_mocap.csv` ; versions précédentes suffixées `_v4seg` (v4) et `_epaules`
+(intermédiaire) ; sorties brutes dans `level2/<essai>/{gold,hcst}/` (anciennes dans
+`ancien_repere_pca/`) ; export `Article_pour_ClaudeScience/niveau2/`.

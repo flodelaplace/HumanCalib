@@ -28,7 +28,10 @@ calibration :
    `markerAugmentation` (LSTM Stanford) → `kinematics` (mise à l'échelle et IK OpenSim), avec la
    configuration Pose2Sim par défaut, pour chaque variante :
    - **gold** : la calibration de référence du jeu ;
-   - **hc** : la nôtre, échelle et verticale comprises.
+   - **hc** : la nôtre, échelle et verticale comprises. Échelle MeTRAbs tête → sol
+     (`01_METHODE` §2, variante `hcst` dans les fichiers). Un contrôle a montré que l'échelle
+     n'est pas neutre dans Pose2Sim : 3 à 4 % d'échelle déplacent les angles de 0,5 à 0,7°
+     (`03_RESULTATS` §20) ; le niveau 2 a donc été recalculé avec l'échelle finale.
 
 Tous les paramètres non géométriques sont identiques entre les deux variantes : stature du
 participant, fréquence, filtrage, modèle OpenSim, réglages de triangulation.
@@ -54,7 +57,7 @@ participant, fréquence, filtrage, modèle OpenSim, réglages de triangulation.
   filtrées à 6 Hz juste avant, bien sous la fréquence de Nyquist de 30 Hz. L'IK OpenSim, qui traite
   les images une à une sur CPU, devient trois fois plus rapide.
 
-## 3. Repère commun, sans utiliser la référence
+## 3. Repère commun : recalage 4 ddl sur la gold, repère canonique unique
 
 Deux constats, mesurés avant de lancer la série :
 
@@ -67,22 +70,37 @@ Deux constats, mesurés avant de lancer la série :
   en prono-supination (mesuré sur un essai OpenCap). C'est une mise en garde pour tout utilisateur
   de Pose2Sim dont la calibration n'a pas une orientation canonique.
 
-Conséquence : les points 3D filtrés de **chaque** variante sont amenés dans un **repère canonique
-déduit de ses propres données**, avant l'augmentation de marqueurs :
+Conséquence : les deux variantes sont amenées dans **un seul et même repère**, en deux temps,
+avant l'augmentation de marqueurs.
 
-- **verticale** = direction moyenne du vecteur chevilles → cou du sujet ;
-- **axe X** = axe principal de la trajectoire horizontale du bassin ;
-- **sens de l'axe X** = fixé par l'orientation du corps sur les dix premières images (normale à la
-  ligne des épaules). Le déplacement net ne suffit pas : lors d'allers-retours (IMOVE), il est quasi
-  nul et les deux variantes pouvaient choisir des sens opposés, d'où 180° d'écart sur la rotation du
-  bassin d'un sujet. L'orientation du corps, elle, est la même pour les deux variantes au même
-  instant ;
-- **origine** = position horizontale du bassin à la première image ; sol (2ᵉ centile de la hauteur
-  des chevilles) à zéro.
+1. **Recalage 4 ddl de notre repère monde sur celui de la gold.** L'orientation autour de la
+   verticale (lacet) et l'origine d'un repère monde sont arbitraires : ce ne sont pas des erreurs
+   de calibration. Nos points 3D filtrés subissent donc la rotation autour de la verticale et la
+   translation qui superposent au mieux nos centres de caméras à ceux de la gold
+   (`recalage_hcst.json`). **La verticale et l'échelle ne sont pas corrigées** : nos erreurs sur ces
+   deux points restent entières dans la comparaison. C'est la convention « 4 ddl » du niveau 1.
+   Recaler sur 6 ddl redresserait notre verticale et masquerait une erreur réelle. Pose2Sim écrit
+   ses `.trc` avec les axes permutés (le Z vertical de la calibration devient le Y vertical
+   d'OpenSim) ; le recalage est exprimé dans ces coordonnées.
+2. **Un repère canonique unique, calculé sur la variante gold** puis appliqué tel quel aux deux
+   variantes :
+   - verticale = direction moyenne chevilles → cou ;
+   - axe X = déplacement horizontal du bassin sur la première seconde (sujet quasi immobile, tapis
+     LBMC : normale à la ligne des épaules, moyennée sur l'essai) ;
+   - origine = bassin à la première image, ramené au sol (2ᵉ centile de la hauteur des chevilles).
 
-Ce recalage est calculé séparément pour chaque variante, **sans jamais utiliser la référence**. Il
-ne masque pas nos erreurs : notre erreur de verticale reste visible, puisque notre verticale est
-estimée sur nos propres points.
+Avec un repère commun, les deux chaînes voient la même scène au même endroit, et la différence
+d'angles ne vient plus que des calibrations. Le repère lui-même n'a plus besoin d'être stable
+d'une variante à l'autre, puisqu'il n'est calculé qu'une fois. L'utilisation de la gold se limite
+à ce recalage rigide de jauge, comme au niveau 1 : aucune version, aucun réglage n'est choisi en
+comparant à la référence.
+
+**Pourquoi pas un repère canonique par variante** (première version de l'étude) : chaque variante
+devait retrouver la même direction de marche à partir de ses propres points, ce qui s'est révélé
+fragile (§6, incidents 6 à 8). Surtout, chaque variante y estimait sa verticale sur ses propres points
+(chevilles → cou), ce qui **effaçait notre erreur de verticale** au lieu de la laisser visible :
+les écarts entre chaînes obtenus ainsi étaient légèrement optimistes (BioCV 0,42° contre 0,58°
+avec le recalage 4 ddl).
 
 ## 4. Ce qui est comparé
 
@@ -134,6 +152,19 @@ Signalés pour qu'aucun chiffre intermédiaire ne soit repris par erreur :
 4. Fenêtre de validité de BioCV absente → `frame_range` depuis l'index de Mesh2Sim (§2).
 5. Sens de l'axe de marche ambigu lors des allers-retours d'IMOVE → sens fixé sur l'orientation du
    corps (§3) ; seul le sujet 13 était touché et a été recalculé.
+6. Repère canonique par variante, axe X = axe principal de la trajectoire : **instable en marche
+   circulaire** (COMFI). Un cercle n'a pas d'axe principal, et 9 essais circulaires sur 14 sont
+   sortis retournés de 180° entre les deux variantes.
+7. Axe X = normale aux épaules sur dix images : défini partout mais bruité, avec un biais de
+   rotation du bassin allant jusqu'à 8° (IMOVE). Axe X = premier mètre parcouru : faux sur un
+   trajet courbe, parce que les deux variantes, d'échelles différentes, n'atteignent pas le mètre
+   à la même image (12° sur COMFI).
+8. → **Repère unique calculé sur la gold, notre variante recalée en 4 ddl** (§3). Validé sur les
+   7 essais les plus touchés : biais de rotation du bassin sous 0,6° sur 6 d'entre eux, essais
+   rectilignes revenus au niveau initial, essai circulaire COMFI 1118 de 8,2 à 2,3°.
+9. **IK OpenSim en parallèle** : chaque IK occupait ~12 cœurs ; à 2 en parallèle, une IK passe de
+   90 à 1 280 s. Les IK tournent un essai à la fois, bridées à un fil de calcul, ce qui les rend
+   aussi plus rapides seules (64 s au lieu de 114 s sur IMOVE s11).
 
 ## 7. Où sont les fichiers
 
