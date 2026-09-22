@@ -1,23 +1,42 @@
-# Usage Guide
+# Usage guide
 
-This guide explains how to calibrate camera extrinsics from your own videos using this pipeline. It is the full reference for the command line. It assumes HumanCalib is installed: see [Installation](README.md#installation) in the README — Docker is the simplest.
+The full reference for the command line. It assumes HumanCalib is installed: see
+[Installation](README.md#installation) — Docker is the simplest. How each step
+works is explained in [docs/METHOD.md](docs/METHOD.md).
 
-### 1. Prepare your data
+## 1. Prepare your data
 
-1. Place your synchronized videos (`.mp4`, `.avi`, `.mov`) in a directory. Cameras must be static; the subject must move across the capture volume.
-2. Provide a `Calib_scene.toml` file with intrinsic parameters per camera, matching the [Pose2Sim](https://github.com/perfanalytics/pose2sim) format.
+1. Put your synchronised videos (`.mp4`, `.avi`, `.mov` or `.mkv`) in one folder,
+   one per camera. Cameras must be static; the subject must walk across the
+   capture volume.
+2. Add a `Calib_scene.toml` with each camera's intrinsics, in
+   [Pose2Sim](https://github.com/perfanalytics/pose2sim) format. Video names
+   without extension must match its sections; cameras are numbered in
+   alphabetical order, so pad numbers (`camera01 … camera10`).
+   [`input/README.md`](input/README.md) has the details.
 
-> ⚠ Intrinsic quality is the #1 driver of final MRE. Distortion coefficients k1, k2 above ~5 in absolute value are almost certainly wrong — re-calibrate that camera before continuing.
+> ⚠ Intrinsic quality is the first driver of accuracy. Distortion coefficients
+> k1, k2 above ~5 in absolute value are almost certainly wrong — re-calibrate
+> that camera before continuing.
 
-*(A ready-to-run `demo/` folder is provided: 4 synchronized videos + `Calib_scene.toml`.)*
+A ready-to-run `demo/` folder is provided: 4 synchronised videos and their
+`Calib_scene.toml`.
 
-Optional but useful: a `<video>.dropped.json` sidecar listing absolute frame indices that should be ignored everywhere (corrupted / black frames). The auto outlier-frame drop step writes these under `<output_dir>/noise_1_0/dropped_frames/`, never into your input folder; a hand-written sidecar placed next to its video is still read and merged.
+Optional: a `<video>.dropped.json` sidecar next to a video lists absolute frame
+indices to ignore everywhere (corrupted or black frames), as
+`{"dropped_frame_indices": [1273, 1274]}`.
 
-### 2. Run the full pipeline
+## 2. Run the full pipeline
 
-`scripts/calibrate.sh` runs the 7-step pipeline (pose extraction → intrinsics loading → linear init → auto outlier-frame drop → BA → MRE evaluation → scaling). It forwards to the Python CLI: once the package is installed, `humancalib run` takes exactly the same arguments, and `humancalib --help` lists the steps that can be run on their own.
+`humancalib run` runs the 7 steps (pose extraction → intrinsics → person
+selection and linear initialisation → outlier-frame drop → bundle adjustment →
+evaluation → scaling). `scripts/calibrate.sh` takes exactly the same arguments
+and works from a checkout without installing the package. `humancalib --help`
+lists the steps that can be run on their own.
 
-**With Docker**, give the same arguments after `docker compose run --rm calib`, using the container's paths: the repository's `input/` is `/input` and `output/` is `/output`.
+**With Docker**, give the same arguments after `docker compose run --rm calib`,
+with the container's paths: the repository's `input/` is `/input` and `output/`
+is `/output`.
 
 ```bash
 docker compose run --rm calib \
@@ -25,9 +44,7 @@ docker compose run --rm calib \
     --height 1.84 --ref_frame 1415
 ```
 
-Each image defaults to the pose backend it contains — MeTRAbs in `calib`, RTMPose in `rtmpose` — so `--pose_engine` can be left out there. Outside Docker it defaults to `rtmpose`.
-
-**Recommended: MeTRAbs path** (direct metric 3D, Procrustes init, much higher accuracy):
+**MeTRAbs** (default, the evaluated method):
 
 ```bash
 bash scripts/calibrate.sh \
@@ -40,7 +57,7 @@ bash scripts/calibrate.sh \
     --ref_frame 5
 ```
 
-**RTMPose + VideoPose3D path** (legacy two-step, kept for comparison):
+**RTMPose + VideoPose3D** (optional backend, see [below](#optional-backend-rtmpose--videopose3d)):
 
 ```bash
 bash scripts/calibrate.sh \
@@ -48,43 +65,42 @@ bash scripts/calibrate.sh \
     demo/Calib_scene.toml \
     output/demo_rtmpose \
     cuda balanced \
+    --pose_engine rtmpose \
     --height 1.78 \
     --ref_frame 5
 ```
 
-#### Positional arguments
+### Positional arguments
 
 | Position | Description |
-|----------|-------------|
-| 1 | Folder containing the synchronized videos |
+|---|---|
+| 1 | Folder containing the synchronised videos |
 | 2 | Path to the intrinsics TOML |
-| 3 | Output directory (will be created) |
+| 3 | Output directory (created if needed) |
 | 4 | `cuda` or `cpu` (optional, default `cuda`) |
 | 5 | `lightweight` / `balanced` / `performance` (optional, RTMPose only) |
 
-#### Named flags
+### Options
 
-| Flag | Default | Effect |
-|------|---------|--------|
-| `--pose_engine <eng>` | `rtmpose` (in Docker: the image's backend) | `metrabs` (recommended) or `rtmpose` |
-| `--height <m>` | — | Subject height in **meters** (e.g. `1.84`). Enables step 7 (scaling + orientation). |
-| `--ref_frame <n>` | — | Frame with both heels visible. Sets the origin and horizontal axis; scale and vertical come from the whole walk (see `--scale_method`, `--vertical_method`). With `--vertical_method frame` / `--scale_method head`, pick a frame where the subject stands straight, feet flat. Must be inside `[start_frame, end_frame]`. |
-| `--start_frame <n>` | `0` | First frame to process. |
-| `--end_frame <n>` | last | Last frame to process. |
-| `--frame_skip <n>` | `10` | Subsample interval for BA. Lower = denser optimization, slower. `5` is a good default with MeTRAbs. |
-| `--conf_threshold <t>` | `0.5` | Minimum 2D keypoint confidence. Lower = more data, more noise. |
-| `--ref_cam <id>` | *(auto)* | 1-indexed CAM ID to force as Procrustes reference. Default: auto-select the camera with the lowest mean Procrustes residual. |
-| `--ba_jac <mode>` | `analytic` | Bundle-adjustment Jacobian. `analytic` (default) is exact and ~10–100× fewer objective evals — much faster, same accuracy. `numeric` = legacy finite-difference path. |
-| `--person_selection largest\|geometric` | `geometric` | `geometric`: after a first calibration, re-select in every camera the person the other cameras see (frames where only someone else is visible get no person), then calibrate again; two rounds. Robust to a bystander close to one camera. Needs pose extraction to have saved candidate detections (any extraction from this version on). `largest`: the largest detection per frame, as before. |
-| `--scale_method segments\|head` | `segments` | `segments`: median thigh + shank length over the sequence against 0.491 × `--height` (Drillis & Contini). `head`: head height on `--ref_frame` (former method, about 11 % too large on BioCV). |
-| `--vertical_method walk\|frame` | `walk` | `walk`: median body axis over the walk, minus its component along the walking direction. `frame`: head-to-feet on `--ref_frame` (former method). `walk` assumes the subject walks. |
-| `--no_auto_outlier_drop` | off | Disable the per-camera outlier-frame drop step between linear and BA. |
-| `--outlier_abs_px <p>` | `50` | Absolute reproj threshold for the outlier drop. |
-| `--outlier_x_median <m>` | `5` | Multiplier above per-camera median for the outlier drop (frame must exceed **both** thresholds to be dropped). |
-| `--save_video` | off | Save 2D pose overlay video (RTMPose only). |
-| `--verbose` / `--quiet` | — | More detail (debug messages), or only warnings and errors. Also settable with `HUMANCALIB_LOG_LEVEL`. |
+| Option | Default | Effect |
+|---|---|---|
+| `--pose_engine metrabs\|rtmpose` | `metrabs` | Pose backend. Each Docker image defaults to the backend it contains |
+| `--height <m>` | — | Subject height in metres (e.g. `1.84`). Enables step 7: metric scale and gravity-aligned frame |
+| `--ref_frame <n>` | — | A frame with both heels visible: sets the origin and horizontal axis. Must be inside `[start_frame, end_frame]` |
+| `--person_selection motion\|geometric\|largest` | `motion` | `motion`: the walking person, then geometric re-selection (evaluated method). `geometric`: largest detection, then re-selection of the person the other cameras see. `largest`: the largest detection. See [METHOD](docs/METHOD.md#person-selection) |
+| `--scale_method stature\|segments\|head` | `stature` | `stature`: head-band height above the floor over the walk against `--height` (MeTRAbs; RTMPose uses `segments`). `segments`: thigh + shank (+ trunk for RTMPose) against `--height`. `head`: head height on `--ref_frame` (former method, about 11 % off) |
+| `--vertical_method walk\|frame` | `walk` | `walk`: body axis over the whole walk, walking direction removed. `frame`: head-to-feet on `--ref_frame`. Use `frame`, with a `--ref_frame` where the subject stands straight, when the subject does not walk |
+| `--start_frame <n>` / `--end_frame <n>` | whole video | Frame range to process |
+| `--frame_skip <n>` | `10` | Frame subsampling for bundle adjustment. Lower is denser and slower; `5` is a good choice with MeTRAbs |
+| `--conf_threshold <t>` | `0.5` | Minimum keypoint confidence |
+| `--ref_cam <id>` | auto | 1-based camera ID to force as Procrustes reference. Default: the camera with the lowest mean Procrustes residual |
+| `--ba_jac analytic\|numeric` | `analytic` | Bundle-adjustment Jacobian; `numeric` is the slower finite-difference path, same result |
+| `--no_auto_outlier_drop` | off | Disable the outlier-frame drop between the linear step and BA |
+| `--outlier_abs_px <p>` / `--outlier_x_median <m>` | `50` / `5` | A frame is dropped for a camera when its error exceeds both `p` pixels and `m` × that camera's median |
+| `--save_video` | off | Save a 2D pose overlay video (RTMPose only) |
+| `--verbose` / `--quiet` | — | More detail, or only warnings and errors. Also `HUMANCALIB_LOG_LEVEL` |
 
-#### Full real-world example
+### Full real-world example
 
 ```bash
 bash scripts/calibrate.sh \
@@ -99,43 +115,78 @@ bash scripts/calibrate.sh \
     --frame_skip 5
 ```
 
-This processes frames 650–1500, calibrates with MeTRAbs, scales the scene using a 1.84 m subject standing at frame 1415.
+Processes frames 650–1500 with MeTRAbs, and scales the scene for a 1.84 m
+subject, with the origin under the heels at frame 1415.
 
-### 3. Check the results
+## 3. Check the results
 
-The pipeline prints a summary table at the end with the MRE (Mean Reprojection Error) for each calibration stage; the best one is starred. All outputs land in `<output_dir>/results/`:
+The run ends with a table of the MRE (mean reprojection error) at each stage; the
+best is starred. Everything is in `<output_dir>/results/`:
 
 | File | Description |
-|------|-------------|
-| `Calib_scene_calibrated.toml` | Final calibration (metric, gravity-aligned) — ready for Pose2Sim / OpenCap / OpenSim. |
-| `3d_skeleton_FINAL.trc` | Triangulated 3D skeleton in TRC format. |
-| `camera/visu_3d_FINAL.gif` | Animated 3D viz with live MRE metrics overlaid (see the README hero image). |
-| `camera/visu_3d_linear_1_0.gif` | Intermediate viz after the linear init only. |
-| `camera/visu_3d_linear_1_0_ba.gif` | Intermediate viz after BA, before scaling. |
-| `MRE_visualizations/` | Per-camera best/worst reprojection images — diagnostic for any cam that stays high after BA. |
-| `ba_cost_live_iter*.png` | Bundle Adjustment convergence curves. |
+|---|---|
+| `Calib_scene_calibrated.toml` | Final calibration (metric, gravity-aligned), for Pose2Sim / OpenCap / OpenSim |
+| `3d_skeleton_FINAL.trc` | Triangulated 3D skeleton |
+| `camera/visu_3d_FINAL.gif` | 3D animation with the MRE overlaid |
+| `camera/visu_3d_linear_1_0*.gif` | The same after the linear step, and after BA before scaling |
+| `MRE_visualizations/` | Best and worst reprojection per camera |
+| `ba_cost_live_iter*.png` | Bundle adjustment convergence |
 
-### 4. Diagnose / improve
+## 4. Diagnose and improve
 
-If one camera lags behind the others (e.g. MRE 9 px while the rest are at 5 px):
+If one camera stays worse than the others (e.g. 9 px while the rest are at 5 px):
 
-- Look at its `MRE_visualizations/<calib>/camX_worst.png` — if the reprojected points are systematically offset, the camera's K is wrong; re-calibrate it.
-- Check the Procrustes log line for that camera in the linear init. **Low Procrustes residual (≤ ~100 mm) but high MRE ⇒ intrinsics issue** (the 3D shape from MeTRAbs is fine, the projection back to 2D is biased by a wrong K).
-- The auto-outlier drop writes per-video `<video>.dropped.json` files under `<output_dir>/noise_1_0/dropped_frames/` — check them to see which frames were flagged.
+- Look at `MRE_visualizations/<calib>/camX_worst.png`: points systematically
+  offset mean that camera's intrinsics are wrong.
+- In the linear log, a **low Procrustes residual (≤ ~100 mm) with a high MRE**
+  also points to the intrinsics: the 3D shape is right, its projection is not.
+- Frames dropped as outliers are listed in
+  `<output_dir>/noise_1_0/dropped_frames/`.
+- Force the reference camera with `--ref_cam 3` if you know camera 3 has the
+  cleanest view.
 
-If the auto-selected reference camera doesn't seem right (e.g. you know cam 3 has the cleanest view of the subject), force it:
+More in [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+
+## 5. Caching
+
+Pose extraction results are cached in the output folder. Re-runs with the
+**same frame range** skip inference (~2 min per camera saved). The cache checks
+the frame range, **not** the intrinsics: after changing the TOML, delete the
+cached poses.
 
 ```bash
-... --ref_cam 3
+rm -rf output/my_session/noise_1_0/2d_joint output/my_session/noise_1_0/3d_joint
 ```
 
-### 5. Caching
+## Optional backend: RTMPose + VideoPose3D
 
-When using MeTRAbs, pose extraction results are cached in the output dir. Re-runs with the **same frame range** skip inference automatically (~2 min/cam saved).
+The original two-step backend (2D keypoints, then temporal lifting to 3D), kept
+for comparison; MeTRAbs is recommended. It needs Python 3.8 and PyTorch, so it
+has its own image and environment. Its weights carry non-commercial licences.
 
-> The cache only checks the frame range, **not** the intrinsics. If you change the TOML, delete the cached poses to force re-extraction:
-> ```bash
-> rm -rf output/my_session/noise_1_0/2d_joint output/my_session/noise_1_0/3d_joint
-> ```
+With Docker:
 
-For deeper details (BA design, joint formats, etc.) see the main [README](README.md).
+```bash
+docker compose --profile rtmpose build
+docker compose --profile rtmpose run --rm rtmpose demo      # results in output/demo_rtmpose/
+```
+
+With conda:
+
+```bash
+conda env create -f envs/rtmpose.yaml
+conda activate humancalib-rtmpose
+pip install --no-deps rtmlib==0.0.15   # --no-deps is required: see envs/rtmpose.yaml
+bash scripts/setup_models.sh           # VideoPose3D source and weights, checksummed
+```
+
+then run with `--pose_engine rtmpose` as above.
+
+## Platform support
+
+| Platform | Status |
+|---|---|
+| Linux (Ubuntu 22.04) | Tested |
+| Windows via WSL2 | Tested |
+| Windows native | Not tested — use WSL2 |
+| macOS | Not supported (needs an NVIDIA GPU) |

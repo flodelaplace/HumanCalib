@@ -7,7 +7,7 @@ type: software
 authors:
   - family-names: Delaplace
     given-names: Florian
-version: 0.1.0
+version: 0.2.0
 license: MIT
 repository-code: "https://github.com/flodelaplace/HumanCalib"
 keywords:

@@ -88,9 +88,8 @@ def build_run_parser():
     p.add_argument("--device", choices=DEVICES, default="cuda")
     p.add_argument("--mode", choices=MODES, default="balanced", help="RTMPose model size")
     p.add_argument("--pose_engine", choices=ENGINES, default=default_engine(),
-                   help="metrabs is recommended. Default: rtmpose, as calibrate.sh had it, "
-                        "unless HUMANCALIB_DEFAULT_ENGINE says otherwise -- each Docker "
-                        "image sets it to the one backend it contains")
+                   help="Default: metrabs, the evaluated method, unless HUMANCALIB_DEFAULT_ENGINE "
+                        "says otherwise -- each Docker image sets it to the one backend it contains")
     p.add_argument("--height", type=float, default=None, help="Subject height in metres")
     p.add_argument("--ref_frame", type=int, default=None,
                    help="Absolute frame where the subject stands straight")
@@ -113,24 +112,24 @@ def build_run_parser():
     p.add_argument("--vertical_method", choices=("frame", "walk"), default="walk",
                    help="frame: head to feet on --ref_frame. walk: body axis over the whole walk, "
                         "walking direction removed -- about 0.7 deg on BioCV instead of 3")
-    p.add_argument("--person_selection", choices=("largest", "geometric", "motion"), default="geometric",
-                   help="largest: the largest detection per frame, per camera. geometric: after a "
-                        "first calibration, re-select in every camera the person the other cameras "
-                        "see, and calibrate again -- for a bystander close to one camera")
+    p.add_argument("--person_selection", choices=("largest", "geometric", "motion"), default="motion",
+                   help="motion (default, the evaluated method): start from the detection that moves "
+                        "like the walking subject, then geometric re-selection. geometric: start "
+                        "from the largest detection, then re-select in every camera the person the "
+                        "other cameras see. largest: the largest detection per frame, per camera")
     return p
 
 
 def default_engine(environ=None):
     """The pose engine used when --pose_engine is not given.
 
-    rtmpose, as calibrate.sh always defaulted, so documented commands keep their
-    meaning. Each Docker image contains exactly one backend and declares it in
-    HUMANCALIB_DEFAULT_ENGINE; without that, a command that omits the flag failed
-    in the main image, which has no RTMPose, and in the RTMPose image, which has
-    no TensorFlow.
+    metrabs, the method evaluated in the paper (it was rtmpose until 0.1, as the
+    original calibrate.sh had it). Each Docker image contains exactly one backend
+    and declares it in HUMANCALIB_DEFAULT_ENGINE, so a command that omits the flag
+    works in both images.
     """
     value = (os.environ if environ is None else environ).get("HUMANCALIB_DEFAULT_ENGINE", "")
-    return value if value in ENGINES else "rtmpose"
+    return value if value in ENGINES else "metrabs"
 
 
 def parse_run_args(argv):

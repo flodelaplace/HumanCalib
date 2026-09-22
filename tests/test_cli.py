@@ -29,11 +29,17 @@ def test_howto_metrabs_command():
     assert cfg.start_frame is None and cfg.end_frame is None
 
 
-def test_howto_rtmpose_command_keeps_the_historical_default_engine(monkeypatch):
+def test_howto_rtmpose_command(monkeypatch):
     monkeypatch.delenv("HUMANCALIB_DEFAULT_ENGINE", raising=False)
     cfg = cli.parse_run_args(["demo", "demo/Calib_scene.toml", "output/demo_rtmpose",
-                              "cuda", "balanced", "--height", "1.78", "--ref_frame", "5"])
+                              "cuda", "balanced", "--pose_engine", "rtmpose",
+                              "--height", "1.78", "--ref_frame", "5"])
     assert cfg.pose_engine == "rtmpose"
+
+
+def test_metrabs_is_the_default_engine_outside_docker(monkeypatch):
+    monkeypatch.delenv("HUMANCALIB_DEFAULT_ENGINE", raising=False)
+    assert cli.parse_run_args(["v", "c.toml", "o"]).pose_engine == "metrabs"
 
 
 def test_howto_real_world_command():
@@ -52,8 +58,10 @@ def test_each_docker_image_can_declare_its_own_default_engine(monkeypatch):
     """Omitting --pose_engine must pick the backend the image actually contains."""
     monkeypatch.setenv("HUMANCALIB_DEFAULT_ENGINE", "metrabs")
     assert cli.parse_run_args(["v", "c.toml", "o"]).pose_engine == "metrabs"
-    monkeypatch.setenv("HUMANCALIB_DEFAULT_ENGINE", "nonsense")
+    monkeypatch.setenv("HUMANCALIB_DEFAULT_ENGINE", "rtmpose")
     assert cli.parse_run_args(["v", "c.toml", "o"]).pose_engine == "rtmpose"
+    monkeypatch.setenv("HUMANCALIB_DEFAULT_ENGINE", "nonsense")
+    assert cli.parse_run_args(["v", "c.toml", "o"]).pose_engine == "metrabs"
     assert cli.parse_run_args(["v", "c.toml", "o", "--pose_engine", "metrabs"]).pose_engine == "metrabs"
 
 
@@ -141,7 +149,8 @@ def test_preflight_points_rtmpose_users_to_metrabs_when_the_backend_is_absent(tm
     (tmp_path / "v" / "cam01.mp4").write_bytes(b"")
     (tmp_path / "c.toml").write_text("")
     monkeypatch.setattr(cli.importlib.util, "find_spec", lambda name: None)
-    cfg = cli.parse_run_args([str(tmp_path / "v"), str(tmp_path / "c.toml"), str(tmp_path / "o")])
+    cfg = cli.parse_run_args([str(tmp_path / "v"), str(tmp_path / "c.toml"), str(tmp_path / "o"),
+                              "--pose_engine", "rtmpose"])
     with pytest.raises(cli.PipelineError, match="--pose_engine metrabs"):
         cli.preflight(cfg)
 
@@ -244,8 +253,10 @@ def test_calibrate_sh_is_only_a_forwarder():
     assert len(code) <= 10, f"calibrate.sh has grown back to {len(code)} lines of code"
 
 
-def test_method_v3_is_the_default():
-    """Geometric person selection, leg-segment scale and whole-walk vertical: the
-    methods validated against BioCV's lab calibration (docs/EVALUATION_PROTOCOL.md)."""
+def test_the_evaluated_method_is_the_default(monkeypatch):
+    """MeTRAbs, motion person selection, head-to-floor scale and whole-walk vertical: the
+    method evaluated against five lab calibrations (docs/EVALUATION_PROTOCOL.md)."""
+    monkeypatch.delenv("HUMANCALIB_DEFAULT_ENGINE", raising=False)
     cfg = cli.parse_run_args(["videos", "calib.toml"])
-    assert (cfg.person_selection, cfg.scale_method, cfg.vertical_method) == ("geometric", "segments", "walk")
+    assert (cfg.pose_engine, cfg.person_selection, cfg.scale_method, cfg.vertical_method) == \
+        ("metrabs", "motion", "stature", "walk")
