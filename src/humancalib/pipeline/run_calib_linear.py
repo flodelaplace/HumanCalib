@@ -30,7 +30,24 @@ from humancalib.postprocessing import evaluate_calibration
 from humancalib.core.log import get_logger, setup_logging
 log = get_logger(__name__)
 
-CHUNK_SIZE = 1000  # process 1000 frames at a time (visibility filter selects best within)
+CHUNK_SIZE = 1000  # smallest chunk, in frames (visibility filter selects best within)
+# Chunks are sized in seconds: at 200 Hz, 1000 frames cut a 7 s walk in two and the linear
+# initialisation, which keeps one chunk, saw part of the walk only (BioCV P16: 0.60 -> 0.26 deg
+# with one chunk over the whole walk, no change elsewhere). An ordinary trial now fits one chunk.
+CHUNK_SECONDS = 120.0
+
+
+def chunk_frames(prefix, target, seconds=CHUNK_SECONDS):
+    """Chunk length in frames: `seconds` at the session's frame rate, never below CHUNK_SIZE."""
+    import yaml
+
+    path = os.path.join(prefix, target, "session.yaml")
+    try:
+        with open(path) as f:
+            fps = float(yaml.safe_load(f)["frame_rate"])
+    except (OSError, KeyError, TypeError, ValueError):
+        return CHUNK_SIZE
+    return max(CHUNK_SIZE, int(round(seconds * fps)))
 
 
 
@@ -44,6 +61,8 @@ def parse_args(argv):
     p.add_argument("--conf_threshold", type=float, default=0.5)
     p.add_argument("--ref_cam", type=int, default=None,
                    help="1-indexed CAM ID to force as Procrustes reference (default: auto-select)")
+    p.add_argument("--chunk_seconds", type=float, default=CHUNK_SECONDS,
+                   help="Length of a linear-initialisation chunk, in seconds (at least %d frames)" % CHUNK_SIZE)
     p.add_argument("prefix")
     p.add_argument("aid", type=int)
     p.add_argument("pid", type=int)
@@ -214,14 +233,15 @@ def main(argv):
     if total_frames <= 0:
         log.error(f"Invalid frame range after clamping ({calib_start} to {calib_end}).")
         sys.exit(1)
+    chunk = chunk_frames(args.prefix, args.target, args.chunk_seconds)
     log.info(f"Processing frames from {calib_start} to {calib_end} ({total_frames} total) "
-        f"in chunks of {CHUNK_SIZE}...")
+        f"in chunks of {chunk}...")
 
     # 4. Run calibration per chunk
-    n_chunks = (total_frames + CHUNK_SIZE - 1) // CHUNK_SIZE
+    n_chunks = (total_frames + chunk - 1) // chunk
     for i in range(n_chunks):
-        f_start = calib_start + i * CHUNK_SIZE
-        f_end = min(f_start + CHUNK_SIZE - 1, calib_end)
+        f_start = calib_start + i * chunk
+        f_end = min(f_start + chunk - 1, calib_end)
         run_chunk(args, f_start, f_end, i, n_chunks)
 
     # 5. Evaluate each chunk and find the best (lowest MRE)

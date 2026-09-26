@@ -5,6 +5,9 @@
 **Changed defaults**
 - The calibration uses a frame budget (`--frame_budget 100`) instead of a fixed step of 10:
   the step follows from the trial's length. `--frame_skip` still forces a fixed step.
+- Linear-initialisation chunks are sized in seconds (120 s, at least 1000 frames) instead of
+  1000 frames, so an ordinary walk is initialised as a whole: at 200 Hz the old chunks cut
+  the walk in two (BioCV P16: 0.60° → 0.26°, no change on the other trials tested).
 
 **Added**
 - `--extract_fps`: pose extraction on regularly decimated copies of the videos (never below

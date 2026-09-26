@@ -47,3 +47,13 @@ def test_decimate_videos_keeps_one_frame_in_k(tmp_path):
     ok, frame = cap.read()
     assert ok and abs(int(frame.mean()) - 40) <= 3      # frame 4 of the source
     assert decimate_videos([str(src)], out, 4) == [dst]  # complete output reused
+
+
+def test_linear_chunks_are_sized_in_seconds(tmp_path):
+    from humancalib.pipeline.run_calib_linear import CHUNK_SIZE, chunk_frames
+    (tmp_path / "noise_1_0").mkdir()
+    (tmp_path / "noise_1_0" / "session.yaml").write_text("frame_rate: 200.0\n")
+    assert chunk_frames(str(tmp_path), "noise_1_0", 120) == 24000     # a 7 s BioCV walk fits one chunk
+    (tmp_path / "noise_1_0" / "session.yaml").write_text("frame_rate: 5.0\n")
+    assert chunk_frames(str(tmp_path), "noise_1_0", 120) == CHUNK_SIZE  # never below the old size
+    assert chunk_frames(str(tmp_path), "missing", 120) == CHUNK_SIZE    # no session file: old size

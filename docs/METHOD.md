@@ -95,9 +95,12 @@ Three modes (`--person_selection`):
   residual. `--ref_cam` forces one.
 - **RTMPose — collinearity.** Bone orientation constraints from the 2D
   projections, as in Lee et al. (2022).
-- **Chunks.** The sequence is cut into chunks of 1000 frames, each calibrated on
-  the frames seen by at least two thirds of the cameras; the chunk with the
-  lowest MRE is kept.
+- **Chunks.** The sequence is cut into chunks of 120 s (at least 1000 frames),
+  each calibrated on the frames seen by at least two thirds of the cameras; the
+  chunk with the lowest MRE is kept. An ordinary walk fits one chunk. Chunks used
+  to be 1000 frames: at 200 Hz that cut a 7 s walk in two, and the
+  initialisation saw part of it only (BioCV P16: 0.60° → 0.26°, no change on the
+  other trials tested).
 
 ## Outlier-frame drop
 
