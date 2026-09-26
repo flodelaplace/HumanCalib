@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased (0.3.0)
+
+**Changed defaults**
+- The calibration uses a frame budget (`--frame_budget 100`) instead of a fixed step of 10:
+  the step follows from the trial's length. `--frame_skip` still forces a fixed step.
+
+**Added**
+- `--extract_fps`: pose extraction on regularly decimated copies of the videos (never below
+  150 frames). Off by default; 6-8 times faster on 200 Hz video for the same accuracy on BioCV.
+
 ## 0.2.0 — 2026-09-22
 
 The defaults now run the method evaluated against five laboratory calibrations

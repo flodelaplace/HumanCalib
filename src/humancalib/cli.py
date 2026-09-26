@@ -95,7 +95,16 @@ def build_run_parser():
                    help="Absolute frame where the subject stands straight")
     p.add_argument("--start_frame", type=int, default=None)
     p.add_argument("--end_frame", type=int, default=None)
-    p.add_argument("--frame_skip", type=int, default=10)
+    p.add_argument("--frame_budget", type=int, default=100,
+                   help="About how many frames the calibration uses; the step between frames follows "
+                        "from the trial's length. 30 to 60 frames spread over the walk already give "
+                        "the full accuracy (docs/METHOD.md)")
+    p.add_argument("--frame_skip", type=int, default=None,
+                   help="Fixed step between calibration frames; overrides --frame_budget")
+    p.add_argument("--extract_fps", type=float, default=None,
+                   help="Extract poses at about this rate instead of the video's (e.g. 25), on regularly "
+                        "decimated copies of the videos; never below 150 frames, so short clips are kept "
+                        "whole. 6-8x faster on 200 Hz video, same accuracy on BioCV")
     p.add_argument("--conf_threshold", type=float, default=0.5)
     p.add_argument("--save_video", action="store_true", help="RTMPose overlay video")
     p.add_argument("--auto_outlier_drop", dest="auto_outlier_drop", action="store_true", default=True)
@@ -380,6 +389,33 @@ def preflight(cfg):
 
 # --- the pipeline -----------------------------------------------------------------------
 
+def decimate_for_extraction(cfg, vd, out):
+    """Video folder to extract from under --extract_fps: decimated copies when the videos'
+    rate allows it, with --start_frame, --end_frame and --ref_frame mapped to them."""
+    import cv2
+    from humancalib.core.sampling import decimate_videos, decimated_dir, decimation_step
+    from humancalib.core.videos import list_videos
+
+    videos = list_videos(vd)
+    cap = cv2.VideoCapture(videos[0])
+    fps, n = cap.get(cv2.CAP_PROP_FPS), int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    cap.release()
+    if cfg.start_frame is not None or cfg.end_frame is not None:
+        n = (cfg.end_frame if cfg.end_frame is not None else n - 1) - (cfg.start_frame or 0) + 1
+    step = decimation_step(fps, n, cfg.extract_fps)
+    if step == 1:
+        log.info(f"  -> --extract_fps {cfg.extract_fps:g}: videos at {fps:g} Hz, {n} frames, kept whole")
+        return vd
+    dst = decimated_dir(out, fps, step)
+    log.info(f"  -> Extracting at {fps / step:g} Hz: one frame in {step} of the {fps:g} Hz videos, "
+             f"copies in {dst}")
+    decimate_videos(videos, dst, step)
+    for name in ("start_frame", "end_frame", "ref_frame"):
+        if getattr(cfg, name) is not None:
+            setattr(cfg, name, getattr(cfg, name) // step)
+    return dst
+
+
 def run_pipeline(cfg):
     preflight(cfg)
 
@@ -392,6 +428,9 @@ def run_pipeline(cfg):
 
     env = child_env()
     out, vd, sub = cfg.output_dir, cfg.video_dir, os.path.join(cfg.output_dir, SUBSET)
+    if cfg.extract_fps:
+        os.makedirs(out, exist_ok=True)
+        vd = decimate_for_extraction(cfg, vd, out)
     ids = ["--aid", str(AID), "--pid", str(PID), "--gid", str(GID)]
     frames = ((["--start_frame", str(cfg.start_frame)] if cfg.start_frame is not None else [])
               + (["--end_frame", str(cfg.end_frame)] if cfg.end_frame is not None else []))
@@ -404,7 +443,8 @@ def run_pipeline(cfg):
     log.info(f"║  Output Dir : {out}")
     log.info(f"║  Pose Engine: {cfg.pose_engine}")
     log.info(f"║  Device     : {cfg.device}         Mode: {cfg.mode}")
-    log.info(f"║  Frame Skip : {cfg.frame_skip}             Conf Threshold: {cfg.conf_threshold}")
+    sampling = f"step {cfg.frame_skip}" if cfg.frame_skip is not None else f"budget {cfg.frame_budget}"
+    log.info(f"║  Frames     : {sampling}             Conf Threshold: {cfg.conf_threshold}")
     if cfg.start_frame is not None:
         log.info(f"║  Calib Range: Frames {cfg.start_frame} to {cfg.end_frame}")
     if cfg.height is not None:
@@ -494,11 +534,21 @@ def run_pipeline(cfg):
 
     # 5. Calibration ----------------------------------------------------------------------------
     _header("[5/7] Extrinsic calibration...")
+    frame_skip = cfg.frame_skip
+    if frame_skip is None:
+        from humancalib.core.sampling import budget_frame_skip
+        from humancalib.pipeline.poses_cache import cached_pose_range
+        extracted = cached_pose_range(out, SUBSET)
+        n_frames = extracted.n_frames if extracted else 0
+        frame_skip = budget_frame_skip(n_frames, cfg.frame_budget) if n_frames else 10
+        log.info(f"  -> {n_frames} frames extracted: one in {frame_skip} used, "
+                 f"for a budget of about {cfg.frame_budget} frames")
+
     def calibrate():
         log.info("  → Running linear calibration by chunks...")
         linear_argv = (["--conf_threshold", str(cfg.conf_threshold)]
                        + (["--ref_cam", str(cfg.ref_cam)] if cfg.ref_cam is not None else [])
-                       + [out, str(AID), str(PID), str(GID), SUBSET, str(cfg.frame_skip), DATASET])
+                       + [out, str(AID), str(PID), str(GID), SUBSET, str(frame_skip), DATASET])
         run_step("linear", run_calib_linear.main, linear_argv)
 
         linear_json = os.path.join(out, "results", "linear_1_0.json")
@@ -518,7 +568,7 @@ def run_pipeline(cfg):
 
         log.info("  → Bundle Adjustment (linear)...")
         run_step("ba", run_ba.main, [
-            "--prefix", out, "--frame_skip", str(cfg.frame_skip),
+            "--prefix", out, "--frame_skip", str(frame_skip),
             "--lambda1", str(LAMBDA1), "--lambda2", str(LAMBDA2), "--target", "linear_1_0",
             "--dataset", DATASET, "--obs_mask", "false", "--save_obs_mask", "true",
             "--conf_threshold", str(cfg.conf_threshold), "--ba_jac", cfg.ba_jac])

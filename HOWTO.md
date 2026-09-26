@@ -91,7 +91,9 @@ bash scripts/calibrate.sh \
 | `--scale_method stature\|segments\|head` | `stature` | `stature`: head-band height above the floor over the walk against `--height` (MeTRAbs; RTMPose uses `segments`). `segments`: thigh + shank (+ trunk for RTMPose) against `--height`. `head`: head height on `--ref_frame` (former method, about 11 % off) |
 | `--vertical_method walk\|frame` | `walk` | `walk`: body axis over the whole walk, walking direction removed. `frame`: head-to-feet on `--ref_frame`. Use `frame`, with a `--ref_frame` where the subject stands straight, when the subject does not walk |
 | `--start_frame <n>` / `--end_frame <n>` | whole video | Frame range to process |
-| `--frame_skip <n>` | `10` | Frame subsampling for bundle adjustment. Lower is denser and slower; `5` is a good choice with MeTRAbs |
+| `--frame_budget <n>` | `100` | About how many frames the calibration uses; the step between frames is computed from the trial's length. 30 to 60 frames spread over the walk already give the full accuracy |
+| `--frame_skip <n>` | — | Fixed step between calibration frames, instead of the budget |
+| `--extract_fps <hz>` | off | Extract poses at about this rate (e.g. `25`) on decimated copies of the videos, never below 150 frames. Much faster on high-rate video (200 Hz: 6-8×) for the same accuracy |
 | `--conf_threshold <t>` | `0.5` | Minimum keypoint confidence |
 | `--ref_cam <id>` | auto | 1-based camera ID to force as Procrustes reference. Default: the camera with the lowest mean Procrustes residual |
 | `--ba_jac analytic\|numeric` | `analytic` | Bundle-adjustment Jacobian; `numeric` is the slower finite-difference path, same result |
@@ -117,6 +119,11 @@ bash scripts/calibrate.sh \
 
 Processes frames 650–1500 with MeTRAbs, and scales the scene for a 1.84 m
 subject, with the origin under the heels at frame 1415.
+
+**Faster, on high-rate video**: add `--extract_fps 25`. Poses are then extracted on
+copies of the videos decimated to about 25 Hz (in `<output_dir>/videos_25hz/`), and
+the calibration uses about 100 of them. On a 200 Hz BioCV trial this took 8 minutes
+instead of about 45, with the same accuracy.
 
 ## 3. Check the results
 

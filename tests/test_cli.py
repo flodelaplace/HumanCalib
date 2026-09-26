@@ -24,7 +24,8 @@ def test_howto_metrabs_command():
     assert cfg.output_dir == os.path.abspath("output/demo_metrabs")
     assert (cfg.device, cfg.mode, cfg.pose_engine) == ("cuda", "balanced", "metrabs")
     assert (cfg.height, cfg.ref_frame) == (1.78, 5)
-    assert (cfg.frame_skip, cfg.conf_threshold, cfg.ba_jac) == (10, 0.5, "analytic")
+    assert (cfg.frame_skip, cfg.frame_budget, cfg.extract_fps) == (None, 100, None)
+    assert (cfg.conf_threshold, cfg.ba_jac) == (0.5, "analytic")
     assert cfg.auto_outlier_drop is True
     assert cfg.start_frame is None and cfg.end_frame is None
 

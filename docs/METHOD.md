@@ -112,6 +112,24 @@ and the linear step runs again. `--no_auto_outlier_drop` disables it.
 A sidecar `<video>.dropped.json` placed next to an input video, of the form
 `{"dropped_frame_indices": [1273, 1274]}`, flags frames to ignore from the start.
 
+## How many frames
+
+Measured on the five datasets (58 calibrations of 13 trials, re-run with steps from 1 to
+50 on the same extracted poses):
+
+- **About 30 to 60 frames spread over the walk give the full accuracy**; more frames
+  change nothing. What limits accuracy is how much of the volume the walk covers, not
+  the number of frames. The exact choice of frames moves the result by 0.1–0.25°.
+- So the calibration uses a **frame budget** (`--frame_budget 100`): the step between
+  frames follows from the trial's length. The former fixed step of 10 kept 17 frames of
+  a 2 s smartphone clip and 1 500 of a 30 s walk at 50 Hz.
+- **Pose extraction dominates the run time**, and the steps that follow the person over
+  time need consecutive frames, not scattered ones. `--extract_fps 25` therefore
+  extracts from regularly decimated copies of the videos, never below 150 frames, so a
+  short clip is kept whole. On four BioCV trials (200 Hz), 25 Hz gave a median relative
+  rotation error of 0.43° against 0.65°, in 7 instead of 40–60 minutes. It is off by
+  default until validated on the other datasets.
+
 ## Bundle adjustment
 
 `calibration/ba.py`, run by `pipeline/run_ba.py`. `scipy.optimize.least_squares`
@@ -137,7 +155,8 @@ direction-variance term is finite-differenced over the rotations only. Same
 result as finite differences (demo: 4.058 vs 4.057 px) with about 22 instead of
 2940 objective evaluations. `--ba_jac numeric` restores finite differences.
 
-More frames or more BA iterations were tested and do not improve accuracy.
+More BA iterations were tested and do not improve accuracy; for the number of frames, see
+[How many frames](#how-many-frames).
 
 ## Metric scale and orientation
 
