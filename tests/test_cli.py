@@ -220,7 +220,8 @@ def test_pytorchs_bundled_cudnn_reaches_the_gpu_steps(tmp_path):
 
 def test_empty_loader_path_entries_are_dropped():
     """An empty entry would make the loader search the current directory."""
-    env = cli.child_env(environ={"LD_LIBRARY_PATH": "/a::/b:"}, isdir=lambda _: False,
+    env = cli.child_env(environ={"LD_LIBRARY_PATH": os.pathsep.join(["/a", "", "/b", ""])},
+                        isdir=lambda _: False,
                         exists=lambda _: False)
     assert env["LD_LIBRARY_PATH"] == os.pathsep.join(["/a", "/b"])
 

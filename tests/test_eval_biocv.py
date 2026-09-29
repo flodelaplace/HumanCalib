@@ -4,6 +4,7 @@ No dataset is needed: a .calib file is synthesised with the property that makes
 the real ones tricky -- a rotation block scaled by s != 1 -- and the reader must
 return a camera that projects exactly like the raw matrix does.
 """
+import os
 import cv2
 import numpy as np
 import pytest
@@ -102,7 +103,7 @@ def test_method_v2_runs_get_their_own_folder():
     assert run_name("rtmpose", 50, "geometric") == "rtmpose_50hz_v2"
     argv, _ = calibration_command("metrabs", "/v", "/w", "/env/bin/python", "metrabs_v2",
                                   ["--person_selection", "geometric"])
-    assert argv[4] == "/w/metrabs_v2" and argv[-2:] == ["--person_selection", "geometric"]
+    assert argv[4] == os.path.join("/w", "metrabs_v2") and argv[-2:] == ["--person_selection", "geometric"]
 
 
 def test_segment_scale_recovers_a_known_scale():
