@@ -462,7 +462,10 @@ def main(argv=None):
 
     if args.export_trc:
         dataset_fps = session.get("frame_rate", 30.0)
-        export_to_trc(X3d_world, args.export_trc, fps=dataset_fps)
+        # OpenSim reads Y-up .trc files; the scaled world has Y pointing down (core/frames.py).
+        # Same axes as the .trc Pose2Sim writes from the exported TOML.
+        from humancalib.core.frames import WORLD_TO_TRC, points_in
+        export_to_trc(points_in(WORLD_TO_TRC, X3d_world), args.export_trc, fps=dataset_fps)
 
     # Auto-step: cap GIF to ~max_frames for fast rendering
     step = args.step

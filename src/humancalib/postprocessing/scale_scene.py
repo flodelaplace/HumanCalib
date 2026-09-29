@@ -451,7 +451,12 @@ def main(argv=None):
         if not args.video_dir:
             parser.error("--video_dir is required for TOML export.")
         cam_names = camera_names(args.video_dir)
-        export_to_toml(args.input_toml, args.export_toml, R_w2c_new, t_w2c_scaled, cam_names)
+        # Pose2Sim reads its calibration in a Z-up world; this one has Y pointing down
+        # (core/frames.py). The JSON above keeps the internal frame.
+        from humancalib.core.frames import WORLD_TO_ZUP, extrinsics_in
+        R_zup, t_zup = extrinsics_in(WORLD_TO_ZUP, R_w2c_new, t_w2c_scaled)
+        export_to_toml(args.input_toml, args.export_toml, R_zup, t_zup, cam_names)
+        log.info("Exported TOML in Pose2Sim's convention: Z up, metres, origin under the heels")
 
 if __name__ == "__main__":
     setup_logging()
