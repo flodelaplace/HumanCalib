@@ -94,8 +94,11 @@ def test_env_pins_satisfy_the_package_ranges():
 
     project = load_toml(os.path.join(_REPO, "pyproject.toml"))["project"]
     declared = list(project["dependencies"])
-    for group in project.get("optional-dependencies", {}).values():
-        declared += group
+    for name, group in project.get("optional-dependencies", {}).items():
+        # `gpu` is the pip route, with its own CUDA build of TensorFlow per platform; the conda
+        # environment corresponds to `metrabs` (any TensorFlow, CUDA from conda), checked here.
+        if name != "gpu":
+            declared += group
 
     checked = 0
     for env in ("envs/calib.yaml", "envs/ci.yaml"):

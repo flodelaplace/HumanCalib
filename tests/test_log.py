@@ -89,3 +89,19 @@ def test_no_print_calls_remain_outside_program_output():
                     continue
                 offenders.append(f"{os.path.relpath(path, REPO)}:{node.lineno}")
     assert not offenders, offenders
+
+
+def test_a_legacy_console_gets_ascii_boxes_not_errors():
+    """A Windows console in cp1252 cannot encode box drawing; it used to raise on every line."""
+    import io
+    raw = io.BytesIO()
+    stream = io.TextIOWrapper(raw, encoding="cp1252", errors="strict", write_through=True)
+    handler = logging.StreamHandler(stream)
+    if not hlog._utf8(stream):
+        handler.addFilter(hlog._AsciiFallback())
+    logger = logging.getLogger(hlog.ROOT + ".test_ascii")
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    logger.info("╔═╗ ║ \U0001F4CA %s", "MRE")
+    assert raw.getvalue().decode("cp1252").strip() == "+=+ |  MRE"

@@ -34,6 +34,23 @@ class _Below(logging.Filter):
         return record.levelno < self.level
 
 
+# Box drawing and emoji have ASCII stand-ins for a console that cannot show them (a Windows
+# console in a legacy code page), where they would otherwise print as '?'.
+_ASCII = str.maketrans({"╔": "+", "╗": "+", "╚": "+", "╝": "+", "╠": "+", "╣": "+", "═": "=",
+                        "║": "|", "─": "-", "→": "->", "—": "-", "⭐": "*", "✅": "OK",
+                        "\U0001F4CA": "", "\U0001F4C8": ""})
+
+
+class _AsciiFallback(logging.Filter):
+    def filter(self, record):
+        record.msg, record.args = record.getMessage().translate(_ASCII), None
+        return True
+
+
+def _utf8(stream):
+    return (getattr(stream, "encoding", None) or "").lower().replace("-", "") in ("utf8", "utf8sig")
+
+
 def get_logger(name):
     """Logger under the `humancalib` hierarchy, whatever `name` is.
 
@@ -68,6 +85,17 @@ def setup_logging(level=None):
         processes started afterwards inherit it.
     """
     level = _level(os.environ.get(ENV_VAR, "INFO") if level is None else level)
+    # The output uses box-drawing characters and a few emoji. A Windows console in a legacy code
+    # page (cp1252...) cannot encode them, and every such line then raised a logging error.
+    # Unencodable characters are replaced instead; UTF-8 terminals are unaffected.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(errors="replace")
+            except (ValueError, OSError):
+                pass
+    # the same for the steps that run in their own process (only the error handler is set)
+    os.environ.setdefault("PYTHONIOENCODING", ":replace")
     logger = logging.getLogger(ROOT)
     for handler in [h for h in logger.handlers if getattr(h, "_humancalib", False)]:
         logger.removeHandler(handler)
@@ -81,6 +109,8 @@ def setup_logging(level=None):
     err.setLevel(logging.WARNING)
 
     for handler in (out, err):
+        if not _utf8(handler.stream):
+            handler.addFilter(_AsciiFallback())
         handler._humancalib = True
         logger.addHandler(handler)
     logger.setLevel(level)

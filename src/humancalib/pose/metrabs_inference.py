@@ -248,6 +248,14 @@ def main(argv=None):
     # or the machine. On a GPU host, seeing "CPU" here means the CUDA runtime
     # libraries are not on the loader path (LD_LIBRARY_PATH).
     _gpus = tf.config.list_physical_devices('GPU')
+    # TensorFlow reserves the whole GPU memory by default, which starves anything else using
+    # the GPU at the same time (Pose2Sim's own pose estimation, a second calibration...).
+    # Allocate on demand instead; this must happen before the first GPU operation.
+    for _gpu in _gpus:
+        try:
+            tf.config.experimental.set_memory_growth(_gpu, True)
+        except RuntimeError:            # GPU already initialised by the caller: leave it as is
+            pass
     if _gpus:
         log.info(f"\nCompute device: GPU ({len(_gpus)} visible to TensorFlow)")
     else:
@@ -260,8 +268,12 @@ def main(argv=None):
             "  export LD_LIBRARY_PATH=\"$CONDA_PREFIX/lib:$LD_LIBRARY_PATH\"")
 
     # Load MeTRAbs model (this takes 30-60s: model loading + TF graph compilation)
+    # Downloaded by HumanCalib, with progress and resume, into the TF-Hub cache (a model already
+    # cached there is reused); TF-Hub then only loads the local copy.
+    from humancalib.pose.model_download import ensure_model
+    model_path = ensure_model(METRABS_L_URL)
     log.info(f"\nLoading MeTRAbs model (skeleton={args.skeleton}) — please wait...")
-    model = tfhub.load(METRABS_L_URL)
+    model = tfhub.load(model_path)
     log.info("Model loaded. Running warmup inference...")
     # Warmup: first call triggers TF graph compilation (slow), subsequent calls are fast
     _dummy = np.zeros((1, 256, 256, 3), dtype=np.uint8)
