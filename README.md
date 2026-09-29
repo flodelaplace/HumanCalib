@@ -35,14 +35,15 @@ which needs no reference. Median over trials [min–max]:
 
 | Dataset | Cameras | Trials | Relative rotation error | Reprojection error (MRE) |
 |---|---|---|---|---|
-| IMOVE-23 | 10 | 11 | 0.42° [0.28–1.21] | 3.27 px [3.04–3.97] |
-| BioCV | 9 | 18 | 0.62° [0.22–2.61] | 2.94 px [2.41–5.20] |
-| OpenCap | 5 | 18 | 1.75° [0.82–2.20] | 1.67 px [1.38–2.14] |
+| IMOVE-23 | 10 | 11 | 0.40° [0.30–0.96] | 3.30 px [2.95–3.83] |
+| BioCV | 9 | 18 | 0.43° [0.25–0.95] | 2.77 px [2.35–4.07] |
+| OpenCap | 5 | 18 | 1.89° [0.56–2.31] | 1.69 px [1.38–2.16] |
 
 Pixels are not comparable between rigs of different focal lengths; in angular
-terms the same errors are 2.5, 2.3 and 1.8 mrad. A low reprojection error means
-the calibration is not broken, not that it is accurate: on OpenCap the generic
-smartphone intrinsics cap the accuracy while leaving the residual low.
+terms the same errors are 2.4, 2.1 and 1.8 mrad. A low reprojection error means
+the calibration is not broken, not that it is accurate: on OpenCap, five
+smartphones on a tight arc and a walk of about two seconds cap the accuracy
+while leaving the residual low.
 
 **What it changes for the biomechanist.** The same
 [Pose2Sim](https://github.com/perfanalytics/pose2sim) chain was run twice per
@@ -54,17 +55,17 @@ confidence interval stays below the margin, for each of the 9 degrees of freedom
 
 | Dataset | Trials | RMSD between the two chains, median [min–max] | Worst degree of freedom | Equivalent within 2° |
 |---|---|---|---|---|
-| BioCV | 18 | 0.58° [0.24–2.54] | 1.09° | 9 / 9 |
-| OpenCap | 18 | 0.57° [0.28–1.01] | 0.84° | 9 / 9 |
-| IMOVE-23 | 11 | 0.90° [0.33–2.05] | 1.63° | 7 / 9 |
+| BioCV | 18 | 0.40° [0.20–2.45] | 0.94° | 9 / 9 |
+| OpenCap | 18 | 0.58° [0.35–1.13] | 0.98° | 9 / 9 |
+| IMOVE-23 | 11 | 0.82° [0.46–1.67] | 1.38° | 8 / 9 |
 
 Changing the calibration therefore moves the reported angles by about half a
 degree to one degree, below the 2° margin usually accepted in clinical gait
 analysis, and roughly ten times less than the 4–11° that separates such a chain
 from optical motion capture on the same trials.
 
-- No failed calibration out of 77 (with RTMPose + VideoPose3D instead of MeTRAbs: 29).
-- Metric scale within 1.0 % (median, on the four datasets not used to set it).
+- No failed calibration out of 77 (with RTMPose + VideoPose3D instead of MeTRAbs: 30).
+- Metric scale within 1.1 % (median, on the four datasets not used to set it).
 
 The two remaining datasets are reported in the paper: LBMC, whose two treadmill
 trials are too few to summarise, and COMFI, where HumanCalib proved closer to
@@ -77,11 +78,63 @@ A paper is in preparation. The evaluation protocol is in
 
 ## Installation
 
-Linux or Windows (WSL2), with an NVIDIA GPU (driver ≥ 525) for pose estimation.
+An NVIDIA GPU is needed for pose estimation (driver ≥ 525). Linux, WSL2 and
+Windows are supported.
 
-### Docker (recommended)
+### pip — Linux or WSL2
 
-Runs exactly the environment the results were obtained with. Requires Docker
+Python 3.10 or 3.11. The CUDA libraries come from pip, nothing else to install.
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install "humancalib[gpu] @ https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.0.zip"
+```
+
+### Windows
+
+Python 3.10, in a conda environment that provides CUDA: TensorFlow 2.10 is the
+last version with GPU support on native Windows. CUDA 11.8 also covers recent
+GPUs (RTX 40xx), which CUDA 11.2 does not.
+
+```bat
+conda create -n humancalib -c conda-forge python=3.10 cudatoolkit=11.8 cudnn=8.9
+conda activate humancalib
+pip install "humancalib[gpu] @ https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.0.zip"
+```
+
+### Check the install
+
+The demo videos are in the repository: unzip the same
+[archive](https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.0.zip)
+(or `git clone` the repository), then
+
+```bash
+humancalib run HumanCalib-0.3.0/demo HumanCalib-0.3.0/demo/Calib_scene.toml output/demo --height 1.78
+```
+
+It worked if the log shows `Compute device: GPU` and ends with an MRE summary
+table, and `output/demo/results/Calib_scene_calibrated.toml` exists. The first
+run downloads the MeTRAbs model (~700 MB, with a progress bar, resumed if
+interrupted) into `~/.cache/tfhub_modules`; set `TFHUB_CACHE_DIR` to put it
+elsewhere.
+
+### From Python (e.g. inside Pose2Sim)
+
+```python
+from humancalib import calibrate
+
+toml = calibrate("session/videos", "session/Calib_intrinsics.toml", "session/humancalib",
+                 height=1.78)
+```
+
+`calibrate` runs the same pipeline as `humancalib run`, with the same defaults,
+and returns the path of the calibrated TOML in Pose2Sim format. Any command-line
+option can be passed by name (`extract_fps=25`, `ref_frame=120`...); a failure
+raises `humancalib.CalibrationError`.
+
+### Docker
+
+The exact environment the published results were obtained with. Requires Docker
 with Compose v2 and the
 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
 
@@ -93,37 +146,28 @@ docker compose build                                                 # ~2 GB dow
 docker compose run --rm calib demo
 ```
 
-It worked if the run ends with an MRE summary table and
-`output/demo/results/Calib_scene_calibrated.toml` exists. The MeTRAbs model
-(~700 MB) is downloaded on the first run and kept in a Docker volume.
+The model is kept in a Docker volume after the first run.
 
-### conda
+### conda, exact environment
+
+Every version pinned, as validated (TensorFlow 2.12, CUDA 11.8 from conda):
 
 ```bash
 git clone https://github.com/flodelaplace/HumanCalib.git
 cd HumanCalib
-conda env create -f envs/calib.yaml        # every version pinned
+conda env create -f envs/calib.yaml
 conda activate humancalib
 pip install --no-deps -e .                 # adds the `humancalib` command, keeps the pins
-humancalib run demo demo/Calib_scene.toml output/demo --height 1.78 --ref_frame 5
 ```
 
-It worked if the log shows `Compute device: GPU` and ends with an MRE summary
-table. The model is cached in `~/.cache/tfhub_modules` (set `TFHUB_CACHE_DIR` to
-change it).
+The pip installs above use TensorFlow 2.15 (Linux) and 2.10 (Windows); they give
+the same calibration as this environment: on the demo, 0.02° median difference in
+relative rotation and 1 mm in camera positions; on a BioCV trial, the same error
+against the laboratory calibration (0.43°).
 
-### pip (CPU steps only)
-
-```bash
-pip install "git+https://github.com/flodelaplace/HumanCalib"
-```
-
-Installs the library and the `humancalib` command: calibration, bundle
-adjustment, evaluation and scaling from existing pose files, on a CPU. Pose
-extraction needs CUDA libraries that pip cannot provide: use Docker or conda for
-the full pipeline.
-
-The optional RTMPose + VideoPose3D backend has its own image and environment:
+Without a GPU, `pip install "humancalib @ https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.0.zip"`
+installs calibration, bundle adjustment, evaluation and scaling from existing
+pose files. The optional RTMPose + VideoPose3D backend has its own environment:
 see [HOWTO.md](HOWTO.md#optional-backend-rtmpose--videopose3d).
 
 ## Calibrating your own rig
@@ -150,17 +194,18 @@ matter more than anything else: see [input/README.md](input/README.md).
 
 ```bash
 humancalib run input/my_session input/my_session/Calib_scene.toml output/my_session \
-    --height 1.84 --ref_frame 1415
+    --height 1.84
 
 # Docker: same arguments, with the container's paths
 docker compose run --rm calib \
-    /input/my_session /input/my_session/Calib_scene.toml /output/my_session \
-    --height 1.84 --ref_frame 1415
+    /input/my_session /input/my_session/Calib_scene.toml /output/my_session --height 1.84
 ```
 
-`--height` is the subject's height in metres; `--ref_frame` a frame where both
-heels are visible (it sets the origin). Every option is described in
-[HOWTO.md](HOWTO.md).
+`--height` is the subject's height in metres; it sets the metric scale. The
+origin and horizontal axis come from a frame where every camera sees the head and
+both heels, chosen automatically (or `--ref_frame N`). On video faster than
+50 Hz, add `--extract_fps 25`: same calibration, 2 to 8 times faster. Every
+option is described in [HOWTO.md](HOWTO.md).
 
 **4. Results**, in `output/my_session/results/`:
 

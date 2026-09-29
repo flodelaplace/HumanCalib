@@ -44,7 +44,7 @@ information, e.g. the head band and soles for scaling (below).
 needs Python 3.8 and PyTorch, hence its own environment and Docker image.
 
 Across five datasets (77 paired trials), RTMPose produced an unusable calibration
-in 29 trials, MeTRAbs in none: see [Validation](../README.md#validation).
+in 30 trials, MeTRAbs in none: see [Validation](../README.md#validation).
 
 ### MeTRAbs quality filters
 
@@ -99,8 +99,9 @@ Three modes (`--person_selection`):
   each calibrated on the frames seen by at least two thirds of the cameras; the
   chunk with the lowest MRE is kept. An ordinary walk fits one chunk. Chunks used
   to be 1000 frames: at 200 Hz that cut a 7 s walk in two, and the
-  initialisation saw part of it only (BioCV P16: 0.60° → 0.26°, no change on the
-  other trials tested).
+  initialisation saw part of it only. Re-run on all 77 trials: BioCV (200 Hz)
+  median relative rotation 0.62° → 0.43° (worst trial 2.61° → 0.95°), the other
+  datasets unchanged within ±0.05°.
 
 ## Outlier-frame drop
 
@@ -129,9 +130,11 @@ Measured on the five datasets (58 calibrations of 13 trials, re-run with steps f
 - **Pose extraction dominates the run time**, and the steps that follow the person over
   time need consecutive frames, not scattered ones. `--extract_fps 25` therefore
   extracts from regularly decimated copies of the videos, never below 150 frames, so a
-  short clip is kept whole. On four BioCV trials (200 Hz), 25 Hz gave a median relative
-  rotation error of 0.43° against 0.65°, in 7 instead of 40–60 minutes. It is off by
-  default until validated on the other datasets.
+  short clip is kept whole. Checked end to end on the 31 trials above 25 Hz (BioCV
+  200 Hz, IMOVE 50 Hz, LBMC 60 Hz): paired difference in relative rotation ±0.01°,
+  extraction 2 to 8 times faster. On the two treadmill trials the vertical, estimated
+  from the walk, was less accurate (1.0° → 2.5°). Off by default, so that the default
+  run is the evaluated one.
 
 ## Bundle adjustment
 
@@ -179,7 +182,7 @@ head markers) above the floor (lowest sole marker: heels, toes, metatarsals),
 95th centile over the walk, is set to **0.9255 × `--height`**. That ratio covers
 the head band → vertex distance and the head's dip during gait; it was fixed
 once on the BioCV development set and applied unchanged to the four other
-datasets, where the median absolute scale error is **1.0 %**.
+datasets, where the median absolute scale error is **1.1 %**.
 
 The previous rule (`--scale_method segments`: thigh + shank = 0.491 ×
 `--height`, Drillis & Contini) lets each person's leg proportions into the scale
@@ -189,7 +192,9 @@ gave no gain, so RTMPose keeps segments: thigh + shank + trunk = 0.779 ×
 `--height` (its hip keypoints sit ~85 mm in front of the joint centre, which
 lengthens the thigh and shortens the trunk by opposite amounts).
 
-**Origin and horizontal axis** come from `--ref_frame`: centre of the heels at
+**Origin and horizontal axis** come from a reference frame -- `--ref_frame`, or by
+default the frame on which most cameras see the head and both heels, the rule
+used in the evaluation: centre of the heels at
 floor level, heel-to-heel direction made orthogonal to the vertical.
 
 Both default methods assume the subject walks. For a trial without walking, use

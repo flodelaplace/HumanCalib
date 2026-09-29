@@ -86,14 +86,14 @@ bash scripts/calibrate.sh \
 |---|---|---|
 | `--pose_engine metrabs\|rtmpose` | `metrabs` | Pose backend. Each Docker image defaults to the backend it contains |
 | `--height <m>` | — | Subject height in metres (e.g. `1.84`). Enables step 7: metric scale and gravity-aligned frame |
-| `--ref_frame <n>` | — | A frame with both heels visible: sets the origin and horizontal axis. Must be inside `[start_frame, end_frame]` |
+| `--ref_frame <n>` | auto | A frame with both heels visible: sets the origin and horizontal axis. Default: the frame on which most cameras see the head and both heels. Must be inside `[start_frame, end_frame]` |
 | `--person_selection motion\|geometric\|largest` | `motion` | `motion`: the walking person, then geometric re-selection (evaluated method). `geometric`: largest detection, then re-selection of the person the other cameras see. `largest`: the largest detection. See [METHOD](docs/METHOD.md#person-selection) |
 | `--scale_method stature\|segments\|head` | `stature` | `stature`: head-band height above the floor over the walk against `--height` (MeTRAbs; RTMPose uses `segments`). `segments`: thigh + shank (+ trunk for RTMPose) against `--height`. `head`: head height on `--ref_frame` (former method, about 11 % off) |
 | `--vertical_method walk\|frame` | `walk` | `walk`: body axis over the whole walk, walking direction removed. `frame`: head-to-feet on `--ref_frame`. Use `frame`, with a `--ref_frame` where the subject stands straight, when the subject does not walk |
 | `--start_frame <n>` / `--end_frame <n>` | whole video | Frame range to process |
 | `--frame_budget <n>` | `100` | About how many frames the calibration uses; the step between frames is computed from the trial's length. 30 to 60 frames spread over the walk already give the full accuracy |
 | `--frame_skip <n>` | — | Fixed step between calibration frames, instead of the budget |
-| `--extract_fps <hz>` | off | Extract poses at about this rate (e.g. `25`) on decimated copies of the videos, never below 150 frames. Much faster on high-rate video (200 Hz: 6-8×) for the same accuracy |
+| `--extract_fps <hz>` | off | Extract poses at about this rate (e.g. `25`) on decimated copies of the videos, never below 150 frames. Same calibration, 2 to 8 times faster on video above 50 Hz; keep it off on a treadmill if the vertical matters |
 | `--conf_threshold <t>` | `0.5` | Minimum keypoint confidence |
 | `--ref_cam <id>` | auto | 1-based camera ID to force as Procrustes reference. Default: the camera with the lowest mean Procrustes residual |
 | `--ba_jac analytic\|numeric` | `analytic` | Bundle-adjustment Jacobian; `numeric` is the slower finite-difference path, same result |
@@ -122,8 +122,10 @@ subject, with the origin under the heels at frame 1415.
 
 **Faster, on high-rate video**: add `--extract_fps 25`. Poses are then extracted on
 copies of the videos decimated to about 25 Hz (in `<output_dir>/videos_25hz/`), and
-the calibration uses about 100 of them. On a 200 Hz BioCV trial this took 8 minutes
-instead of about 45, with the same accuracy.
+the calibration uses about 100 of them. Checked on 31 trials at 50 to 200 Hz: same
+relative rotation error (±0.01°), in about 9 minutes instead of 45 on a 200 Hz BioCV
+trial, and half the time at 50–60 Hz. On a treadmill the vertical was less accurate
+(2 trials, 1.0° → 2.5°).
 
 ## 3. Check the results
 
