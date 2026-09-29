@@ -167,6 +167,36 @@ cached poses.
 rm -rf output/my_session/noise_1_0/2d_joint output/my_session/noise_1_0/3d_joint
 ```
 
+## 6. Use from Python
+
+`humancalib.calibrate` runs the whole pipeline, with the same defaults and options as
+`humancalib run`, and returns the path of the calibrated TOML:
+
+```python
+from humancalib import calibrate, CalibrationError
+
+try:
+    toml = calibrate(
+        "MyProject/videos",                          # one synchronised video per camera
+        "MyProject/calibration/Calib_intrinsics.toml",  # Pose2Sim format, intrinsics only
+        "MyProject/calibration/humancalib",          # work folder; poses are cached here
+        height=1.72,                                 # subject height in metres
+        extract_fps=25,                              # any `humancalib run` option, by name
+    )
+except CalibrationError as err:
+    print("calibration failed:", err)
+```
+
+The returned file is a complete Pose2Sim calibration (intrinsics copied from the input,
+extrinsics estimated), metric, with Z up and the origin under the subject's heels: copy it
+into a Pose2Sim project's `calibration/` folder and run the triangulation as usual.
+
+Progress is logged through the `humancalib` logger; if the calling program has not set up
+logging, `calibrate` prints it as the command line would. Pose extraction runs in its own
+process, so TensorFlow's GPU memory is released when it ends. To run that step in another
+Python environment (e.g. to keep TensorFlow out of the caller's), set
+`HUMANCALIB_METRABS_PYTHON` to that environment's interpreter.
+
 ## Optional backend: RTMPose + VideoPose3D
 
 The original two-step backend (2D keypoints, then temporal lifting to 3D), kept
@@ -197,5 +227,5 @@ then run with `--pose_engine rtmpose` as above.
 |---|---|
 | Linux (Ubuntu 22.04) | Tested |
 | Windows via WSL2 | Tested |
-| Windows native | Not tested — use WSL2 |
+| Windows native | Tested (GPU: conda for CUDA 11.8, then pip; see the [README](README.md#windows)) |
 | macOS | Not supported (needs an NVIDIA GPU) |

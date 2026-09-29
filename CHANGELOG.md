@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.3.1 — 2026-09-30
+
+**Fixed**
+- The exported calibration (`Calib_scene_calibrated.toml`) is now in Pose2Sim's convention,
+  Z up. It had Y pointing down, the internal convention: Pose2Sim, which assumes Z up and turns
+  the points into Y-up for OpenSim, then produced a skeleton lying on its side. Checked by
+  triangulating the demo with Pose2Sim from the exported file: the skeleton stands, feet at
+  floor level. The exported `3d_skeleton_FINAL.trc` is now Y up, as OpenSim expects, with the
+  same axes as the .trc Pose2Sim writes. The JSON calibrations, and every evaluation, keep the
+  internal frame and are unchanged.
+
+**Packaging**
+- Ready for PyPI: metadata (classifiers, keywords, links), README with absolute links, and a
+  GitHub Actions workflow that builds, checks and uploads a release with Trusted Publishing
+  (docs/RELEASING.md).
+- CI installs the package with plain pip and runs the tests on Linux and Windows, Python 3.10
+  to 3.12.
+- HOWTO: using HumanCalib from Python, and in a Pose2Sim project.
+
 ## 0.3.0 — 2026-09-29
 
 Easier to install and to call from other software (e.g. Pose2Sim), on Linux, WSL2 and

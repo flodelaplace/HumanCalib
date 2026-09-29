@@ -31,12 +31,27 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "humancalib"
-version = "0.3.0"
+version = "0.3.1"
 description = "Multi-camera extrinsic calibration from human pose"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Florian Delaplace" }]
+keywords = ["camera calibration", "extrinsic calibration", "multi-camera", "markerless motion capture",
+            "human pose estimation", "biomechanics", "pose2sim", "metrabs"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Environment :: GPU :: NVIDIA CUDA",
+]
 # Validated end to end on 3.10; installs and passes the test suite on 3.10-3.12. Not 3.13:
 # numpy<2 and scikit-image<0.25 have no 3.13 wheels, and pip then tries -- and fails -- to
 # compile them. The optional RTMPose backend runs on 3.8 from a source checkout
@@ -90,6 +105,9 @@ humancalib = "humancalib.cli:main"
 
 [project.urls]
 Repository = "https://github.com/flodelaplace/HumanCalib"
+Documentation = "https://github.com/flodelaplace/HumanCalib/blob/main/HOWTO.md"
+Issues = "https://github.com/flodelaplace/HumanCalib/issues"
+Changelog = "https://github.com/flodelaplace/HumanCalib/blob/main/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 where = ["src"]

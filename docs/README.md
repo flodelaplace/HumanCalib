@@ -9,6 +9,7 @@
 | [METHOD.md](METHOD.md) | How each step works, design choices and the measurements behind them |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common errors and fixes |
 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | Development setup, tests, conventions |
+| [RELEASING.md](RELEASING.md) | Publishing a version on PyPI (Trusted Publishing from GitHub Actions) |
 
 ## Research notes (in French)
 

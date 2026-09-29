@@ -58,6 +58,29 @@ jobs:
           PYTHONHASHSEED: "0"
         run: pytest tests -q --durations=10
 
+  # What users do: `pip install` from the package metadata alone (no pinned environment), on
+  # Linux and native Windows, for every supported Python. Catches a dependency range that no
+  # longer resolves, or code that only works with POSIX paths.
+  pip:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+        python: ["3.10", "3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: pip install
+        run: python -m pip install ".[dev]"
+      - name: Run the test suite
+        env:
+          MPLBACKEND: Agg
+          PYTHONHASHSEED: "0"
+        run: python -m pytest tests -q
+
   # A second, cheap job: the shell entry points are still how the pipeline is
   # driven, and a syntax error in them is not something the Python tests would
   # ever catch.

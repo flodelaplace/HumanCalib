@@ -7,7 +7,7 @@ axis from the subject's height. The output is a
 [Pose2Sim](https://github.com/perfanalytics/pose2sim)-format calibration, ready
 for markerless motion capture.
 
-![Overview](img/graphical_abstract.png)
+![Overview](https://raw.githubusercontent.com/flodelaplace/HumanCalib/main/img/graphical_abstract.png)
 
 ## How it works
 
@@ -20,9 +20,9 @@ for markerless motion capture.
 5. **Metric scale and vertical** from the subject's height and walk.
 
 Details, design choices and what was measured to justify them:
-[docs/METHOD.md](docs/METHOD.md).
+[docs/METHOD.md](https://github.com/flodelaplace/HumanCalib/blob/main/docs/METHOD.md).
 
-![3D result](img/visu_3d_FINAL.gif)
+![3D result](https://raw.githubusercontent.com/flodelaplace/HumanCalib/main/img/visu_3d_FINAL.gif)
 
 ## Validation
 
@@ -74,7 +74,7 @@ makes any comparison against that reference a measure of the reference rather
 than of HumanCalib.
 
 A paper is in preparation. The evaluation protocol is in
-[docs/EVALUATION_PROTOCOL.md](docs/EVALUATION_PROTOCOL.md).
+[docs/EVALUATION_PROTOCOL.md](https://github.com/flodelaplace/HumanCalib/blob/main/docs/EVALUATION_PROTOCOL.md).
 
 ## Installation
 
@@ -87,7 +87,7 @@ Python 3.10 or 3.11. The CUDA libraries come from pip, nothing else to install.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install "humancalib[gpu] @ https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.0.zip"
+pip install "humancalib[gpu] @ https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.1.zip"
 ```
 
 ### Windows
@@ -99,17 +99,17 @@ GPUs (RTX 40xx), which CUDA 11.2 does not.
 ```bat
 conda create -n humancalib -c conda-forge python=3.10 cudatoolkit=11.8 cudnn=8.9
 conda activate humancalib
-pip install "humancalib[gpu] @ https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.0.zip"
+pip install "humancalib[gpu] @ https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.1.zip"
 ```
 
 ### Check the install
 
 The demo videos are in the repository: unzip the same
-[archive](https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.0.zip)
+[archive](https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.1.zip)
 (or `git clone` the repository), then
 
 ```bash
-humancalib run HumanCalib-0.3.0/demo HumanCalib-0.3.0/demo/Calib_scene.toml output/demo --height 1.78
+humancalib run HumanCalib-0.3.1/demo HumanCalib-0.3.1/demo/Calib_scene.toml output/demo --height 1.78
 ```
 
 It worked if the log shows `Compute device: GPU` and ends with an MRE summary
@@ -165,10 +165,10 @@ the same calibration as this environment: on the demo, 0.02° median difference 
 relative rotation and 1 mm in camera positions; on a BioCV trial, the same error
 against the laboratory calibration (0.43°).
 
-Without a GPU, `pip install "humancalib @ https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.0.zip"`
+Without a GPU, `pip install "humancalib @ https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.1.zip"`
 installs calibration, bundle adjustment, evaluation and scaling from existing
 pose files. The optional RTMPose + VideoPose3D backend has its own environment:
-see [HOWTO.md](HOWTO.md#optional-backend-rtmpose--videopose3d).
+see [HOWTO.md](https://github.com/flodelaplace/HumanCalib/blob/main/HOWTO.md#optional-backend-rtmpose--videopose3d).
 
 ## Calibrating your own rig
 
@@ -188,7 +188,7 @@ fisheye = false
 ```
 
 Video names (without extension) must match the TOML sections. Good intrinsics
-matter more than anything else: see [input/README.md](input/README.md).
+matter more than anything else: see [input/README.md](https://github.com/flodelaplace/HumanCalib/blob/main/input/README.md).
 
 **3. Run.**
 
@@ -205,7 +205,7 @@ docker compose run --rm calib \
 origin and horizontal axis come from a frame where every camera sees the head and
 both heels, chosen automatically (or `--ref_frame N`). On video faster than
 50 Hz, add `--extract_fps 25`: same calibration, 2 to 8 times faster. Every
-option is described in [HOWTO.md](HOWTO.md).
+option is described in [HOWTO.md](https://github.com/flodelaplace/HumanCalib/blob/main/HOWTO.md).
 
 **4. Results**, in `output/my_session/results/`:
 
@@ -220,12 +220,12 @@ option is described in [HOWTO.md](HOWTO.md).
 
 | | |
 |---|---|
-| [HOWTO.md](HOWTO.md) | Full command-line reference, examples, diagnosis |
-| [docs/METHOD.md](docs/METHOD.md) | How each step works and why |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common errors and fixes |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, tests, conventions |
-| [CHANGELOG.md](CHANGELOG.md) | Changes between versions |
-| [docs/](docs/README.md) | Evaluation protocol and research notes |
+| [HOWTO.md](https://github.com/flodelaplace/HumanCalib/blob/main/HOWTO.md) | Full command-line reference, examples, diagnosis |
+| [docs/METHOD.md](https://github.com/flodelaplace/HumanCalib/blob/main/docs/METHOD.md) | How each step works and why |
+| [docs/TROUBLESHOOTING.md](https://github.com/flodelaplace/HumanCalib/blob/main/docs/TROUBLESHOOTING.md) | Common errors and fixes |
+| [CONTRIBUTING.md](https://github.com/flodelaplace/HumanCalib/blob/main/CONTRIBUTING.md) | Development setup, tests, conventions |
+| [CHANGELOG.md](https://github.com/flodelaplace/HumanCalib/blob/main/CHANGELOG.md) | Changes between versions |
+| [docs/](https://github.com/flodelaplace/HumanCalib/blob/main/docs/README.md) | Evaluation protocol and research notes |
 
 ## Repository layout
 
@@ -247,7 +247,7 @@ commercial use**:
 
 | Component | Licence |
 |---|---|
-| HumanCalib | MIT ([LICENSE](LICENSE)) |
+| HumanCalib | MIT ([LICENSE](https://github.com/flodelaplace/HumanCalib/blob/main/LICENSE)) |
 | MeTRAbs model (`metrabs_l`) | Non-commercial use only (training data licences) |
 | VideoPose3D code and weights (optional backend) | CC BY-NC 4.0 |
 | rtmlib (optional backend) | Apache-2.0; RTMPose weight licence not stated upstream |
@@ -257,7 +257,7 @@ This summary is not legal advice; check the upstream licences for your use.
 
 ## Citation
 
-Use GitHub's *Cite this repository* button ([CITATION.cff](CITATION.cff)). Please
+Use GitHub's *Cite this repository* button ([CITATION.cff](https://github.com/flodelaplace/HumanCalib/blob/main/CITATION.cff)). Please
 also cite the method HumanCalib builds on and the pose estimator:
 
 - S.-E. Lee, K. Shibata, S. Nonaka, S. Nobuhara, K. Nishino. *Extrinsic Camera
