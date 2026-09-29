@@ -92,7 +92,8 @@ def build_run_parser():
                         "says otherwise -- each Docker image sets it to the one backend it contains")
     p.add_argument("--height", type=float, default=None, help="Subject height in metres")
     p.add_argument("--ref_frame", type=int, default=None,
-                   help="Absolute frame where the subject stands straight")
+                   help="Absolute video frame with both heels visible; sets the origin and horizontal "
+                        "axis. Default: chosen automatically (most cameras seeing the head and heels)")
     p.add_argument("--start_frame", type=int, default=None)
     p.add_argument("--end_frame", type=int, default=None)
     p.add_argument("--frame_budget", type=int, default=100,
@@ -304,6 +305,23 @@ def run_process(name, cmd, env, cwd=None, check=True):
     if rc != 0 and check:
         raise PipelineError(f"step '{name}' failed (exit status {rc})")
     return rc
+
+
+def auto_ref_frame(output_dir, pose_engine, conf_threshold):
+    """(index in the pose arrays, video frame) of the reference frame when --ref_frame is not given.
+
+    The frame on which most cameras see the head and both heels, then the most confident one:
+    the rule the evaluation against the laboratory calibrations used. With the default scale and
+    vertical methods, which use the whole walk, this frame only sets the origin and the
+    horizontal axis.
+    """
+    from humancalib.evaluation.compare import pose_scores, rank_reference_frames
+    from humancalib.postprocessing.scale_scene import joint_layout
+
+    layout = joint_layout(output_dir, SUBSET, pose_engine)
+    scores, frame_numbers = pose_scores(output_dir, layout)
+    order, _ = rank_reference_frames(scores, layout, conf_threshold)
+    return int(order[0]), int(frame_numbers[order[0]])
 
 
 def map_ref_frame(ref_frame, start_frame, end_frame):
@@ -633,10 +651,15 @@ def run_pipeline(cfg):
     best = best_calibration(scores)
 
     # 7. Scaling ----------------------------------------------------------------------------------
-    scaling_requested = cfg.height is not None and cfg.ref_frame is not None
+    scaling_requested = cfg.height is not None
     if scaling_requested and best:
         _header("[7/7] Scaling, Orientation and Final Visualization...")
-        mapped = map_ref_frame(cfg.ref_frame, cfg.start_frame, cfg.end_frame)
+        if cfg.ref_frame is None:
+            mapped, frame = auto_ref_frame(out, cfg.pose_engine, cfg.conf_threshold)
+            log.info(f"  -> Reference frame chosen automatically: video frame {frame} "
+                     "(most cameras seeing the head and both heels)")
+        else:
+            mapped = map_ref_frame(cfg.ref_frame, cfg.start_frame, cfg.end_frame)
         if mapped is None:
             log.error(f"--ref_frame {cfg.ref_frame} is outside the calibration range")
             log.info(f"         [--start_frame {cfg.start_frame}, --end_frame "
@@ -644,7 +667,7 @@ def run_pipeline(cfg):
             log.info("         --ref_frame expects an ABSOLUTE video frame number within the")
             log.info("         cropped range. Scaling skipped -- linear and BA calibrations are saved.")
         else:
-            if cfg.start_frame is not None:
+            if cfg.start_frame is not None and cfg.ref_frame is not None:
                 log.info(f"  -> Reference frame re-mapped from {cfg.ref_frame} to index {mapped} "
                       "to match cropped data.")
             run_step("scale", scale_scene.main, [
