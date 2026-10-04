@@ -87,7 +87,7 @@ Python 3.10 or 3.11. The CUDA libraries come from pip, nothing else to install.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install "humancalib[gpu] @ https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.1.zip"
+pip install "humancalib[gpu]"
 ```
 
 ### Windows
@@ -99,13 +99,13 @@ GPUs (RTX 40xx), which CUDA 11.2 does not.
 ```bat
 conda create -n humancalib -c conda-forge python=3.10 cudatoolkit=11.8 cudnn=8.9
 conda activate humancalib
-pip install "humancalib[gpu] @ https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.1.zip"
+pip install "humancalib[gpu]"
 ```
 
 ### Check the install
 
-The demo videos are in the repository: unzip the same
-[archive](https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.1.zip)
+The demo videos are in the repository: download and unzip the
+[source archive](https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.1.zip)
 (or `git clone` the repository), then
 
 ```bash
@@ -165,7 +165,7 @@ the same calibration as this environment: on the demo, 0.02° median difference 
 relative rotation and 1 mm in camera positions; on a BioCV trial, the same error
 against the laboratory calibration (0.43°).
 
-Without a GPU, `pip install "humancalib @ https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.1.zip"`
+Without a GPU, `pip install humancalib`
 installs calibration, bundle adjustment, evaluation and scaling from existing
 pose files. The optional RTMPose + VideoPose3D backend has its own environment:
 see [HOWTO.md](https://github.com/flodelaplace/HumanCalib/blob/main/HOWTO.md#optional-backend-rtmpose--videopose3d).
@@ -256,6 +256,10 @@ The Docker images contain no MeTRAbs weights unless built with `BAKE_MODELS=1`.
 This summary is not legal advice; check the upstream licences for your use.
 
 ## Citation
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23143081.svg)](https://doi.org/10.5281/zenodo.23143081)
+Archived on Zenodo: [doi:10.5281/zenodo.23143081](https://doi.org/10.5281/zenodo.23143081)
+(all versions; v0.3.1 is [10.5281/zenodo.23143082](https://doi.org/10.5281/zenodo.23143082)).
 
 Use GitHub's *Cite this repository* button ([CITATION.cff](https://github.com/flodelaplace/HumanCalib/blob/main/CITATION.cff)). Please
 also cite the method HumanCalib builds on and the pose estimator:

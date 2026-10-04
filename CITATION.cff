@@ -8,6 +8,7 @@ authors:
   - family-names: Delaplace
     given-names: Florian
 version: 0.3.1
+doi: 10.5281/zenodo.23143081
 date-released: "2026-09-30"
 license: MIT
 repository-code: "https://github.com/flodelaplace/HumanCalib"

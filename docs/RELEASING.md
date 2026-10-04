@@ -52,14 +52,8 @@ A version can be uploaded only once to each index; to rehearse again, bump the v
    *Publish release*. The workflow checks that the tag matches the package version, builds,
    installs the wheel on its own, and uploads to PyPI.
 
-## After the first upload to PyPI
+## Zenodo
 
-The installation instructions in `README.md` point at the GitHub archive of a tag, which
-works without PyPI. Once the package is on PyPI, replace them with the shorter form:
-
-```bash
-pip install "humancalib[gpu]"
-```
-
-(the `@ https://github.com/.../vX.Y.Z.zip` part goes away, in the pip, Windows and CPU-only
-instructions).
+The repository is connected to Zenodo: each published GitHub Release is archived and gets its
+own DOI. The concept DOI 10.5281/zenodo.23143081 always resolves to the latest version; cite it
+in the README and CITATION.cff, and the version DOI in a paper that used that exact version.
