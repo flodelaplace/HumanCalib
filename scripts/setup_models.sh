@@ -66,5 +66,14 @@ if ! echo "${WEIGHTS_SHA256}  ${WEIGHTS_PATH}" | sha256sum --check --status; the
 fi
 echo "  Checksum OK."
 
+# The pipeline runs VideoPose3D on onnxruntime (humancalib/pose/lifting.py). Where PyTorch is
+# available, as in envs/rtmpose.yaml and the RTMPose image, convert the weights here so that no
+# download is needed; elsewhere the pipeline downloads the converted file on first use.
+ONNX_PATH="./model/videopose3d_h36m_detectron_coco.onnx"
+if [ ! -f "${ONNX_PATH}" ] && python -c "import torch, onnxruntime" 2>/dev/null; then
+    echo "  Converting to ONNX..."
+    python scripts/export_videopose3d_onnx.py --checkpoint "${WEIGHTS_PATH}" --output "${ONNX_PATH}"
+fi
+
 echo
 echo "Setup complete. Remember: this backend is CC BY-NC 4.0 (see notice above)."

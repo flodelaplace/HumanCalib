@@ -15,6 +15,16 @@
   Same accuracy as the validated environment within the method's own variation (4 trials,
   never worse). Windows keeps TensorFlow 2.10 (numpy < 2, Python 3.10).
 
+**RTMPose backend without PyTorch**
+- VideoPose3D, the 2D -> 3D lifting of the RTMPose backend, runs on onnxruntime
+  (`pose/lifting.py`), converted to ONNX from the official weights by
+  `scripts/export_videopose3d_onnx.py`: same 3D poses as the PyTorch original to 2e-4, same
+  calibrations (BioCV P03 0.477 deg -> 0.477 deg, COMFI 1012 1.946 -> 1.944 deg). The backend now
+  needs only rtmlib and onnxruntime -- `pip install "humancalib[rtmpose]"`, Python 3.10 to 3.13 --
+  instead of PyTorch, a VideoPose3D checkout and Python 3.8.
+- onnxruntime-gpu finds the CUDA libraries of the nvidia-* pip wheels (`preload_dlls`); a CPU
+  fallback now says why (CPU build, or onnxruntime-gpu >= 1.27 needing CUDA 13).
+
 **Checked**
 - `pip install "humancalib[gpu]"` inside a Pose2Sim 0.10.43 environment: both tools run on the
   GPU in the same environment, and Pose2Sim triangulates from HumanCalib's TOML (HOWTO, §6).

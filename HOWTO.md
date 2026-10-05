@@ -205,27 +205,24 @@ Python environment (e.g. to keep TensorFlow out of the caller's), set
 
 ## Optional backend: RTMPose + VideoPose3D
 
-The original two-step backend (2D keypoints, then temporal lifting to 3D), kept
-for comparison; MeTRAbs is recommended. It needs Python 3.8 and PyTorch, so it
-has its own image and environment. Its weights carry non-commercial licences.
-
-With Docker:
-
-```bash
-docker compose --profile rtmpose build
-docker compose --profile rtmpose run --rm rtmpose demo      # results in output/demo_rtmpose/
-```
-
-With conda:
+The original two-step backend (2D keypoints with RTMPose, then temporal lifting to 3D with
+VideoPose3D), kept for comparison and for environments that already have RTMPose, such as
+Pose2Sim's; MeTRAbs is recommended (0 failed calibrations out of 77, against 30 for this
+backend). Both steps run on onnxruntime: no PyTorch. Its weights carry non-commercial licences.
 
 ```bash
-conda env create -f envs/rtmpose.yaml
-conda activate humancalib-rtmpose
-pip install --no-deps rtmlib==0.0.15   # --no-deps is required: see envs/rtmpose.yaml
-bash scripts/setup_models.sh           # VideoPose3D source and weights, checksummed
+pip install "humancalib[rtmpose]"
+# GPU: replace the CPU onnxruntime that rtmlib pulls in. Up to 1.26, onnxruntime-gpu uses
+# CUDA 12, like humancalib[gpu]; from 1.27 it needs CUDA 13 (onnxruntime-gpu[cuda,cudnn]).
+pip uninstall -y onnxruntime && pip install "onnxruntime-gpu<1.27"
 ```
 
-then run with `--pose_engine rtmpose` as above.
+then run with `--pose_engine rtmpose`. The VideoPose3D model (68 MB, converted to ONNX from the
+official weights by `scripts/export_videopose3d_onnx.py`) is downloaded on the first run;
+`HUMANCALIB_VP3D_ONNX` points to a local copy instead.
+
+The conda environment and Docker image of earlier versions (`envs/rtmpose.yaml`, `docker compose
+--profile rtmpose`) still work; `scripts/setup_models.sh` converts the model locally there.
 
 ## Platform support
 

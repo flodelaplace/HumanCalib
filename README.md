@@ -168,8 +168,8 @@ method's own variation, never worse on the four trials checked (e.g. BioCV 0.42Â
 
 Without a GPU, `pip install humancalib`
 installs calibration, bundle adjustment, evaluation and scaling from existing
-pose files. The optional RTMPose + VideoPose3D backend has its own environment:
-see [HOWTO.md](https://github.com/flodelaplace/HumanCalib/blob/main/HOWTO.md#optional-backend-rtmpose--videopose3d).
+pose files. The optional RTMPose + VideoPose3D backend, on onnxruntime with no PyTorch:
+`pip install "humancalib[rtmpose]"`, see [HOWTO.md](https://github.com/flodelaplace/HumanCalib/blob/main/HOWTO.md#optional-backend-rtmpose--videopose3d).
 
 ## Calibrating your own rig
 

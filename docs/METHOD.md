@@ -13,7 +13,7 @@ steps in order. Each can also be run on its own with `humancalib <step>`.
 | 1. Pose extraction | `extract-metrabs` / `extract-rtmpose` | `pose.metrabs_inference` / `pose.rtmlib_inference` | 2D keypoints in every view, plus metric 3D per camera with MeTRAbs |
 | 2. Intrinsics | `cameras` | `pipeline.create_cameras_from_toml` | Reads the camera matrices and distortion from the Pose2Sim TOML |
 | 3. Session | `session` | `pipeline.write_session` | Probes the videos, counts cameras and joints |
-| 4. 3D lifting | `lift` | `pose.inference` | VideoPose3D 2D→3D, RTMPose only (MeTRAbs already gives 3D) |
+| 4. 3D lifting | `lift` | `pose.lifting` | VideoPose3D 2D→3D on onnxruntime, RTMPose only (MeTRAbs already gives 3D) |
 | 5. Calibration | `reselect`, `linear`, `outliers`, `ba` | `pipeline.*`, `calibration.*` | Person selection → linear initialisation → outlier-frame drop → bundle adjustment |
 | 6. Evaluation | `evaluate` | `postprocessing.evaluate_calibration` | Mean reprojection error (MRE) per camera, diagnostic images |
 | 7. Scaling | `scale` | `postprocessing.scale_scene` | Metric scale from the subject's height, gravity-aligned frame |
@@ -40,8 +40,10 @@ on a 27-bone skeleton built from the 26 joints only (`core/skeletons.py`,
 system rank-deficient. The surface markers are used where they carry
 information, e.g. the head band and soles for scaling (below).
 
-**RTMPose + VideoPose3D** is the original two-step path, kept for comparison. It
-needs Python 3.8 and PyTorch, hence its own environment and Docker image.
+**RTMPose + VideoPose3D** is the original two-step path, kept for comparison. Both
+networks run on onnxruntime (`pip install "humancalib[rtmpose]"`): rtmlib's RTMPose models,
+and VideoPose3D converted to ONNX from its official weights (`pose/lifting.py`; same 3D poses as
+the PyTorch original to 2e-4, same calibrations on the trials checked).
 
 Across five datasets (77 paired trials), RTMPose produced an unusable calibration
 in 30 trials, MeTRAbs in none: see [Validation](../README.md#validation).

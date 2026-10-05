@@ -102,6 +102,13 @@ metrabs = [
     "imageio>=2.22",
     "imageio-ffmpeg>=0.4",
 ]
+# The optional RTMPose backend: 2D poses with rtmlib, 2D -> 3D lifting with VideoPose3D on
+# onnxruntime (no PyTorch). onnxruntime itself is not listed: rtmlib pulls the CPU build, and
+# naming it here would install that build over onnxruntime-gpu in an environment that has it
+# (Pose2Sim's), silently dropping the GPU. For the GPU, install onnxruntime-gpu instead.
+rtmpose = [
+    "rtmlib>=0.0.15",
+]
 dev = [
     "pytest>=8",
 ]

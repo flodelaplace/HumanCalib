@@ -44,7 +44,6 @@ log = get_logger(__name__)
 AID = PID = GID = 1
 SUBSET = "noise_1_0"
 DATASET = "MyDataset"
-VP3D_MODEL = "pretrained_h36m_detectron_coco.bin"
 LAMBDA1 = LAMBDA2 = 1.0
 
 DEVICES = ("cuda", "cpu")
@@ -55,7 +54,7 @@ RULE = "━" * 62
 STEPS = {
     "extract-metrabs": ("humancalib.pose.metrabs_inference", "MeTRAbs 2D+3D pose extraction"),
     "extract-rtmpose": ("humancalib.pose.rtmlib_inference", "RTMPose 2D pose extraction"),
-    "lift": ("humancalib.pose.inference", "VideoPose3D 2D->3D lifting (RTMPose path)"),
+    "lift": ("humancalib.pose.lifting", "VideoPose3D 2D->3D lifting, onnxruntime (RTMPose path)"),
     "cameras": ("humancalib.pipeline.create_cameras_from_toml", "intrinsics TOML -> cameras JSON"),
     "session": ("humancalib.pipeline.write_session", "write the session file"),
     "linear": ("humancalib.pipeline.run_calib_linear", "chunked linear calibration"),
@@ -185,16 +184,6 @@ def parse_run_args(argv):
 def package_root():
     """The directory that contains the humancalib package (src/ or site-packages)."""
     return Path(__file__).resolve().parents[1]
-
-
-def repo_root():
-    """The source checkout, if this is one. None for an installed package.
-
-    Only the RTMPose/VideoPose3D path needs it: its weights are resolved as
-    ./model/<file> relative to the checkout, a frozen legacy convention.
-    """
-    candidate = Path(__file__).resolve().parents[2]
-    return candidate if (candidate / "scripts" / "calibrate.sh").is_file() else None
 
 
 def _torch_lib_dir():
@@ -387,11 +376,12 @@ def preflight(cfg):
         raise PipelineError(f"intrinsics TOML not found: {cfg.calib_toml}")
     if not list_videos(cfg.video_dir):
         raise PipelineError(f"no videos in {cfg.video_dir} (looked for {', '.join(VIDEO_PATTERNS)})")
-    if cfg.pose_engine == "rtmpose" and importlib.util.find_spec("rtmlib") is None:
+    if cfg.pose_engine == "rtmpose" and (importlib.util.find_spec("rtmlib") is None
+                                         or importlib.util.find_spec("onnxruntime") is None):
         raise PipelineError(
-            "the RTMPose backend is not installed in this environment. Pass "
-            "--pose_engine metrabs (recommended, and the only backend in the main "
-            "Docker image), or install envs/rtmpose.yaml.")
+            "the RTMPose backend is not installed in this environment: pip install "
+            '"humancalib[rtmpose]" (rtmlib and onnxruntime; for the GPU, onnxruntime-gpu), '
+            "or pass --pose_engine metrabs (recommended).")
 
 
 # --- the pipeline -----------------------------------------------------------------------
@@ -529,9 +519,9 @@ def run_pipeline(cfg):
     # 4. Lifting ------------------------------------------------------------------------------
     def lift():
         run_process("lift", [
-            sys.executable, "-u", "-m", "humancalib.pose.inference",
+            sys.executable, "-u", "-m", "humancalib.pose.lifting",
             "--prefix", out, *ids, "--target", SUBSET, "--dataset", DATASET,
-            "--model", VP3D_MODEL, "--device", cfg.device], env, cwd=repo_root())
+            "--device", cfg.device], env)
 
     if cfg.pose_engine == "metrabs":
         _header("[4/7] Skipped (3D already extracted by MeTRAbs in step 1)")
@@ -737,7 +727,7 @@ def main(argv=None):
         # path before the interpreter starts -- from inside this one, importing
         # TensorFlow here, it would already be too late.
         return subprocess.call([sys.executable, "-m", module_name, *rest], env=child_env(),
-                               cwd=repo_root() if command == "lift" else None)
+                               cwd=None)
     result = importlib.import_module(module_name).main(rest)
     return result if command == "session" else 0
 

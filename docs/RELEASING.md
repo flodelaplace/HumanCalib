@@ -52,6 +52,23 @@ A version can be uploaded only once to each index; to rehearse again, bump the v
    *Publish release*. The workflow checks that the tag matches the package version, builds,
    installs the wheel on its own, and uploads to PyPI.
 
+## Model files
+
+The RTMPose backend downloads `videopose3d_h36m_detectron_coco.onnx` (68 MB). It is hosted in a
+Zenodo record of its own -- not as a GitHub release asset, which would also trigger the Zenodo
+archive of the software and the PyPI workflow. Once:
+
+1. Produce the file: `scripts/export_videopose3d_onnx.py` (or take it from `model/` after
+   `scripts/setup_models.sh` in an environment with PyTorch). Check its SHA-256 against
+   `VP3D_ONNX_SHA256` in `src/humancalib/core/models.py`.
+2. zenodo.org → *New upload*: the .onnx file; type *Model*; title "VideoPose3D (Pavllo et al.,
+   2019) converted to ONNX for HumanCalib"; licence CC BY-NC 4.0; credit the VideoPose3D authors
+   and link github.com/facebookresearch/VideoPose3D. Publish.
+3. Set `VP3D_ONNX_URL` in `src/humancalib/core/models.py` to
+   `https://zenodo.org/records/<record id>/files/videopose3d_h36m_detectron_coco.onnx?download=1`.
+
+A new conversion goes into a new Zenodo version with its new checksum.
+
 ## Zenodo
 
 The repository is connected to Zenodo: each published GitHub Release is archived and gets its

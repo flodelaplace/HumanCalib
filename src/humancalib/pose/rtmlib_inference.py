@@ -300,6 +300,9 @@ def main(argv=None):
         log.error("rtmlib is not installed. Run: pip install rtmlib")
         sys.exit(1)
 
+    if args.device == "cuda" and args.backend == "onnxruntime":
+        from humancalib.pose.onnx_gpu import preload_cuda_libraries
+        preload_cuda_libraries()
     log.info(f"\nLoading BodyWithFeet model (mode={args.mode}, device={args.device}) ...")
     body_model = BodyWithFeet(
         mode=args.mode,
@@ -320,11 +323,9 @@ def main(argv=None):
         if "CUDAExecutionProvider" in used:
             log.info("Compute device: GPU (onnxruntime CUDAExecutionProvider)")
         else:
-            log.warning(
-                "Compute device: CPU -- onnxruntime could not create its CUDA provider, so "
-                "pose extraction will be many times slower. PyTorch keeps cuDNN in "
-                "site-packages/torch/lib, which must be on LD_LIBRARY_PATH; `humancalib run` "
-                "and scripts/calibrate.sh add it themselves.")
+            from humancalib.pose.onnx_gpu import cpu_fallback_hint
+            log.warning("Compute device: CPU -- onnxruntime could not create its CUDA provider, so "
+                        "pose extraction will be many times slower. " + cpu_fallback_hint())
 
     # ---- process each video -------------------------------------------------
     out_op25_dir = os.path.join(args.output_dir, args.subset_name, "2d_joint")

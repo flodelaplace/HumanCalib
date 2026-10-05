@@ -18,3 +18,12 @@ METRABS_L_URL = (
     "https://omnomnom.vision.rwth-aachen.de/data/metrabs/"
     "metrabs_eff2l_y4_384px_800k_28ds.tar.gz"
 )
+
+# VideoPose3D (Pavllo et al., CVPR 2019), the 2D -> 3D lifting of the RTMPose backend, converted to
+# ONNX by scripts/export_videopose3d_onnx.py from the official pretrained_h36m_detectron_coco.bin
+# (ONNX = PyTorch to 1.2e-6). Weights: CC BY-NC 4.0, Facebook Research. Hosted in a Zenodo record
+# of its own (docs/RELEASING.md) so that the backend needs only onnxruntime, no PyTorch; None until
+# that record exists, and the pipeline then says how to provide the file.
+VP3D_ONNX_FILE = "videopose3d_h36m_detectron_coco.onnx"
+VP3D_ONNX_URL = None
+VP3D_ONNX_SHA256 = "c9703125e99c2ca93e233001446448ab57ec0305d2fccabf7f2c9c9dfa1de7d3"

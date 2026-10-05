@@ -38,7 +38,7 @@ def is_saved_model(path):
     return os.path.isfile(os.path.join(path, "saved_model.pb"))
 
 
-def _download(url, dest):
+def _download(url, dest, what="MeTRAbs model", offline=None):
     """Fetch `url` into `dest`, resuming a partial file and retrying on network errors."""
     from tqdm import tqdm
 
@@ -55,7 +55,7 @@ def _download(url, dest):
                 total = done + int(length) if length else total
                 with open(part, "ab" if done else "wb") as f, tqdm(
                         total=total, initial=done, unit="B", unit_scale=True, unit_divisor=1024,
-                        desc="  Downloading MeTRAbs model") as bar:
+                        desc=f"  Downloading {what}") as bar:
                     while True:
                         block = resp.read(CHUNK)
                         if not block:
@@ -69,10 +69,10 @@ def _download(url, dest):
         except (urllib.error.URLError, OSError, TimeoutError) as err:
             if attempt == RETRIES:
                 raise RuntimeError(
-                    f"could not download the MeTRAbs model from {url} after {RETRIES} attempts "
+                    f"could not download the {what} from {url} after {RETRIES} attempts "
                     f"({err}). The partial file is kept in {part} and the next run resumes it. "
-                    "Behind a proxy, set HTTPS_PROXY; offline, place the unpacked model in "
-                    f"{dest[:-len('.tar.gz')]}.") from err
+                    "Behind a proxy, set HTTPS_PROXY; offline, place "
+                    f"{offline or 'the unpacked model in ' + dest[:-len('.tar.gz')]}.") from err
             wait = min(60, 5 * attempt)
             log.warning(f"download interrupted ({err}); resuming in {wait} s "
                         f"(attempt {attempt + 1}/{RETRIES})")
@@ -117,3 +117,31 @@ def ensure_model(url):
         f.write(f"Module: {url}\nDownloaded by HumanCalib\n")
     os.remove(archive)
     return os.path.realpath(target)
+
+
+def ensure_file(url, filename, sha256, what="model", root=None):
+    """Local path of a single model file, downloaded once into ~/.cache/humancalib and checked.
+
+    HUMANCALIB_MODEL_DIR overrides the folder, e.g. to use a copy on a machine without internet.
+    """
+    root = os.path.normpath(root or os.environ.get("HUMANCALIB_MODEL_DIR") or os.path.join(
+        os.path.expanduser("~"), ".cache", "humancalib"))
+    path = os.path.join(root, filename)
+    if os.path.isfile(path) and _sha256(path) == sha256:
+        return path
+    os.makedirs(root, exist_ok=True)
+    log.info(f"  -> First run: downloading the {what} (once) to {path}")
+    _download(url, path, what=what, offline=f"{filename} in {root} (or set HUMANCALIB_MODEL_DIR)")
+    if _sha256(path) != sha256:
+        os.remove(path)
+        raise RuntimeError(f"the {what} downloaded from {url} is corrupted (checksum mismatch); "
+                           "deleted, retry the run")
+    return path
+
+
+def _sha256(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(CHUNK), b""):
+            h.update(block)
+    return h.hexdigest()
