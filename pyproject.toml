@@ -13,14 +13,19 @@
 #
 # GPU pose extraction (MeTRAbs, TensorFlow) comes with the `gpu` extra, which picks the
 # TensorFlow that has a GPU build on each platform:
-#   * Linux / WSL2: tensorflow[and-cuda] 2.15, whose CUDA libraries come from pip itself --
-#     `pip install "humancalib[gpu]"` is the whole install (Python 3.10 or 3.11);
+#   * Linux / WSL2: tensorflow[and-cuda] 2.20, whose CUDA libraries come from pip itself --
+#     `pip install "humancalib[gpu]"` is the whole install (Python 3.10 to 3.13). 2.20 is the
+#     first TensorFlow without a numpy upper bound (Pose2Sim's `opensim` needs numpy >= 2.1) and
+#     it uses cuDNN 9, like onnxruntime-gpu, so the two share an environment;
 #   * Windows: tensorflow 2.10, the last version with native Windows GPU support; it needs
 #     CUDA 11.x + cuDNN 8, from conda (`conda install -c conda-forge cudatoolkit=11.8
 #     cudnn=8.9` -- 11.8 rather than the 11.2 TensorFlow was built with, which does not
 #     support RTX 40xx GPUs), and Python 3.10.
-# Both were checked to give the calibration of the validated environment (envs/calib.yaml,
-# TensorFlow 2.12 with conda's CUDA 11.8), which remains the reference for published results.
+# Both were checked against the validated environment (envs/calib.yaml, TensorFlow 2.12 with
+# conda's CUDA 11.8, numpy 1.23), which remains the reference for published results: Windows
+# gives the same calibration (demo: 0.02 deg); TensorFlow 2.20 with numpy 2 the same accuracy
+# within the method's own variation (4 trials, never worse: BioCV 0.42 -> 0.37 deg, COMFI 2.06 ->
+# 2.06, OpenCap 1.79 -> 1.78).
 # The core install -- linear calibration, bundle adjustment, evaluation, scaling, from existing
 # pose files -- is pure pip and runs on a CPU; it is exactly what CI exercises.
 
@@ -48,24 +53,24 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Operating System :: POSIX :: Linux",
     "Operating System :: Microsoft :: Windows",
     "Environment :: GPU :: NVIDIA CUDA",
 ]
-# Validated end to end on 3.10; installs and passes the test suite on 3.10-3.12. Not 3.13:
-# numpy<2 and scikit-image<0.25 have no 3.13 wheels, and pip then tries -- and fails -- to
-# compile them. The optional RTMPose backend runs on 3.8 from a source checkout
+# Validated end to end on 3.10 (envs/calib.yaml) and 3.11 (numpy 2, TensorFlow 2.20); the test
+# suite passes on 3.10 to 3.13. The optional RTMPose backend runs on 3.8 from a source checkout
 # (envs/rtmpose.yaml, Dockerfile.rtmpose), not from this package.
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<3.14"
 dependencies = [
-    "numpy>=1.22,<2",
+    "numpy>=1.22",
     "scipy>=1.9",
     "matplotlib>=3.7",
     # Only the contrib distribution: opencv-python ships the same cv2/ directory
     # and installing both silently overwrites one with the other.
     "opencv-contrib-python>=4.7",
     "pycalib-simple>=2025.12.5.1",
-    "scikit-image>=0.20,<0.25",
+    "scikit-image>=0.20",
     # Undeclared dependency of pycalib-simple (pycalib/__init__ -> .robust).
     "pandas>=2.0",
     "PyYAML>=6.0",
@@ -78,8 +83,10 @@ dependencies = [
 # MeTRAbs pose extraction on the GPU, with the TensorFlow that has a GPU build on each
 # platform -- see top.
 gpu = [
-    "tensorflow[and-cuda]>=2.15,<2.16; sys_platform == 'linux'",
+    "tensorflow[and-cuda]>=2.20,<2.21; sys_platform == 'linux'",
     "tensorflow==2.10.1; sys_platform == 'win32'",
+    # TensorFlow 2.10 was built against numpy 1.x but does not say so in its metadata.
+    "numpy<2; sys_platform == 'win32'",
     "tensorflow-hub>=0.13,<0.17",
     # tensorflow-hub imports pkg_resources, which setuptools removed in 81.
     "setuptools<81",
@@ -89,7 +96,7 @@ gpu = [
 # MeTRAbs without choosing the CUDA build: any TensorFlow from 2.10 (Windows GPU) to 2.15,
 # e.g. inside a conda environment that provides CUDA itself (envs/calib.yaml pins 2.12).
 metrabs = [
-    "tensorflow>=2.10,<2.16",
+    "tensorflow>=2.10,<2.21",
     "tensorflow-hub>=0.13,<0.17",
     "setuptools<81",
     "imageio>=2.22",

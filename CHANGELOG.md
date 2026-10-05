@@ -8,6 +8,13 @@
   `metrabs_opensim` whenever one existed, the layout of the development machine: called from
   another environment, such as Pose2Sim's, extraction then ran in the wrong one.
 
+**Changed**
+- numpy 2 is supported (no upper bound on numpy or scikit-image), and Python 3.13. The `gpu`
+  extra installs TensorFlow 2.20 on Linux: the first without a numpy upper bound -- recent
+  Pose2Sim, through `opensim`, needs numpy >= 2.1 -- and on cuDNN 9, like onnxruntime-gpu.
+  Same accuracy as the validated environment within the method's own variation (4 trials,
+  never worse). Windows keeps TensorFlow 2.10 (numpy < 2, Python 3.10).
+
 **Checked**
 - `pip install "humancalib[gpu]"` inside a Pose2Sim 0.10.43 environment: both tools run on the
   GPU in the same environment, and Pose2Sim triangulates from HumanCalib's TOML (HOWTO, §6).

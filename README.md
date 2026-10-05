@@ -83,7 +83,7 @@ Windows are supported.
 
 ### pip — Linux or WSL2
 
-Python 3.10 or 3.11. The CUDA libraries come from pip, nothing else to install.
+Python 3.10 to 3.13. The CUDA libraries come from pip, nothing else to install.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
@@ -160,10 +160,11 @@ conda activate humancalib
 pip install --no-deps -e .                 # adds the `humancalib` command, keeps the pins
 ```
 
-The pip installs above use TensorFlow 2.15 (Linux) and 2.10 (Windows); they give
-the same calibration as this environment: on the demo, 0.02° median difference in
-relative rotation and 1 mm in camera positions; on a BioCV trial, the same error
-against the laboratory calibration (0.43°).
+The pip installs above use TensorFlow 2.20 with numpy 2 (Linux) and TensorFlow
+2.10 (Windows). Windows gives the same calibration as this environment (0.02°
+median difference on the demo); TensorFlow 2.20 the same accuracy within the
+method's own variation, never worse on the four trials checked (e.g. BioCV 0.42°
+→ 0.37°, COMFI 2.06° → 2.06°).
 
 Without a GPU, `pip install humancalib`
 installs calibration, bundle adjustment, evaluation and scaling from existing
