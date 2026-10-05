@@ -162,6 +162,17 @@ def test_metrabs_runs_in_the_current_interpreter_by_default():
     assert cli.resolve_metrabs_launcher(environ={}) == [sys.executable, "-u"]
 
 
+def test_a_windows_launcher_keeps_its_backslashes(monkeypatch):
+    monkeypatch.setattr(cli.os, "name", "nt")
+    launcher = cli.resolve_metrabs_launcher(
+        environ={"HUMANCALIB_METRABS_PYTHON": r"D:\envs\metrabs\python.exe -u"})
+    assert launcher == [r"D:\envs\metrabs\python.exe", "-u"]
+    launcher = cli.resolve_metrabs_launcher(environ={"HUMANCALIB_METRABS_PYTHON":
+        r'"C:\Program Data\conda\condabin\conda.bat" run --no-capture-output -p D:\envs\metrabs python -u'})
+    assert launcher[:2] == [r"C:\Program Data\conda\condabin\conda.bat", "run"]
+    assert launcher[-3:] == [r"D:\envs\metrabs", "python", "-u"]
+
+
 def test_the_metrabs_launcher_can_be_overridden():
     launcher = cli.resolve_metrabs_launcher(
         environ={"HUMANCALIB_METRABS_PYTHON": "/opt/conda/envs/humancalib/bin/python -u"})

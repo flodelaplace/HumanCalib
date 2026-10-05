@@ -25,6 +25,14 @@
 - onnxruntime-gpu finds the CUDA libraries of the nvidia-* pip wheels (`preload_dlls`); a CPU
   fallback now says why (CPU build, or onnxruntime-gpu >= 1.27 needing CUDA 13).
 
+**Windows**
+- `HUMANCALIB_METRABS_PYTHON` accepts Windows paths and quoted commands (e.g.
+  `"C:\...\conda.bat" run --no-capture-output -p D:\envs\metrabs python -u`): POSIX splitting
+  used to drop the backslashes. This is how a Python 3.11 environment (recent Pose2Sim) runs MeTRAbs
+  from the Python 3.10 environment that TensorFlow's Windows GPU build needs.
+- MeTRAbs inference out of GPU memory (smaller GPUs, TensorFlow 2.10 on Windows, another program
+  using the GPU) redoes the camera with half the batch, down to one frame, instead of failing.
+
 **Checked**
 - `pip install "humancalib[gpu]"` inside a Pose2Sim 0.10.43 environment: both tools run on the
   GPU in the same environment, and Pose2Sim triangulates from HumanCalib's TOML (HOWTO, §6).

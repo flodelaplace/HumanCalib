@@ -257,7 +257,12 @@ def resolve_metrabs_launcher(environ=None):
     environ = os.environ if environ is None else environ
     override = environ.get("HUMANCALIB_METRABS_PYTHON", "").strip()
     if override:
-        return shlex.split(override)
+        if os.name != "nt":
+            return shlex.split(override)
+        # POSIX splitting would eat the backslashes of a Windows path (D:\envs\metrabs\python.exe);
+        # Windows splitting keeps the quotes around a path with spaces, which must go.
+        return [t[1:-1] if len(t) > 1 and t[0] == t[-1] and t[0] in "\"'" else t
+                for t in shlex.split(override, posix=False)]
     return [sys.executable, "-u"]
 
 

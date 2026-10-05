@@ -286,6 +286,7 @@ def main(argv=None):
     os.makedirs(out_halpe26_dir, exist_ok=True)
 
     skeleton_w_data = None  # Will store first camera's 3D for skeleton_w
+    batch_size = args.batch_size
 
     for cam_idx, (video_path, K, dist) in enumerate(zip(video_files, K_list, dist_list), start=1):
         cid = cam_idx
@@ -295,13 +296,23 @@ def main(argv=None):
 
         # MeTRAbs only consumes the intrinsic matrix; lens distortion is handled
         # separately by undistort_points() on the predicted 2D keypoints below.
-        # Run inference
-        frame_indices, poses3d_raw, poses2d_raw, confidences, candidates = process_video(
-            video_path, model, args.skeleton, K.astype(np.float32),
-            args.output_dir, args.subset_name,
-            start_frame=args.start_frame, end_frame=args.end_frame,
-            batch_size=args.batch_size,
-        )
+        # Run inference. Out of GPU memory -- a smaller GPU, TensorFlow 2.10 on Windows, which needs
+        # more memory, or another program using the GPU at the same time -- the camera is redone
+        # with half the batch, down to one frame; the smaller batch is kept for the next cameras.
+        while True:
+            try:
+                frame_indices, poses3d_raw, poses2d_raw, confidences, candidates = process_video(
+                    video_path, model, args.skeleton, K.astype(np.float32),
+                    args.output_dir, args.subset_name,
+                    start_frame=args.start_frame, end_frame=args.end_frame,
+                    batch_size=batch_size,
+                )
+                break
+            except tf.errors.ResourceExhaustedError:
+                if batch_size == 1:
+                    raise
+                batch_size = max(1, batch_size // 2)
+                log.warning(f"Out of GPU memory: camera {cid} again with batches of {batch_size} frames")
 
         if not frame_indices:
             log.warning(f"No frames processed for camera {cid}")
