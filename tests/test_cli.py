@@ -173,6 +173,22 @@ def test_a_windows_launcher_keeps_its_backslashes(monkeypatch):
     assert launcher[-3:] == [r"D:\envs\metrabs", "python", "-u"]
 
 
+def test_another_interpreter_does_not_inherit_this_package_path(monkeypatch):
+    env = {"PYTHONPATH": "/this/site-packages", "PATH": "/usr/bin"}
+    assert cli.launcher_env(env, [sys.executable, "-u"]) is env
+    other = cli.launcher_env(env, ["/envs/metrabs/bin/python", "-u"], environ={})
+    assert "PYTHONPATH" not in other and other["PATH"] == "/usr/bin"
+
+
+def test_a_windows_conda_python_gets_its_dll_folders():
+    exe = "/envs/metrabs/python.exe"          # no drive letter: os.pathsep is ':' on the test host
+    env = cli.launcher_env({"PATH": "/windows"}, [exe, "-u"], environ={}, isdir=lambda d: True,
+                           windows=True)
+    first = env["PATH"].split(cli.os.pathsep)
+    assert first[0] == "/envs/metrabs" and any(p.endswith("bin") for p in first[1:4])
+    assert first[-1] == "/windows"
+
+
 def test_the_metrabs_launcher_can_be_overridden():
     launcher = cli.resolve_metrabs_launcher(
         environ={"HUMANCALIB_METRABS_PYTHON": "/opt/conda/envs/humancalib/bin/python -u"})

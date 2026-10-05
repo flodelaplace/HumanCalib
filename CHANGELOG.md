@@ -30,6 +30,10 @@
   `"C:\...\conda.bat" run --no-capture-output -p D:\envs\metrabs python -u`): POSIX splitting
   used to drop the backslashes. This is how a Python 3.11 environment (recent Pose2Sim) runs MeTRAbs
   from the Python 3.10 environment that TensorFlow's Windows GPU build needs.
+- A step run by another interpreter (`HUMANCALIB_METRABS_PYTHON`) no longer inherits this
+  environment's package path, which made a Python 3.10 environment import the packages built for
+  the calling one (numpy 2 from a Python 3.11 Pose2Sim environment). On Windows, pointing it to a
+  conda environment's `python.exe` is enough: its DLL folders are put on PATH, as activation would.
 - MeTRAbs inference out of GPU memory (smaller GPUs, TensorFlow 2.10 on Windows, another program
   using the GPU) redoes the camera with half the batch, down to one frame, instead of failing.
 

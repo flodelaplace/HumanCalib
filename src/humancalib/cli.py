@@ -266,6 +266,34 @@ def resolve_metrabs_launcher(environ=None):
     return [sys.executable, "-u"]
 
 
+def launcher_env(env, launcher, environ=None, isdir=os.path.isdir, windows=None):
+    """Environment for a step run by another interpreter (HUMANCALIB_METRABS_PYTHON).
+
+    That interpreter has its own humancalib: this one's location must not go on its PYTHONPATH,
+    or a Python 3.10 environment would import the packages built for this one (numpy 2 for a
+    Python 3.11 Pose2Sim environment, for instance) and crash. On Windows, a conda environment's
+    python.exe also needs the environment's DLL folders on PATH -- what activating it would do --
+    for TensorFlow to find CUDA.
+    """
+    if launcher[:1] == [sys.executable]:
+        return env
+    environ = os.environ if environ is None else environ
+    env = dict(env)
+    if environ.get("PYTHONPATH"):
+        env["PYTHONPATH"] = environ["PYTHONPATH"]
+    else:
+        env.pop("PYTHONPATH", None)
+    exe = launcher[0] if launcher else ""
+    windows = os.name == "nt" if windows is None else windows
+    if windows and exe.lower().endswith("python.exe"):
+        root = os.path.dirname(exe)
+        dirs = [root] + [os.path.join(root, *d) for d in (("Library", "mingw-w64", "bin"),
+                                                           ("Library", "usr", "bin"),
+                                                           ("Library", "bin"), ("Scripts",))]
+        env["PATH"] = os.pathsep.join([d for d in dirs if isdir(d)] + [env.get("PATH", "")])
+    return env
+
+
 # --- step plumbing ----------------------------------------------------------------------
 
 def run_step(name, func, argv):
@@ -476,10 +504,12 @@ def run_pipeline(cfg):
                   f"({cached.start}-{cached.end})")
             log.info("  -> Skipping MeTRAbs inference (reusing cached results)")
         else:
-            run_process("extract-metrabs", resolve_metrabs_launcher() + [
+            launcher = resolve_metrabs_launcher()
+            run_process("extract-metrabs", launcher + [
                 "-m", "humancalib.pose.metrabs_inference",
                 "--video_dir", vd, "--calib_toml", cfg.calib_toml, "--output_dir", out,
-                *ids, "--subset_name", SUBSET, "--batch_size", "8", *frames], env)
+                *ids, "--subset_name", SUBSET, "--batch_size", "8", *frames],
+                launcher_env(env, launcher))
     else:
         _header("[1/7] Extracting 2D poses with RTMPose...")
         log.info(rng)
