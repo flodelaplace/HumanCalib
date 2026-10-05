@@ -668,7 +668,29 @@ def run_pipeline(cfg):
                     "--conf_threshold", str(cfg.conf_threshold)], env)
 
     log.info(format_summary(scores, best, out, scaling_requested))
+    write_run_summary(out, vd, best)
     return 0
+
+
+def write_run_summary(out, video_dir, best):
+    """results/summary.json: the kept stage and its reprojection error, per camera by name.
+
+    For programs that call the pipeline: Pose2Sim, for one, reports the error per camera."""
+    from humancalib.core.videos import camera_names
+
+    results = os.path.join(out, "results")
+    try:
+        with open(os.path.join(results, f"{best}_mre.json")) as f:
+            mre = json.load(f)
+    except (OSError, TypeError, ValueError):
+        return
+    names = camera_names(video_dir)
+    toml = os.path.join(results, "Calib_scene_calibrated.toml")
+    summary = {"kept_stage": best, "mre_px": mre["global_mre_px"],
+               "cameras_mre_px": dict(zip(names, mre["per_camera_mre_px"])),
+               "calibration_toml": toml if os.path.isfile(toml) else None}
+    with open(os.path.join(results, "summary.json"), "w") as f:
+        json.dump(summary, f, indent=1)
 
 
 # --- entry point ------------------------------------------------------------------------------

@@ -24,6 +24,7 @@ Usage:
 """
 
 import argparse
+import json
 import os
 import sys
 import re
@@ -248,11 +249,18 @@ def main(argv=None):
     global_mre = np.mean(all_errors[valid_mask])
     log.info(f"\n  -> Global MRE: {global_mre:.3f} pixels")
     log.info("\n  -> Per-camera MRE:")
+    per_camera = []
     for c, cam_id in enumerate(CAMID):
         cam_mask = valid_mask[c]
         cam_mre = np.mean(all_errors[c][cam_mask]) if np.any(cam_mask) else -1
+        per_camera.append(float(cam_mre))
         log.info(f"     - Camera {cam_id}: {cam_mre:.3f} pixels")
     log.info("-" * 40)
+    # Kept for programs that call the pipeline (e.g. Pose2Sim reports the error per camera);
+    # cameras in CAMID order, i.e. the alphabetical order of the video names.
+    with open(os.path.join(args.prefix, "results", f"{args.calib}_mre.json"), "w") as f:
+        json.dump({"global_mre_px": float(global_mre), "camid": [int(c) for c in CAMID],
+                   "per_camera_mre_px": per_camera}, f, indent=1)
 
     if args.visualize:
         log.info("\nGenerating visualizations...")
