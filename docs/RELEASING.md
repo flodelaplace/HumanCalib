@@ -54,20 +54,13 @@ A version can be uploaded only once to each index; to rehearse again, bump the v
 
 ## Model files
 
-The RTMPose backend downloads `videopose3d_h36m_detectron_coco.onnx` (68 MB). It is hosted in a
-Zenodo record of its own -- not as a GitHub release asset, which would also trigger the Zenodo
-archive of the software and the PyPI workflow. Once:
-
-1. Produce the file: `scripts/export_videopose3d_onnx.py` (or take it from `model/` after
-   `scripts/setup_models.sh` in an environment with PyTorch). Check its SHA-256 against
-   `VP3D_ONNX_SHA256` in `src/humancalib/core/models.py`.
-2. zenodo.org → *New upload*: the .onnx file; type *Model*; title "VideoPose3D (Pavllo et al.,
-   2019) converted to ONNX for HumanCalib"; licence CC BY-NC 4.0; credit the VideoPose3D authors
-   and link github.com/facebookresearch/VideoPose3D. Publish.
-3. Set `VP3D_ONNX_URL` in `src/humancalib/core/models.py` to
-   `https://zenodo.org/records/<record id>/files/videopose3d_h36m_detectron_coco.onnx?download=1`.
-
-A new conversion goes into a new Zenodo version with its new checksum.
+The RTMPose backend downloads `videopose3d_h36m_detectron_coco.onnx` (68 MB), attached as an
+asset to the GitHub release v0.3.1 (URL and SHA-256 in `src/humancalib/core/models.py`). Assets
+are added by *editing* an existing release: that triggers neither a new Zenodo archive nor the
+PyPI workflow, which a new release would. To replace the file after a new conversion
+(`scripts/export_videopose3d_onnx.py`), attach it under a new name to the current release and
+update the file name, URL and checksum together, so that existing installs keep downloading the
+file they were checked against.
 
 ## Zenodo
 
