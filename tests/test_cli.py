@@ -159,17 +159,7 @@ def test_preflight_points_rtmpose_users_to_metrabs_when_the_backend_is_absent(tm
 # --- environment for the separate processes ----------------------------------------------
 
 def test_metrabs_runs_in_the_current_interpreter_by_default():
-    launcher = cli.resolve_metrabs_launcher(environ={}, which=lambda _: None)
-    assert launcher == [sys.executable, "-u"]
-
-
-def test_a_metrabs_opensim_environment_is_used_only_if_it_exists():
-    has = cli.resolve_metrabs_launcher(environ={}, which=lambda _: "/usr/bin/conda",
-                                       conda_env_names=lambda: {"base", "metrabs_opensim"})
-    lacks = cli.resolve_metrabs_launcher(environ={}, which=lambda _: "/usr/bin/conda",
-                                         conda_env_names=lambda: {"base"})
-    assert has[:5] == ["conda", "run", "--live-stream", "-n", "metrabs_opensim"]
-    assert lacks == [sys.executable, "-u"]
+    assert cli.resolve_metrabs_launcher(environ={}) == [sys.executable, "-u"]
 
 
 def test_the_metrabs_launcher_can_be_overridden():

@@ -4,15 +4,12 @@ metrabs_inference.py
 Extract 2D and 3D poses from multi-camera videos using MeTRAbs (bml_movi_87)
 and save them in the 26-joint calibration format expected by the pipeline.
 
-This script is designed to run in the 'metrabs' conda environment (Python 3.10,
-TensorFlow) and is called from calibrate.sh via:
-    conda run --no-banner -n metrabs_opensim python metrabs_inference.py ...
-
-It replaces both rtmlib_inference.py (2D) and inference.py (3D lifting) in a
-single step with better accuracy.
+Run by `humancalib run` (step 1) in its own process, with the current interpreter or the one
+named by HUMANCALIB_METRABS_PYTHON. It replaces both rtmlib_inference.py (2D) and inference.py
+(3D lifting) in a single step with better accuracy.
 
 Usage:
-    conda run --no-banner -n metrabs_opensim python metrabs_inference.py \
+    python -m humancalib.pose.metrabs_inference \
         --video_dir  ./my_videos \
         --calib_toml ./Calib_scene.toml \
         --output_dir ./data/A001_P001_G001 \

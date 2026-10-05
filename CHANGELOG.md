@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+**Fixed**
+- Pose extraction always runs in the current environment (or the one named by
+  `HUMANCALIB_METRABS_PYTHON`). It used to switch silently to a conda environment named
+  `metrabs_opensim` whenever one existed, the layout of the development machine: called from
+  another environment, such as Pose2Sim's, extraction then ran in the wrong one.
+
+**Checked**
+- `pip install "humancalib[gpu]"` inside a Pose2Sim 0.10.43 environment: both tools run on the
+  GPU in the same environment, and Pose2Sim triangulates from HumanCalib's TOML (HOWTO, §6).
+
 ## 0.3.1 — 2026-09-30
 
 **Fixed**

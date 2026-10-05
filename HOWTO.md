@@ -191,6 +191,12 @@ The returned file is a complete Pose2Sim calibration (intrinsics copied from the
 extrinsics estimated), metric, with Z up and the origin under the subject's heels: copy it
 into a Pose2Sim project's `calibration/` folder and run the triangulation as usual.
 
+**Installing into a Pose2Sim environment** works: `pip install "humancalib[gpu]"` in a Pose2Sim
+0.10.43 environment (Linux, Python 3.10) changed only `protobuf` (7.x → 4.25, required by
+TensorFlow 2.15), `setuptools` and `wrapt`; afterwards both ran on the GPU in the same environment
+(Pose2Sim's pose estimation with onnxruntime-gpu, then HumanCalib's with TensorFlow), and Pose2Sim
+triangulated the demo from HumanCalib's TOML with the skeleton upright.
+
 Progress is logged through the `humancalib` logger; if the calling program has not set up
 logging, `calibrate` prints it as the command line would. Pose extraction runs in its own
 process, so TensorFlow's GPU memory is released when it ends. To run that step in another

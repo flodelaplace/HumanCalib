@@ -254,32 +254,21 @@ def child_env(environ=None, isdir=os.path.isdir, prefix=None, exists=os.path.exi
     return env
 
 
-def _conda_env_names():
-    try:
-        out = subprocess.run(["conda", "env", "list"], capture_output=True,
-                             text=True, timeout=60).stdout
-    except (OSError, subprocess.SubprocessError):
-        return set()
-    return {line.split()[0] for line in out.splitlines()
-            if line.strip() and not line.startswith("#")}
-
-
-def resolve_metrabs_launcher(environ=None, which=shutil.which, conda_env_names=_conda_env_names):
+def resolve_metrabs_launcher(environ=None):
     """Command prefix that runs a Python module with TensorFlow available.
 
-    The documented installs -- envs/calib.yaml and the Docker image -- keep
-    TensorFlow in the same environment as everything else, so that is the
-    default. A separate `metrabs_opensim` conda environment, the layout of the
-    original development machine, is used only if it exists: calling it
-    unconditionally made step 1 fail on every other machine.
-    HUMANCALIB_METRABS_PYTHON overrides both with a command line of its own.
+    The current interpreter, so pose extraction runs in the environment HumanCalib was installed
+    in -- what pip, conda and Docker installs all set up. HUMANCALIB_METRABS_PYTHON overrides it
+    with a command line of its own, to run that step in another environment.
+
+    It used to switch silently to a conda environment named `metrabs_opensim` whenever one
+    existed (the layout of the original development machine): on a machine that had it, called
+    from another environment such as Pose2Sim's, extraction ran in the wrong one and failed.
     """
     environ = os.environ if environ is None else environ
     override = environ.get("HUMANCALIB_METRABS_PYTHON", "").strip()
     if override:
         return shlex.split(override)
-    if which("conda") and "metrabs_opensim" in conda_env_names():
-        return ["conda", "run", "--live-stream", "-n", "metrabs_opensim", "python", "-u"]
     return [sys.executable, "-u"]
 
 
