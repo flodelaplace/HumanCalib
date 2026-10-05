@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-10-05
+
+Ready for Pose2Sim's `extrinsics_method = 'keypoints'`: installs in recent Pose2Sim environments
+(numpy 2, Python 3.11 to 3.13), an RTMPose backend without PyTorch, and a tested setup on native
+Windows. Checked end to end in Pose2Sim, on Linux and on native Windows: calibration, pose
+estimation, triangulation, filtering, marker augmentation and OpenSim inverse kinematics.
+
+**Added**
+- `results/summary.json`: the kept stage and its reprojection error, per camera by name, for
+  programs that call the pipeline (Pose2Sim reports it in its calibration recap).
 
 **Fixed**
 - Pose extraction always runs in the current environment (or the one named by

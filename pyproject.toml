@@ -36,7 +36,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "humancalib"
-version = "0.3.1"
+version = "0.4.0"
 description = "Multi-camera extrinsic calibration from human pose"
 readme = "README.md"
 license = "MIT"

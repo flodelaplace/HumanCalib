@@ -105,11 +105,11 @@ pip install "humancalib[gpu]"
 ### Check the install
 
 The demo videos are in the repository: download and unzip the
-[source archive](https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.3.1.zip)
+[source archive](https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.4.0.zip)
 (or `git clone` the repository), then
 
 ```bash
-humancalib run HumanCalib-0.3.1/demo HumanCalib-0.3.1/demo/Calib_scene.toml output/demo --height 1.78
+humancalib run HumanCalib-0.4.0/demo HumanCalib-0.4.0/demo/Calib_scene.toml output/demo --height 1.78
 ```
 
 It worked if the log shows `Compute device: GPU` and ends with an MRE summary
@@ -260,7 +260,7 @@ This summary is not legal advice; check the upstream licences for your use.
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23143081.svg)](https://doi.org/10.5281/zenodo.23143081)
 Archived on Zenodo: [doi:10.5281/zenodo.23143081](https://doi.org/10.5281/zenodo.23143081)
-(all versions; v0.3.1 is [10.5281/zenodo.23143082](https://doi.org/10.5281/zenodo.23143082)).
+(all versions; each release also has its own DOI, listed on that page).
 
 Use GitHub's *Cite this repository* button ([CITATION.cff](https://github.com/flodelaplace/HumanCalib/blob/main/CITATION.cff)). Please
 also cite the method HumanCalib builds on and the pose estimator:
