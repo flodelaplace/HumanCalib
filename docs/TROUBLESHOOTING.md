@@ -17,6 +17,7 @@
 | First run stays on `Downloading MeTRAbs model` for a long time | The model (~700 MB) comes from the MeTRAbs authors' server, sometimes slow | Let it run: the bar shows the remaining time. An interrupted download resumes at the next run. Behind a proxy, set `HTTPS_PROXY` |
 | No internet on the machine that runs the calibration | The model cannot be downloaded | Copy `~/.cache/tfhub_modules` from a machine where HumanCalib ran once (or set `TFHUB_CACHE_DIR` to that folder) |
 | `Requires-Python >=3.10,<3.14` from pip | Python 3.14 or later | Use Python 3.10 to 3.13 (3.10 for `[gpu]` on Windows) |
+| `Failed to initialize CUDNN Frontend`, then `Falling back to ['CPUExecutionProvider']` (RTMPose backend) | onnxruntime-gpu 1.26 with cuDNN 9.27 | `pip install "nvidia-cudnn-cu12==9.10.*"` |
 | `the RTMPose backend is not installed in this environment` | `--pose_engine rtmpose` without that backend | Use the RTMPose image or environment, or the default MeTRAbs |
 
 ## Calibration quality

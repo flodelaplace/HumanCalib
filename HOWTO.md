@@ -215,6 +215,9 @@ pip install "humancalib[rtmpose]"
 # GPU: replace the CPU onnxruntime that rtmlib pulls in. Up to 1.26, onnxruntime-gpu uses
 # CUDA 12, like humancalib[gpu]; from 1.27 it needs CUDA 13 (onnxruntime-gpu[cuda,cudnn]).
 pip uninstall -y onnxruntime && pip install "onnxruntime-gpu<1.27"
+# Without humancalib[gpu] (e.g. on Windows), take the CUDA 12 libraries from pip as well; cuDNN
+# 9.27 makes onnxruntime-gpu 1.26 fall back to the CPU, 9.10 works:
+# pip install "onnxruntime-gpu[cuda,cudnn]<1.27" "nvidia-cudnn-cu12==9.10.*"
 ```
 
 then run with `--pose_engine rtmpose`. The VideoPose3D model (68 MB, converted to ONNX from the
