@@ -86,7 +86,9 @@ the laboratory's own motion capture than that dataset's own calibration, which
 makes any comparison against that reference a measure of the reference rather
 than of HumanCalib.
 
-A paper is in preparation. The evaluation protocol is in
+A paper is in preparation; its per-trial results are in
+[paper/results/](https://github.com/flodelaplace/HumanCalib/tree/main/paper/results) (CC BY 4.0).
+The evaluation protocol is in
 [docs/EVALUATION_PROTOCOL.md](https://github.com/flodelaplace/HumanCalib/blob/main/docs/EVALUATION_PROTOCOL.md).
 
 ## Installation
@@ -118,11 +120,11 @@ pip install "humancalib[gpu]"
 ### Check the install
 
 The demo videos are in the repository: download and unzip the
-[source archive](https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.5.1.zip)
+[source archive](https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.5.2.zip)
 (or `git clone` the repository), then
 
 ```bash
-humancalib run HumanCalib-0.5.1/demo HumanCalib-0.5.1/demo/Calib_scene.toml output/demo --height 1.78
+humancalib run HumanCalib-0.5.2/demo HumanCalib-0.5.2/demo/Calib_scene.toml output/demo --height 1.78
 ```
 
 It worked if the log shows `Compute device: GPU` and ends with an MRE summary

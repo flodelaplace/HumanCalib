@@ -1,0 +1,505 @@
+participant,trial,detector_2d,alignment,calibration,mean_error_mm,p95_mm,median_error_mm,n_frames,n_points
+1012,CircularWalking,MeTRAbs,per_frame,reference,51.00394387314539,90.47778230443478,49.03064561274305,886,17720
+1012,CircularWalking,MeTRAbs,per_trial,reference,68.56221685339486,122.01485956334014,68.35895070822568,886,17720
+1012,CircularWalking,MeTRAbs,per_frame,humancalib_same_walk,49.240991822355056,87.78610861642605,47.13155816373176,886,17720
+1012,CircularWalking,MeTRAbs,per_trial,humancalib_same_walk,63.41449216984912,113.95311190149889,59.92818401898063,886,17720
+1012,CircularWalking,MeTRAbs,per_frame,humancalib_other_walk,49.39832209098655,88.17627876165348,47.355757484777655,886,17720
+1012,CircularWalking,MeTRAbs,per_trial,humancalib_other_walk,63.426034106343074,113.84432504642336,59.84583664066264,886,17720
+1012,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,reference,49.56170001161302,95.19565199389824,45.47956618391026,904,18072
+1012,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,reference,67.59672687772333,135.1458926498157,62.67484460795907,904,18072
+1012,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,47.476737074941255,91.79656622281624,43.52564501780745,904,18072
+1012,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,58.94030386835141,113.9783245358444,52.0059249661207,904,18072
+1012,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,47.64607427908031,92.42924575533388,43.6788385894162,904,18072
+1012,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,59.37504549079551,114.77404570096677,52.62288735281816,904,18072
+1012,CircularWalking,RTMPose (no selection),per_frame,reference,48.4480562486736,93.48836610028958,43.954618020440776,1000,19992
+1012,CircularWalking,RTMPose (no selection),per_trial,reference,65.42610642941388,132.12671570501993,60.16926058023586,1000,19992
+1012,CircularWalking,RTMPose (no selection),per_frame,humancalib_same_walk,46.131930000665285,89.64487173700348,41.66964655403015,1000,19992
+1012,CircularWalking,RTMPose (no selection),per_trial,humancalib_same_walk,56.94129197772142,111.84474714755966,49.79585681666817,1000,19992
+1012,CircularWalking,RTMPose (no selection),per_frame,humancalib_other_walk,46.27496003363509,89.94947530577488,41.92958206074597,1000,19992
+1012,CircularWalking,RTMPose (no selection),per_trial,humancalib_other_walk,57.21421704302335,112.4272829568468,50.10333629902913,1000,19992
+1012,StraightWalking,MeTRAbs,per_frame,reference,59.251901283627376,109.63360904268552,54.41730464899749,111,2220
+1012,StraightWalking,MeTRAbs,per_trial,reference,66.41292814295949,139.19223125954522,61.54655828345691,111,2220
+1012,StraightWalking,MeTRAbs,per_frame,humancalib_same_walk,56.00582010801044,101.66388713392654,57.07785747821572,111,2220
+1012,StraightWalking,MeTRAbs,per_trial,humancalib_same_walk,65.24699906152665,112.12452916223484,64.85040404128127,111,2220
+1012,StraightWalking,MeTRAbs,per_frame,humancalib_other_walk,55.66494397039536,102.7656441516092,56.58827284303052,111,2220
+1012,StraightWalking,MeTRAbs,per_trial,humancalib_other_walk,63.77655554050079,113.7079653611688,62.99012025907128,111,2220
+1012,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,reference,55.991311860330384,118.4480995923913,46.4890179600727,113,2177
+1012,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,reference,61.75131577584214,138.3985257360676,50.65083695533251,113,2177
+1012,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,50.483201345934425,105.05764489657862,43.71747004618804,113,2177
+1012,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,57.50580022276037,115.6629252092232,51.19133051314172,113,2177
+1012,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,50.58032792541733,107.02966827131335,43.3411380494864,113,2177
+1012,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,57.17864627176625,117.05798900765234,51.58713338454988,113,2177
+1012,StraightWalking,RTMPose (no selection),per_frame,reference,49.46173974213194,107.11636282300618,40.95547481897957,215,3916
+1012,StraightWalking,RTMPose (no selection),per_trial,reference,58.13573365274026,142.39628436618202,49.97883573508629,215,3916
+1012,StraightWalking,RTMPose (no selection),per_frame,humancalib_same_walk,44.43544037968995,94.2385617416661,37.85526642583614,215,3916
+1012,StraightWalking,RTMPose (no selection),per_trial,humancalib_same_walk,54.1095698088492,113.79470909206351,48.55858682699788,215,3916
+1012,StraightWalking,RTMPose (no selection),per_frame,humancalib_other_walk,44.60738909060726,95.36427473632313,38.36390693997367,215,3916
+1012,StraightWalking,RTMPose (no selection),per_trial,humancalib_other_walk,53.84026134660319,111.64118555794916,48.06605453084239,215,3916
+1118,CircularWalking,MeTRAbs,per_frame,reference,47.99763488216332,88.55715953895763,44.57177486960647,377,7540
+1118,CircularWalking,MeTRAbs,per_trial,reference,80.0037676688285,160.9792945478545,69.31235213749707,377,7540
+1118,CircularWalking,MeTRAbs,per_frame,humancalib_same_walk,45.54342696249485,81.19013573887668,42.98800352860418,377,7540
+1118,CircularWalking,MeTRAbs,per_trial,humancalib_same_walk,61.00049520286613,117.68354660572402,54.81377511367892,377,7540
+1118,CircularWalking,MeTRAbs,per_frame,humancalib_other_walk,45.49295899673098,81.21206776648981,42.9772431976681,377,7540
+1118,CircularWalking,MeTRAbs,per_trial,humancalib_other_walk,60.19850621072474,114.64493236265908,54.30109698265133,377,7540
+1118,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,reference,48.90509562315594,106.6925269460922,42.08290244352827,389,7778
+1118,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,reference,69.67554392072006,164.9000236403065,56.53119857197672,389,7778
+1118,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,46.21161094205139,104.55684794245516,39.10033537731929,389,7778
+1118,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,52.49190219180661,122.2953961881592,43.132034274964425,389,7778
+1118,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,46.44120768692178,107.76443553435884,39.048987779351776,389,7778
+1118,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,52.75783274077915,126.40824380205387,43.51951322505072,389,7778
+1118,CircularWalking,RTMPose (no selection),per_frame,reference,46.10943587026781,97.2472560243976,39.33292030389092,1000,19997
+1118,CircularWalking,RTMPose (no selection),per_trial,reference,65.02302538681874,148.295896028548,52.3168812228649,1000,19997
+1118,CircularWalking,RTMPose (no selection),per_frame,humancalib_same_walk,41.71598342330512,91.38059152642413,35.05254874209844,1000,19997
+1118,CircularWalking,RTMPose (no selection),per_trial,humancalib_same_walk,48.30276892439105,111.25712311324136,40.8557725737906,1000,19997
+1118,CircularWalking,RTMPose (no selection),per_frame,humancalib_other_walk,41.79451270087916,93.60128567456152,34.69864967212353,1000,19997
+1118,CircularWalking,RTMPose (no selection),per_trial,humancalib_other_walk,48.063654906142645,112.0477663030756,40.70117685788138,1000,19997
+1118,StraightWalking,MeTRAbs,per_frame,reference,59.963263159519705,106.24471204814164,59.78183434684991,63,1260
+1118,StraightWalking,MeTRAbs,per_trial,reference,67.69318042709263,141.73220652834766,59.40243735126978,63,1260
+1118,StraightWalking,MeTRAbs,per_frame,humancalib_same_walk,54.257473312608205,91.93440992992272,52.690675034436936,63,1260
+1118,StraightWalking,MeTRAbs,per_trial,humancalib_same_walk,57.5415325773684,99.31414631573249,56.07314669899624,63,1260
+1118,StraightWalking,MeTRAbs,per_frame,humancalib_other_walk,54.42233369786885,93.1048805348068,53.77272189889517,63,1260
+1118,StraightWalking,MeTRAbs,per_trial,humancalib_other_walk,57.71799021220823,100.4927909694799,56.584325848903056,63,1260
+1118,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,reference,57.92763188076141,115.08631246009236,53.2552620940438,80,1474
+1118,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,reference,68.35223727027673,145.63998513912844,55.61271430269736,80,1474
+1118,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,46.62119253716783,97.286404231321,42.8414405647584,80,1474
+1118,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,52.55921400825188,116.82542497021348,45.87782373440197,80,1474
+1118,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,48.565257760208524,99.41697266080186,44.39019739538655,80,1474
+1118,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,54.51719518736895,120.50877788360886,46.95089932901519,80,1474
+1118,StraightWalking,RTMPose (no selection),per_frame,reference,51.12066509045821,105.9333443657152,45.77670413559197,286,5110
+1118,StraightWalking,RTMPose (no selection),per_trial,reference,69.27967417167687,149.48192882392942,58.40215429087807,286,5110
+1118,StraightWalking,RTMPose (no selection),per_frame,humancalib_same_walk,40.00986111729161,85.03589192518862,34.51294283210039,286,5110
+1118,StraightWalking,RTMPose (no selection),per_trial,humancalib_same_walk,49.44918191285636,114.37508931542332,39.99394659250223,286,5110
+1118,StraightWalking,RTMPose (no selection),per_frame,humancalib_other_walk,41.716319664671865,87.06249682367418,35.98361744546216,286,5110
+1118,StraightWalking,RTMPose (no selection),per_trial,humancalib_other_walk,51.04042555226325,120.57570951496926,40.17632681592265,286,5110
+1508,CircularWalking,MeTRAbs,per_frame,reference,55.96437365995008,96.60840033191116,54.12492505592744,780,15600
+1508,CircularWalking,MeTRAbs,per_trial,reference,77.77243099176276,137.30535790075874,77.13755898703809,780,15600
+1508,CircularWalking,MeTRAbs,per_frame,humancalib_same_walk,54.65741962824306,96.50481370198531,52.1511194220578,780,15600
+1508,CircularWalking,MeTRAbs,per_trial,humancalib_same_walk,77.55601846972708,140.64800226635268,72.77058553352533,780,15600
+1508,CircularWalking,MeTRAbs,per_frame,humancalib_other_walk,55.124970202909495,96.55839710878462,52.80124654921461,780,15600
+1508,CircularWalking,MeTRAbs,per_trial,humancalib_other_walk,78.71016101796197,143.50489988048582,72.91028010626201,780,15600
+1508,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,reference,58.95181784578782,112.94882667374875,54.09820558844236,840,16763
+1508,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,reference,75.87212666053004,145.6680714514184,69.33381345695328,840,16763
+1508,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,57.82193974664512,111.58211089360653,53.051137267775744,840,16763
+1508,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,72.44652938657752,149.15311457851055,63.0753142019472,840,16763
+1508,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,58.33896928284141,113.96011032880048,53.6056154567524,840,16763
+1508,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,73.66495735463431,153.30819407231502,64.45582076607812,840,16763
+1508,CircularWalking,RTMPose (no selection),per_frame,reference,57.39105797671784,110.66181343264718,52.756621482113495,1000,19963
+1508,CircularWalking,RTMPose (no selection),per_trial,reference,73.7017702313351,143.59890056303328,67.33079392576292,1000,19963
+1508,CircularWalking,RTMPose (no selection),per_frame,humancalib_same_walk,55.580299027662754,108.91126396908751,50.51450856068058,1000,19963
+1508,CircularWalking,RTMPose (no selection),per_trial,humancalib_same_walk,69.48513588044744,145.76667929917113,60.28669632733247,1000,19963
+1508,CircularWalking,RTMPose (no selection),per_frame,humancalib_other_walk,55.96217298518793,110.96227155846492,51.16468222528585,1000,19963
+1508,CircularWalking,RTMPose (no selection),per_trial,humancalib_other_walk,70.54185032277492,149.7946728990389,61.60695405900411,1000,19963
+1508,StraightWalking,MeTRAbs,per_frame,reference,56.28140966832059,116.06538188392896,49.8812087904944,80,1600
+1508,StraightWalking,MeTRAbs,per_trial,reference,63.48320855422593,147.64044342797314,52.71910853594928,80,1600
+1508,StraightWalking,MeTRAbs,per_frame,humancalib_same_walk,45.58955709976173,81.58979678220753,43.63532016980388,80,1600
+1508,StraightWalking,MeTRAbs,per_trial,humancalib_same_walk,50.444079620842885,87.15422950873464,50.54308778425076,80,1600
+1508,StraightWalking,MeTRAbs,per_frame,humancalib_other_walk,47.263276729864735,90.61433533154327,39.64261461968334,80,1600
+1508,StraightWalking,MeTRAbs,per_trial,humancalib_other_walk,51.56363451817761,100.60648161132552,43.3931328160649,80,1600
+1508,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,reference,55.28462614421968,110.540833888448,50.91281306760361,110,1935
+1508,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,reference,66.64603587918566,151.45347470259327,56.49257430906051,110,1935
+1508,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,46.52390230216351,85.89609640842114,43.170940334106334,110,1935
+1508,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,51.50348609084044,100.53190510025992,43.20684598822175,110,1935
+1508,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,51.03667272070944,95.04262510578604,46.11786471302405,110,1935
+1508,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,57.94989861141608,117.61420892831757,49.1476894165373,110,1935
+1508,StraightWalking,RTMPose (no selection),per_frame,reference,48.29967818886935,102.24837105925614,43.11674633775536,245,4479
+1508,StraightWalking,RTMPose (no selection),per_trial,reference,60.18757955009574,152.28693185983647,46.99992333404894,245,4479
+1508,StraightWalking,RTMPose (no selection),per_frame,humancalib_same_walk,40.02588065392107,81.3134885977468,35.05342071598338,245,4479
+1508,StraightWalking,RTMPose (no selection),per_trial,humancalib_same_walk,46.98629884942426,106.212044030549,38.6581832283044,245,4479
+1508,StraightWalking,RTMPose (no selection),per_frame,humancalib_other_walk,43.03978164807104,89.41150251876414,36.44060529711575,245,4479
+1508,StraightWalking,RTMPose (no selection),per_trial,humancalib_other_walk,50.05828987864999,119.736967272933,40.16093324337678,245,4479
+1602,CircularWalking,MeTRAbs,per_frame,reference,61.90181569538641,108.38287509930664,59.69846286535481,881,17620
+1602,CircularWalking,MeTRAbs,per_trial,reference,90.905109290361,167.3986973250337,88.48400714976864,881,17620
+1602,CircularWalking,MeTRAbs,per_frame,humancalib_same_walk,59.27947143824586,105.14964488393043,56.60318216375765,881,17620
+1602,CircularWalking,MeTRAbs,per_trial,humancalib_same_walk,90.83569369191004,169.32362317982827,82.2245483581365,881,17620
+1602,CircularWalking,MeTRAbs,per_frame,humancalib_other_walk,59.766599270551644,106.04273484816504,56.92033874367986,881,17620
+1602,CircularWalking,MeTRAbs,per_trial,humancalib_other_walk,92.2092310807612,171.16908509820297,83.3286184416474,881,17620
+1602,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,reference,59.65905337800899,112.25590228048216,55.4940066197503,906,17939
+1602,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,reference,84.93385043393275,165.58344573739066,77.83221201008234,906,17939
+1602,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,57.77909302455668,110.65950666091612,53.91248931655863,906,17939
+1602,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,81.9964147835951,168.20723792249987,72.21423692304184,906,17939
+1602,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,57.82812832136482,110.23001099364993,54.00791996237306,906,17939
+1602,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,83.03576722307425,169.17885363070164,73.62958044594995,906,17939
+1602,CircularWalking,RTMPose (no selection),per_frame,reference,57.92410921586037,110.95931106048528,53.60478331118672,1000,19818
+1602,CircularWalking,RTMPose (no selection),per_trial,reference,81.94199873206578,162.76282756483042,74.9892619274256,1000,19818
+1602,CircularWalking,RTMPose (no selection),per_frame,humancalib_same_walk,55.75694129703363,109.15280392743496,51.503907856372734,1000,19818
+1602,CircularWalking,RTMPose (no selection),per_trial,humancalib_same_walk,78.75445038500894,167.07591491523812,68.5591141547176,1000,19818
+1602,CircularWalking,RTMPose (no selection),per_frame,humancalib_other_walk,55.76327122312068,108.8054564104172,51.65212654461895,1000,19818
+1602,CircularWalking,RTMPose (no selection),per_trial,humancalib_other_walk,79.7072048578283,167.4896007599401,69.64471973219452,1000,19818
+1602,StraightWalking,MeTRAbs,per_frame,reference,64.49818159489483,118.43210001499044,59.79513464783744,102,2040
+1602,StraightWalking,MeTRAbs,per_trial,reference,77.35893281847426,150.07874423883564,71.98323214744613,102,2040
+1602,StraightWalking,MeTRAbs,per_frame,humancalib_same_walk,56.13333639035751,95.23850288279658,55.56114078930514,102,2040
+1602,StraightWalking,MeTRAbs,per_trial,humancalib_same_walk,65.73774276245055,106.72722072294732,67.2783893725439,102,2040
+1602,StraightWalking,MeTRAbs,per_frame,humancalib_other_walk,54.84330243164345,99.75924515549514,51.68145435319005,102,2040
+1602,StraightWalking,MeTRAbs,per_trial,humancalib_other_walk,61.00425167666985,113.33856325318284,58.635582049811454,102,2040
+1602,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,reference,60.913539717264776,120.47035045788358,55.94037646936539,96,1793
+1602,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,reference,75.0383920772743,159.10607631839557,64.88966461917225,96,1793
+1602,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,48.62876071214938,94.42584269981658,45.04536551939705,96,1793
+1602,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,59.85817973469756,116.44738983703716,51.96655183259785,96,1793
+1602,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,50.76065227165361,99.74542418007894,46.89287419929946,96,1793
+1602,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,58.54982103156577,121.19167441026512,51.025839221427006,96,1793
+1602,StraightWalking,RTMPose (no selection),per_frame,reference,63.21403680548045,141.34182066774295,52.236120887519554,215,3781
+1602,StraightWalking,RTMPose (no selection),per_trial,reference,84.65369529931488,194.36815393012543,60.75499518829015,215,3781
+1602,StraightWalking,RTMPose (no selection),per_frame,humancalib_same_walk,49.86869417392772,110.6741186824887,39.84230343685235,215,3781
+1602,StraightWalking,RTMPose (no selection),per_trial,humancalib_same_walk,65.11803274605309,144.04408240236947,48.67925099790749,215,3781
+1602,StraightWalking,RTMPose (no selection),per_frame,humancalib_other_walk,51.36239620862063,124.62015924513813,40.73379921501441,215,3781
+1602,StraightWalking,RTMPose (no selection),per_trial,humancalib_other_walk,63.93455340598789,141.87338995581624,46.71160213919508,215,3781
+1847,CircularWalking,MeTRAbs,per_frame,reference,58.04312915925162,104.87377523430747,56.37451049921347,577,11540
+1847,CircularWalking,MeTRAbs,per_trial,reference,90.91664328563692,173.66506622306926,84.83846181244814,577,11540
+1847,CircularWalking,MeTRAbs,per_frame,humancalib_same_walk,57.08084799163227,103.99358670419495,55.33295972900853,577,11540
+1847,CircularWalking,MeTRAbs,per_trial,humancalib_same_walk,78.90957140022759,155.04704649435072,70.25433981224285,577,11540
+1847,CircularWalking,MeTRAbs,per_frame,humancalib_other_walk,56.983385822948726,102.67488240166864,55.14985685782828,577,11540
+1847,CircularWalking,MeTRAbs,per_trial,humancalib_other_walk,80.11233706854581,155.90068432888413,73.11295798977483,577,11540
+1847,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,reference,57.59922113683103,118.24970750980096,51.13328588504008,616,12308
+1847,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,reference,80.44601476193267,176.8404720934676,66.42149060261558,616,12308
+1847,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,56.02683707712034,114.97947529466798,49.46473680779658,616,12308
+1847,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,70.2044775279813,151.56321557078385,59.14373075411088,616,12308
+1847,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,56.46551139348744,116.80899296334437,49.882672563120494,616,12308
+1847,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,72.46519273967515,155.95151278211168,61.51641084542561,616,12308
+1847,CircularWalking,RTMPose (no selection),per_frame,reference,52.56882237725724,108.79979635286648,46.6383226623081,1000,19988
+1847,CircularWalking,RTMPose (no selection),per_trial,reference,71.4613472462659,167.38058785705636,58.099048275564776,1000,19988
+1847,CircularWalking,RTMPose (no selection),per_frame,humancalib_same_walk,50.09463216836527,105.06717368894644,43.61161842184952,1000,19988
+1847,CircularWalking,RTMPose (no selection),per_trial,humancalib_same_walk,62.19657506440896,142.094070206331,52.57481933600656,1000,19988
+1847,CircularWalking,RTMPose (no selection),per_frame,humancalib_other_walk,50.02682364502273,106.19298204301344,43.32820959273397,1000,19988
+1847,CircularWalking,RTMPose (no selection),per_trial,humancalib_other_walk,63.08768062057124,145.1915808877155,52.874576970114326,1000,19988
+1847,StraightWalking,MeTRAbs,per_frame,reference,60.62692881279357,118.20961443441472,55.40749237027891,95,1900
+1847,StraightWalking,MeTRAbs,per_trial,reference,67.51459418052059,138.53119231155137,62.76986149974479,95,1900
+1847,StraightWalking,MeTRAbs,per_frame,humancalib_same_walk,56.93570624950844,99.88337478386975,55.95927068166292,95,1900
+1847,StraightWalking,MeTRAbs,per_trial,humancalib_same_walk,64.00726947750246,114.16833004938287,64.15786544124956,95,1900
+1847,StraightWalking,MeTRAbs,per_frame,humancalib_other_walk,59.727969707925546,107.26603946479528,58.256760604344194,95,1900
+1847,StraightWalking,MeTRAbs,per_trial,humancalib_other_walk,73.42243557741847,134.95911858032744,71.87912729180312,95,1900
+1847,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,reference,56.90630765030463,115.42789571645622,52.16105946361781,92,1646
+1847,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,reference,67.82123497932464,147.24918730551818,54.9375659916214,92,1646
+1847,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,51.366087786837845,111.8734717531849,46.2052768940125,92,1646
+1847,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,60.48574155899068,138.0036250811288,49.52427233257071,92,1646
+1847,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,51.670893678409,110.53009513431668,46.09807395894016,92,1646
+1847,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,68.34329942875416,145.2414855960177,60.4723680482596,92,1646
+1847,StraightWalking,RTMPose (no selection),per_frame,reference,46.82650529429179,97.99002122728162,43.31924061513539,226,3999
+1847,StraightWalking,RTMPose (no selection),per_trial,reference,57.18191928481506,138.572448404012,47.56981564777184,226,3999
+1847,StraightWalking,RTMPose (no selection),per_frame,humancalib_same_walk,41.951304700337566,90.79198394711268,35.718612980767055,226,3999
+1847,StraightWalking,RTMPose (no selection),per_trial,humancalib_same_walk,50.01776761734392,118.30247701937134,38.97878626274547,226,3999
+1847,StraightWalking,RTMPose (no selection),per_frame,humancalib_other_walk,47.125500543389485,101.94687409667308,40.3035532857607,226,3999
+1847,StraightWalking,RTMPose (no selection),per_trial,humancalib_other_walk,61.66101870322368,138.0488301447413,52.7129675563853,226,3999
+2112,CircularWalking,MeTRAbs,per_frame,reference,52.802498987093934,91.56020771662683,52.44867680203143,748,14960
+2112,CircularWalking,MeTRAbs,per_trial,reference,68.11448215760268,118.26535883671843,66.9226816944996,748,14960
+2112,CircularWalking,MeTRAbs,per_frame,humancalib_same_walk,51.089538695493786,89.79511515298667,49.99058879076589,748,14960
+2112,CircularWalking,MeTRAbs,per_trial,humancalib_same_walk,65.37552639098872,114.4610746269918,60.72606849785883,748,14960
+2112,CircularWalking,MeTRAbs,per_frame,humancalib_other_walk,51.08077954239389,89.66712742033678,50.065519661975685,748,14960
+2112,CircularWalking,MeTRAbs,per_trial,humancalib_other_walk,65.26527299295951,115.51499179520664,60.50029885574624,748,14960
+2112,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,reference,50.79763841118172,98.03876046709844,44.988440021053016,848,16953
+2112,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,reference,63.92222796918932,117.27506552442314,60.28078609515924,848,16953
+2112,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,49.17009852080872,95.8723051119496,43.54379378142354,848,16953
+2112,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,58.45982955045483,119.7247142862963,50.44412540788848,848,16953
+2112,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,49.28744948753649,96.076128226302,43.83754794790442,848,16953
+2112,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,58.64743386453748,119.8594056870348,50.495284735960816,848,16953
+2112,CircularWalking,RTMPose (no selection),per_frame,reference,49.33185775471713,94.95173258652076,43.92144122722089,1000,19993
+2112,CircularWalking,RTMPose (no selection),per_trial,reference,62.05587533352698,116.76418300921291,58.022556368836426,1000,19993
+2112,CircularWalking,RTMPose (no selection),per_frame,humancalib_same_walk,47.3255328370224,92.84328496220536,41.63021906141316,1000,19993
+2112,CircularWalking,RTMPose (no selection),per_trial,humancalib_same_walk,56.01977060107569,116.93426557973164,47.83883863127985,1000,19993
+2112,CircularWalking,RTMPose (no selection),per_frame,humancalib_other_walk,47.40143298233073,92.81528396527614,41.82473935727871,1000,19993
+2112,CircularWalking,RTMPose (no selection),per_trial,humancalib_other_walk,56.27006197228672,116.9938202186318,48.02752200527536,1000,19993
+2112,StraightWalking,MeTRAbs,per_frame,reference,58.42563382711258,114.22068589350606,53.24698526774799,106,2120
+2112,StraightWalking,MeTRAbs,per_trial,reference,65.25214811897614,143.15961760196777,57.43001049677534,106,2120
+2112,StraightWalking,MeTRAbs,per_frame,humancalib_same_walk,54.69041312181852,102.12196678075954,53.65284916122194,106,2120
+2112,StraightWalking,MeTRAbs,per_trial,humancalib_same_walk,63.66416321445769,121.11189690995876,61.14777694437159,106,2120
+2112,StraightWalking,MeTRAbs,per_frame,humancalib_other_walk,55.348966391877696,101.60458553517934,54.54012664537852,106,2120
+2112,StraightWalking,MeTRAbs,per_trial,humancalib_other_walk,63.40893620282553,122.5465938327412,62.569681560643815,106,2120
+2112,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,reference,55.3949224701511,117.63573988290246,48.93011244077424,87,1560
+2112,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,reference,63.31034649321295,136.1494468132183,54.844067510935375,87,1560
+2112,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,49.31227852548005,108.59506369681463,44.37320213494256,87,1560
+2112,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,57.04348043820939,118.9569815647387,48.07495403811238,87,1560
+2112,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,49.73216130382159,106.4447092155866,44.77924128678611,87,1560
+2112,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,56.596790579826944,118.1366416609549,48.28678387988892,87,1560
+2112,StraightWalking,RTMPose (no selection),per_frame,reference,50.366262721895566,108.53556872036005,43.28014403923273,209,3617
+2112,StraightWalking,RTMPose (no selection),per_trial,reference,62.12308537890894,148.97644151442435,50.93848064753008,209,3617
+2112,StraightWalking,RTMPose (no selection),per_frame,humancalib_same_walk,45.803200940657725,97.08665520927576,38.77291618378164,209,3617
+2112,StraightWalking,RTMPose (no selection),per_trial,humancalib_same_walk,56.83291789351468,119.98902653794713,48.17074106682092,209,3617
+2112,StraightWalking,RTMPose (no selection),per_frame,humancalib_other_walk,47.33872201753292,104.76384840699522,38.60274427588201,209,3617
+2112,StraightWalking,RTMPose (no selection),per_trial,humancalib_other_walk,58.31865140424141,125.50286815101684,49.30381161089221,209,3617
+2198,CircularWalking,MeTRAbs,per_frame,reference,56.831152514122856,96.3243770340368,54.30134153967805,570,11400
+2198,CircularWalking,MeTRAbs,per_trial,reference,73.33689583888791,129.97010028520523,71.65710671915117,570,11400
+2198,CircularWalking,MeTRAbs,per_frame,humancalib_same_walk,55.26933592150369,93.77632119772672,52.69421021982946,570,11400
+2198,CircularWalking,MeTRAbs,per_trial,humancalib_same_walk,73.88232153206137,135.05284118984028,68.68466329217355,570,11400
+2198,CircularWalking,MeTRAbs,per_frame,humancalib_other_walk,55.588749456522216,94.3831572785504,52.56850508683643,570,11400
+2198,CircularWalking,MeTRAbs,per_trial,humancalib_other_walk,75.01354333618376,137.6002485982359,69.09550571411313,570,11400
+2198,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,reference,55.72610529433581,114.03155339430376,49.121873561898994,759,15171
+2198,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,reference,70.2069622337118,141.40229819967743,62.27198573358022,759,15171
+2198,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,53.97799917591165,111.88485273806616,46.40525391191104,759,15171
+2198,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,67.5672130122862,142.03902721470178,58.02617164018574,759,15171
+2198,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,54.63522615974827,113.75114229535136,47.170256207124616,759,15171
+2198,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,68.60666603005727,145.01511612570903,59.0049501934552,759,15171
+2198,CircularWalking,RTMPose (no selection),per_frame,reference,52.720909012860496,109.3537576758556,46.17928137434737,1000,19990
+2198,CircularWalking,RTMPose (no selection),per_trial,reference,67.09150811853955,136.40120109646847,59.1602825102254,1000,19990
+2198,CircularWalking,RTMPose (no selection),per_frame,humancalib_same_walk,51.19239676581584,106.87074775580255,43.98462033227043,1000,19990
+2198,CircularWalking,RTMPose (no selection),per_trial,humancalib_same_walk,64.49028001813842,137.40939704423724,55.64883705737107,1000,19990
+2198,CircularWalking,RTMPose (no selection),per_frame,humancalib_other_walk,51.69510302911195,107.71205640696408,44.47155521881604,1000,19990
+2198,CircularWalking,RTMPose (no selection),per_trial,humancalib_other_walk,65.35782189492538,139.71773277702732,56.06146772498897,1000,19990
+2198,StraightWalking,MeTRAbs,per_frame,reference,54.27556876283855,98.58828543349128,50.20585776869674,86,1720
+2198,StraightWalking,MeTRAbs,per_trial,reference,66.13513089915092,138.56482771123066,57.86375046900527,86,1720
+2198,StraightWalking,MeTRAbs,per_frame,humancalib_same_walk,49.55601608928103,87.93235497193402,46.77956614111967,86,1720
+2198,StraightWalking,MeTRAbs,per_trial,humancalib_same_walk,58.607284953769735,106.6256357455807,52.66881304637504,86,1720
+2198,StraightWalking,MeTRAbs,per_frame,humancalib_other_walk,49.40341677772184,91.64571381773273,44.47143400559101,86,1720
+2198,StraightWalking,MeTRAbs,per_trial,humancalib_other_walk,57.00112732108839,105.64474931038023,50.071664665412825,86,1720
+2198,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,reference,46.14155751050184,92.183474775812,40.75463667716981,84,1622
+2198,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,reference,54.76994979778959,119.39204554393538,48.835950085368566,84,1622
+2198,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,40.576533352482905,78.33945414447008,36.898786901853406,84,1622
+2198,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,46.38279609301205,94.15902214142696,42.00402833582749,84,1622
+2198,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,42.41802695259381,83.52282987830962,38.5974968940467,84,1622
+2198,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,47.93345230718739,96.4789007909838,42.9644447247068,84,1622
+2198,StraightWalking,RTMPose (no selection),per_frame,reference,43.87998280281015,85.45881056281533,39.25267043424563,223,3931
+2198,StraightWalking,RTMPose (no selection),per_trial,reference,55.66664686578888,131.7118595090647,45.20707790654147,223,3931
+2198,StraightWalking,RTMPose (no selection),per_frame,humancalib_same_walk,39.24989082275559,76.54851022695682,33.942178412457324,223,3931
+2198,StraightWalking,RTMPose (no selection),per_trial,humancalib_same_walk,46.58371479980337,103.39875321592558,39.13573241704859,223,3931
+2198,StraightWalking,RTMPose (no selection),per_frame,humancalib_other_walk,40.454041770457394,82.29765860822695,35.062750311624974,223,3931
+2198,StraightWalking,RTMPose (no selection),per_trial,humancalib_other_walk,46.41796957274221,106.1741124939528,38.1635585344035,223,3931
+2307,CircularWalking,MeTRAbs,per_frame,reference,47.81010924012423,86.64112583610374,45.26161043877514,582,11640
+2307,CircularWalking,MeTRAbs,per_trial,reference,63.159435234198455,110.41900278505986,59.97108827326606,582,11640
+2307,CircularWalking,MeTRAbs,per_frame,humancalib_same_walk,45.713519933384674,85.83187538800054,43.51192951953266,582,11640
+2307,CircularWalking,MeTRAbs,per_trial,humancalib_same_walk,59.72756127066545,111.14566505273174,54.41213211968331,582,11640
+2307,CircularWalking,MeTRAbs,per_frame,humancalib_other_walk,45.80092561962813,85.56667335854354,43.74703473620427,582,11640
+2307,CircularWalking,MeTRAbs,per_trial,humancalib_other_walk,59.829896247388895,110.40481940035582,54.14774532472335,582,11640
+2307,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,reference,46.27015279185651,100.9270504375491,39.47958180299626,758,15152
+2307,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,reference,60.21985574596565,122.98472355656668,53.72491148767519,758,15152
+2307,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,44.43559806842086,99.30865412011262,37.71914046398706,758,15152
+2307,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,53.39886059584408,119.1233721078794,44.733611240061606,758,15152
+2307,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,44.56025379777395,98.4656225780307,37.913494973803225,758,15152
+2307,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,53.79158542085074,118.77024629862608,45.21279427266811,758,15152
+2307,CircularWalking,RTMPose (no selection),per_frame,reference,46.17250852270212,98.31969101146292,39.2058416307862,1000,19992
+2307,CircularWalking,RTMPose (no selection),per_trial,reference,474.0153377005186,692.6886265231277,469.182223570838,1000,19992
+2307,CircularWalking,RTMPose (no selection),per_frame,humancalib_same_walk,43.72580727404162,95.44620740638106,36.901664594100666,1000,19992
+2307,CircularWalking,RTMPose (no selection),per_trial,humancalib_same_walk,58.60478607850366,122.90686567897878,49.76776725477197,1000,19992
+2307,CircularWalking,RTMPose (no selection),per_frame,humancalib_other_walk,43.83981141053443,95.15715509471234,37.03623118947701,1000,19992
+2307,CircularWalking,RTMPose (no selection),per_trial,humancalib_other_walk,167.00003320444654,255.61979642056835,162.14161034753644,1000,19992
+2307,StraightWalking,MeTRAbs,per_frame,reference,59.75497867365574,106.2346215445768,59.088846563495366,79,1580
+2307,StraightWalking,MeTRAbs,per_trial,reference,67.90083273622054,132.30200461007374,66.08854242636164,79,1580
+2307,StraightWalking,MeTRAbs,per_frame,humancalib_same_walk,58.22127826891317,101.69075361009028,58.07912348662724,79,1580
+2307,StraightWalking,MeTRAbs,per_trial,humancalib_same_walk,65.15398208527672,110.85023700246056,67.06717878906034,79,1580
+2307,StraightWalking,MeTRAbs,per_frame,humancalib_other_walk,58.732834627583536,103.10102984531652,58.53363142548444,79,1580
+2307,StraightWalking,MeTRAbs,per_trial,humancalib_other_walk,65.15165201637801,110.76786782017932,65.58708137373593,79,1580
+2307,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,reference,51.562348733848346,105.59967409266883,45.2240894211596,105,1949
+2307,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,reference,59.83219585150808,130.80745657771806,51.48427201963475,105,1949
+2307,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,49.34209346153134,99.1469822908418,44.10520845340852,105,1949
+2307,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,56.70128089567581,119.34074868442268,50.75647131656069,105,1949
+2307,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,50.7229126308836,102.82779072302417,45.7884113648159,105,1949
+2307,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,57.53963940925532,121.92351320388178,50.46100820941943,105,1949
+2307,StraightWalking,RTMPose (no selection),per_frame,reference,50.62542846300147,104.88474720258095,44.25727436116537,301,5509
+2307,StraightWalking,RTMPose (no selection),per_trial,reference,60.55625155410938,143.56422906902463,52.99331323966707,301,5509
+2307,StraightWalking,RTMPose (no selection),per_frame,humancalib_same_walk,43.37130817229927,87.74403527645713,39.450855213116,301,5509
+2307,StraightWalking,RTMPose (no selection),per_trial,humancalib_same_walk,52.96831574412816,118.05521751004716,43.81423413877721,301,5509
+2307,StraightWalking,RTMPose (no selection),per_frame,humancalib_other_walk,44.2020928003413,92.1191248605588,39.86219776156584,301,5509
+2307,StraightWalking,RTMPose (no selection),per_trial,humancalib_other_walk,53.06689691997345,118.78007913209368,43.343779458613184,301,5509
+3361,CircularWalking,MeTRAbs,per_frame,reference,51.03900558105517,93.0988183956372,49.92326982561178,606,12120
+3361,CircularWalking,MeTRAbs,per_trial,reference,75.6224263156352,147.32661635379932,68.5204506159941,606,12120
+3361,CircularWalking,MeTRAbs,per_frame,humancalib_same_walk,49.46173298309403,88.43994411363462,48.116642248214966,606,12120
+3361,CircularWalking,MeTRAbs,per_trial,humancalib_same_walk,64.9446143596149,125.33557722469088,59.17575535473407,606,12120
+3361,CircularWalking,MeTRAbs,per_frame,humancalib_other_walk,49.177873169693775,86.86420988334822,48.14041242497123,606,12120
+3361,CircularWalking,MeTRAbs,per_trial,humancalib_other_walk,64.51927817020572,123.86408333028405,58.95607701567707,606,12120
+3361,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,reference,51.00811193130305,101.0110807222128,45.51520623958547,691,13820
+3361,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,reference,67.39478400130223,147.00053309953523,57.9110420474818,691,13820
+3361,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,49.28242131005303,97.31818267876208,43.92165420602291,691,13820
+3361,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,59.38999349129833,128.35786249356582,51.07783536326606,691,13820
+3361,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,49.17062352617297,97.52907782189796,43.65974990101712,691,13820
+3361,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,59.50222901010416,128.641613498013,51.33099657966816,691,13820
+3361,CircularWalking,RTMPose (no selection),per_frame,reference,50.19496782842933,101.7039450144702,44.04216097357613,1000,20000
+3361,CircularWalking,RTMPose (no selection),per_trial,reference,65.746914347143,146.62809892872312,55.44529899126218,1000,20000
+3361,CircularWalking,RTMPose (no selection),per_frame,humancalib_same_walk,47.43221968271274,96.26447551110392,41.713190510107296,1000,20000
+3361,CircularWalking,RTMPose (no selection),per_trial,humancalib_same_walk,57.4151905197632,127.99845656142634,48.957558255598535,1000,20000
+3361,CircularWalking,RTMPose (no selection),per_frame,humancalib_other_walk,47.251001633868725,96.5685839084058,41.41362759299804,1000,20000
+3361,CircularWalking,RTMPose (no selection),per_trial,humancalib_other_walk,57.47290855026358,127.51247490534396,49.065578080642894,1000,20000
+3361,StraightWalking,MeTRAbs,per_frame,reference,56.36291118821771,109.41546114589956,49.986261353535085,108,2160
+3361,StraightWalking,MeTRAbs,per_trial,reference,61.79207927006374,133.47367018139386,50.66746293927817,108,2160
+3361,StraightWalking,MeTRAbs,per_frame,humancalib_same_walk,50.22044893975328,85.94073264709218,49.35203262611331,108,2160
+3361,StraightWalking,MeTRAbs,per_trial,humancalib_same_walk,57.70644873868207,97.7665340174308,56.40501539833693,108,2160
+3361,StraightWalking,MeTRAbs,per_frame,humancalib_other_walk,52.01257286941946,87.73311892001941,52.2736533592355,108,2160
+3361,StraightWalking,MeTRAbs,per_trial,humancalib_other_walk,62.34995210988957,111.1281807574691,59.48858311055235,108,2160
+3361,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,reference,54.23028175131073,113.21160886268515,48.331813207063625,122,2310
+3361,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,reference,60.80209704874818,144.1836018674492,51.05624009701512,122,2310
+3361,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,43.23377459355909,84.86966315943191,38.2062280864085,122,2310
+3361,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,49.09962877553121,103.87090280432716,41.48443192542221,122,2310
+3361,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,45.223766494169546,90.49290611809992,39.93934804184991,122,2310
+3361,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,54.11206899309624,125.06384817727272,44.914520922507,122,2310
+3361,StraightWalking,RTMPose (no selection),per_frame,reference,48.5167742172807,104.79761428249412,40.7484101651079,293,5317
+3361,StraightWalking,RTMPose (no selection),per_trial,reference,56.4736328842642,141.15367951080955,42.14080137240134,293,5317
+3361,StraightWalking,RTMPose (no selection),per_frame,humancalib_same_walk,38.947014752623765,81.67126013790876,32.59950592102055,293,5317
+3361,StraightWalking,RTMPose (no selection),per_trial,humancalib_same_walk,46.05570562729847,109.97699845803211,35.90385566421087,293,5317
+3361,StraightWalking,RTMPose (no selection),per_frame,humancalib_other_walk,40.65337398711238,85.17955328840907,33.40293292736205,293,5317
+3361,StraightWalking,RTMPose (no selection),per_trial,humancalib_other_walk,50.63495768116635,130.56876399192018,41.15654883008087,293,5317
+4216,CircularWalking,MeTRAbs,per_frame,reference,51.156925189170906,87.69023150143875,49.13972401269496,739,14780
+4216,CircularWalking,MeTRAbs,per_trial,reference,64.95729916067937,117.18915831640604,62.17483454035961,739,14780
+4216,CircularWalking,MeTRAbs,per_frame,humancalib_same_walk,49.15010098463696,84.45256840762542,47.63483428520692,739,14780
+4216,CircularWalking,MeTRAbs,per_trial,humancalib_same_walk,63.58771839088396,119.84912706884332,57.699528796348005,739,14780
+4216,CircularWalking,MeTRAbs,per_frame,humancalib_other_walk,49.0085603786902,85.01676898930401,47.369510559731935,739,14780
+4216,CircularWalking,MeTRAbs,per_trial,humancalib_other_walk,64.11066795075266,122.88837550349872,57.70238223697659,739,14780
+4216,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,reference,45.724575688863546,85.44108596220609,41.63798106341123,880,17597
+4216,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,reference,58.263671861356535,111.756538127983,54.12604709599648,880,17597
+4216,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,44.10699919274134,82.21110154670953,39.970878438221305,880,17597
+4216,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,53.87448715893382,107.02647972589848,47.21805701156994,880,17597
+4216,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,44.217755384873215,82.2850864436107,39.85662587094611,880,17597
+4216,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,54.2990773002205,109.34157103450114,47.19978840379058,880,17597
+4216,CircularWalking,RTMPose (no selection),per_frame,reference,44.5990142194007,83.45426122173981,40.36297400837913,1000,19997
+4216,CircularWalking,RTMPose (no selection),per_trial,reference,56.34527914645285,109.49894364639256,51.7193029729148,1000,19997
+4216,CircularWalking,RTMPose (no selection),per_frame,humancalib_same_walk,42.93093679838913,80.50980519701133,38.7246806192972,1000,19997
+4216,CircularWalking,RTMPose (no selection),per_trial,humancalib_same_walk,52.40787951321101,106.17523579866447,45.45829921985266,1000,19997
+4216,CircularWalking,RTMPose (no selection),per_frame,humancalib_other_walk,42.983886067063374,80.31050617691152,38.474477747975534,1000,19997
+4216,CircularWalking,RTMPose (no selection),per_trial,humancalib_other_walk,52.860933239810365,108.21400219283828,45.69905695200924,1000,19997
+4216,StraightWalking,MeTRAbs,per_frame,reference,55.89438102230209,104.45720249788386,51.48811485113174,107,2140
+4216,StraightWalking,MeTRAbs,per_trial,reference,60.69184272328443,123.14389446297156,53.93422592247087,107,2140
+4216,StraightWalking,MeTRAbs,per_frame,humancalib_same_walk,51.04366400129582,85.62404837284593,51.19825438959778,107,2140
+4216,StraightWalking,MeTRAbs,per_trial,humancalib_same_walk,56.15550740113101,97.84085259680351,55.57569851009734,107,2140
+4216,StraightWalking,MeTRAbs,per_frame,humancalib_other_walk,50.776233327073165,86.96673806596932,51.91352030761253,107,2140
+4216,StraightWalking,MeTRAbs,per_trial,humancalib_other_walk,55.39227600269283,95.39592981025524,55.0306253517941,107,2140
+4216,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,reference,46.46591827246,85.51604283853558,42.831477524965074,108,2130
+4216,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,reference,51.93571653054873,96.84893403896012,47.059299274782674,108,2130
+4216,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,43.81688317860753,80.73135018471784,40.481759764123865,108,2130
+4216,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,48.20559502797792,89.04974918254572,44.26943677731338,108,2130
+4216,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,44.99871198767209,82.72167754621942,41.36128317593035,108,2130
+4216,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,49.13201950298976,92.14424521016058,44.91777057480829,108,2130
+4216,StraightWalking,RTMPose (no selection),per_frame,reference,42.40559985963506,78.92061462659308,38.45414171181103,289,5288
+4216,StraightWalking,RTMPose (no selection),per_trial,reference,49.39151400182209,100.36475800987476,41.30898194608693,289,5288
+4216,StraightWalking,RTMPose (no selection),per_frame,humancalib_same_walk,38.30582608573127,74.68446411474291,33.66645943978745,289,5288
+4216,StraightWalking,RTMPose (no selection),per_trial,humancalib_same_walk,43.87023497885223,91.56218226118251,35.597230874953496,289,5288
+4216,StraightWalking,RTMPose (no selection),per_frame,humancalib_other_walk,39.799896596534126,77.16977730935685,34.75944529019699,289,5288
+4216,StraightWalking,RTMPose (no selection),per_trial,humancalib_other_walk,45.77264742203712,99.396653709543,38.3704587064576,289,5288
+4279,CircularWalking,MeTRAbs,per_frame,reference,65.90905329765127,112.54207670272876,62.154764775975465,534,10680
+4279,CircularWalking,MeTRAbs,per_trial,reference,85.79163865105815,162.8533038042026,81.16794934433496,534,10680
+4279,CircularWalking,MeTRAbs,per_frame,humancalib_same_walk,64.0709275756691,109.24074267205796,60.53837097000834,534,10680
+4279,CircularWalking,MeTRAbs,per_trial,humancalib_same_walk,86.09049222103289,164.22453544406184,80.04846749971617,534,10680
+4279,CircularWalking,MeTRAbs,per_frame,humancalib_other_walk,64.2852781044267,109.58528635892476,60.80413064393417,534,10680
+4279,CircularWalking,MeTRAbs,per_trial,humancalib_other_walk,84.76968259070696,163.40070458143597,79.18943986563423,534,10680
+4279,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,reference,62.18047695654551,121.4245474982816,55.83453456321473,700,13835
+4279,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,reference,77.81658507240947,153.54157947048824,68.59310714022597,700,13835
+4279,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,60.39182557303637,120.97899602971204,53.81357747823034,700,13835
+4279,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,76.38514952557104,160.26838347372117,64.31015466521757,700,13835
+4279,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,60.63246874295349,121.38837592973948,54.07751721701913,700,13835
+4279,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,75.73970727337968,158.7631175813704,63.3686646749663,700,13835
+4279,CircularWalking,RTMPose (no selection),per_frame,reference,58.13827820821604,117.56530846473372,51.05494770005786,1000,19815
+4279,CircularWalking,RTMPose (no selection),per_trial,reference,75.8446889299835,150.0194071756858,66.25039721101987,1000,19815
+4279,CircularWalking,RTMPose (no selection),per_frame,humancalib_same_walk,55.67730043527231,116.5590282995781,47.77136035152773,1000,19815
+4279,CircularWalking,RTMPose (no selection),per_trial,humancalib_same_walk,71.06113204462969,153.9652356213337,60.63877588972623,1000,19815
+4279,CircularWalking,RTMPose (no selection),per_frame,humancalib_other_walk,55.98504029206406,116.16268880738544,48.05703119202329,1000,19815
+4279,CircularWalking,RTMPose (no selection),per_trial,humancalib_other_walk,70.68930989341966,152.47911766377814,59.69049862690138,1000,19815
+4279,StraightWalking,MeTRAbs,per_frame,reference,59.5902188849066,109.7402939715265,53.51326314722939,75,1500
+4279,StraightWalking,MeTRAbs,per_trial,reference,64.42825257575589,135.30738877384687,55.60293284356053,75,1500
+4279,StraightWalking,MeTRAbs,per_frame,humancalib_same_walk,54.27298560677946,94.54719002501338,54.43843301820189,75,1500
+4279,StraightWalking,MeTRAbs,per_trial,humancalib_same_walk,60.41255623906033,106.50034644533218,59.01894414122074,75,1500
+4279,StraightWalking,MeTRAbs,per_frame,humancalib_other_walk,53.627120860685785,98.31885876846172,48.3260230541532,75,1500
+4279,StraightWalking,MeTRAbs,per_trial,humancalib_other_walk,57.79822453282334,111.4742314263686,52.42036752079554,75,1500
+4279,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,reference,54.27864024619135,114.40552579322812,48.93625879198939,90,1582
+4279,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,reference,64.65371857841829,151.8506014822106,53.77463264028774,90,1582
+4279,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,49.206533930381084,101.48898997250694,44.53551067132628,90,1582
+4279,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,55.800229090102455,118.71072322102896,48.323133000588655,90,1582
+4279,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,49.907941066818815,101.94595035491264,46.11682384931222,90,1582
+4279,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,54.502510134203845,117.29544621415415,47.84824899299653,90,1582
+4279,StraightWalking,RTMPose (no selection),per_frame,reference,51.43699833806385,105.24533049701364,46.34085928693978,209,3631
+4279,StraightWalking,RTMPose (no selection),per_trial,reference,62.60111867387848,151.68023230107207,48.27730787060255,209,3631
+4279,StraightWalking,RTMPose (no selection),per_frame,humancalib_same_walk,46.56750088264111,94.6909867911426,42.25970217464638,209,3631
+4279,StraightWalking,RTMPose (no selection),per_trial,humancalib_same_walk,54.92635730111179,114.02326675703928,46.34383130260217,209,3631
+4279,StraightWalking,RTMPose (no selection),per_frame,humancalib_other_walk,46.46528467980574,97.37734417575184,40.6080749554468,209,3631
+4279,StraightWalking,RTMPose (no selection),per_trial,humancalib_other_walk,53.16977506689751,118.0708604764402,43.56548808183127,209,3631
+4509,CircularWalking,MeTRAbs,per_frame,reference,51.35048140763862,94.9120248010188,48.2215709860298,866,17320
+4509,CircularWalking,MeTRAbs,per_trial,reference,69.0536494599613,131.27228791882138,66.15205112359835,866,17320
+4509,CircularWalking,MeTRAbs,per_frame,humancalib_same_walk,50.16793084180963,93.2641501696322,46.60832740584984,866,17320
+4509,CircularWalking,MeTRAbs,per_trial,humancalib_same_walk,67.65366982685765,129.08268113218472,60.63934792040868,866,17320
+4509,CircularWalking,MeTRAbs,per_frame,humancalib_other_walk,50.302714224943664,93.56885870713656,46.74492695450087,866,17320
+4509,CircularWalking,MeTRAbs,per_trial,humancalib_other_walk,68.05526772882244,129.56940769724616,61.53211445766366,866,17320
+4509,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,reference,52.48055886363775,109.83668690942164,45.76975725878442,887,17720
+4509,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,reference,66.85269405070625,141.23212385508026,59.16625728629805,887,17720
+4509,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,51.16940195674072,108.42671629588544,44.62564155317014,887,17720
+4509,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,62.849525159832304,138.31633345064046,52.62285163792869,887,17720
+4509,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,51.65586054988733,110.14100598193627,45.01337248706478,887,17720
+4509,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,63.80199710884791,139.2305000728975,53.39706959067958,887,17720
+4509,CircularWalking,RTMPose (no selection),per_frame,reference,52.48713446020786,115.3039626865977,45.14712253095747,1000,19990
+4509,CircularWalking,RTMPose (no selection),per_trial,reference,66.64685601024715,143.11562457682757,57.67543342967691,1000,19990
+4509,CircularWalking,RTMPose (no selection),per_frame,humancalib_same_walk,50.8847442186965,114.17707890474448,43.36001988562287,1000,19990
+4509,CircularWalking,RTMPose (no selection),per_trial,humancalib_same_walk,62.206945122966346,141.25637167647207,50.228082525183225,1000,19990
+4509,CircularWalking,RTMPose (no selection),per_frame,humancalib_other_walk,51.32559294462707,115.3283132294316,43.77437393965313,1000,19990
+4509,CircularWalking,RTMPose (no selection),per_trial,humancalib_other_walk,63.29030484512853,141.1085419864211,51.24519069868311,1000,19990
+4509,StraightWalking,MeTRAbs,per_frame,reference,64.36511788893347,123.78328441555632,59.753565324174645,102,2040
+4509,StraightWalking,MeTRAbs,per_trial,reference,73.1191837218612,147.73760164123263,67.77638949852104,102,2040
+4509,StraightWalking,MeTRAbs,per_frame,humancalib_same_walk,61.04004687854778,113.6359571834937,57.554119493247896,102,2040
+4509,StraightWalking,MeTRAbs,per_trial,humancalib_same_walk,71.3773443188174,129.01343790701972,67.64268358047673,102,2040
+4509,StraightWalking,MeTRAbs,per_frame,humancalib_other_walk,60.95599063979019,115.63831918411348,56.25456229457345,102,2040
+4509,StraightWalking,MeTRAbs,per_trial,humancalib_other_walk,70.5281941811882,132.1544486611359,67.60575419277774,102,2040
+4509,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,reference,59.5530609482736,121.24872693914308,54.5357771786458,99,1796
+4509,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,reference,71.80500961857253,159.76872151980578,60.36623142925629,99,1796
+4509,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,54.50645417744651,114.90589633356744,48.82073468193241,99,1796
+4509,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,67.67263647584059,151.31480736592042,58.69439631636956,99,1796
+4509,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,55.88591773170433,116.94872088584972,50.30449090628855,99,1796
+4509,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,68.80454480155312,152.81609823497567,59.246830910669416,99,1796
+4509,StraightWalking,RTMPose (no selection),per_frame,reference,50.12090905553711,108.50745882499784,42.45183411837099,180,3301
+4509,StraightWalking,RTMPose (no selection),per_trial,reference,64.11045081138292,162.63153012598434,53.24137151224362,180,3301
+4509,StraightWalking,RTMPose (no selection),per_frame,humancalib_same_walk,44.649630082798375,100.6595813780268,38.422494777565085,180,3301
+4509,StraightWalking,RTMPose (no selection),per_trial,humancalib_same_walk,58.97801072319103,143.2896733575829,48.74278016898516,180,3301
+4509,StraightWalking,RTMPose (no selection),per_frame,humancalib_other_walk,45.36766764026852,103.32116931620168,38.356740067850005,180,3301
+4509,StraightWalking,RTMPose (no selection),per_trial,humancalib_other_walk,59.15097303524622,145.58829239766212,48.28336313990022,180,3301
+4612,CircularWalking,MeTRAbs,per_frame,reference,50.851057452720696,93.3946606899901,47.42826217461696,816,16320
+4612,CircularWalking,MeTRAbs,per_trial,reference,66.80419370565143,119.0833756691295,63.95199855778205,816,16320
+4612,CircularWalking,MeTRAbs,per_frame,humancalib_same_walk,49.58797631691139,92.39286119224528,45.894262478990186,816,16320
+4612,CircularWalking,MeTRAbs,per_trial,humancalib_same_walk,66.31354172045975,125.16302126682244,60.75068631458325,816,16320
+4612,CircularWalking,MeTRAbs,per_frame,humancalib_other_walk,49.50318712746619,92.94082803610252,45.96255954206927,816,16320
+4612,CircularWalking,MeTRAbs,per_trial,humancalib_other_walk,67.13614670558225,127.40415898999984,61.31060696333379,816,16320
+4612,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,reference,49.19416994243044,97.65468441293734,44.24999406625111,803,15938
+4612,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,reference,62.8875072132785,132.85680961246166,57.14579497765225,803,15938
+4612,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,47.69399877486367,94.39762675074472,42.55233805199002,803,15938
+4612,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,59.95242865115896,132.17879282088617,52.07837702017777,803,15938
+4612,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,47.81418275412153,94.94692933604198,42.68558528709769,803,15938
+4612,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,60.771624721078034,134.6282206964705,52.54132000115212,803,15938
+4612,CircularWalking,RTMPose (no selection),per_frame,reference,47.19401562961549,95.05385768533064,41.79026575896632,1000,19875
+4612,CircularWalking,RTMPose (no selection),per_trial,reference,59.31069980996224,127.47539043259556,53.17384316907948,1000,19875
+4612,CircularWalking,RTMPose (no selection),per_frame,humancalib_same_walk,45.543011736141054,92.80224209895452,39.54589645293217,1000,19875
+4612,CircularWalking,RTMPose (no selection),per_trial,humancalib_same_walk,56.596921202770055,129.41834819333593,48.82099343834102,1000,19875
+4612,CircularWalking,RTMPose (no selection),per_frame,humancalib_other_walk,45.687808591369176,93.67038514368647,39.64509450529982,1000,19875
+4612,CircularWalking,RTMPose (no selection),per_trial,humancalib_other_walk,57.65367144542344,132.98337753328173,49.4550536274172,1000,19875
+4612,StraightWalking,MeTRAbs,per_frame,reference,55.145162309664784,99.3815399380867,51.88415286402595,91,1820
+4612,StraightWalking,MeTRAbs,per_trial,reference,63.51905243692671,118.79531180490604,58.49236531946575,91,1820
+4612,StraightWalking,MeTRAbs,per_frame,humancalib_same_walk,53.63768155441653,92.3994861174236,52.25450119868448,91,1820
+4612,StraightWalking,MeTRAbs,per_trial,humancalib_same_walk,64.39957686773722,108.06438097831412,64.13129763701974,91,1820
+4612,StraightWalking,MeTRAbs,per_frame,humancalib_other_walk,53.71631327934978,91.65766056807546,53.98117270414575,91,1820
+4612,StraightWalking,MeTRAbs,per_trial,humancalib_other_walk,64.89729743916456,109.46569428084548,65.53028368110424,91,1820
+4612,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,reference,50.64049730137198,108.51136033618452,43.805334521086,95,1694
+4612,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,reference,63.34227001753783,142.9865960386798,52.19228233801423,95,1694
+4612,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,50.50599305806916,105.37330565075786,45.687540187275054,95,1694
+4612,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,66.79687996589112,143.17118970078454,56.741965376814605,95,1694
+4612,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,49.80718578503284,106.3052714916878,44.69980009421587,95,1694
+4612,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,66.57580143013072,142.55284137502946,56.74025491387864,95,1694
+4612,StraightWalking,RTMPose (no selection),per_frame,reference,39.45458840788688,85.37526190228387,31.81418202894011,373,5718
+4612,StraightWalking,RTMPose (no selection),per_trial,reference,51.322143061536885,131.71267971615035,37.354415997953055,373,5718
+4612,StraightWalking,RTMPose (no selection),per_frame,humancalib_same_walk,39.11529102352168,85.42275464871646,33.24414991137439,373,5718
+4612,StraightWalking,RTMPose (no selection),per_trial,humancalib_same_walk,54.50877918604044,145.6466146612909,39.02367935417846,373,5718
+4612,StraightWalking,RTMPose (no selection),per_frame,humancalib_other_walk,39.30865449663707,85.73304617027907,33.38833743782145,373,5718
+4612,StraightWalking,RTMPose (no selection),per_trial,humancalib_other_walk,55.70956042430286,146.3494186152498,42.90276814369869,373,5718
+4665,CircularWalking,MeTRAbs,per_frame,reference,48.22683347257822,86.46528094102847,48.35810115295509,584,11680
+4665,CircularWalking,MeTRAbs,per_trial,reference,61.50594420722705,110.37396457546014,60.39839764546957,584,11680
+4665,CircularWalking,MeTRAbs,per_frame,humancalib_same_walk,47.45929916668389,85.28111748207023,47.726598142165976,584,11680
+4665,CircularWalking,MeTRAbs,per_trial,humancalib_same_walk,61.2836768106676,110.76064596057832,57.97151936606289,584,11680
+4665,CircularWalking,MeTRAbs,per_frame,humancalib_other_walk,47.5714830645712,85.45960090290922,47.77503435811673,584,11680
+4665,CircularWalking,MeTRAbs,per_trial,humancalib_other_walk,63.29430066117392,117.20442636972398,59.02413083717485,584,11680
+4665,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,reference,44.48909277836677,88.80497077565063,39.00634045676181,705,14100
+4665,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,reference,56.38573092889297,111.7999241115566,51.96382862381425,705,14100
+4665,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,42.95921899789913,85.79343347939583,37.84512130228188,705,14100
+4665,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,52.43724375177685,104.73058019870636,45.33242894547965,705,14100
+4665,CircularWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,43.237817554350045,87.36514023510409,37.95178226703587,705,14100
+4665,CircularWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,54.290865847809954,111.94709820285412,46.59482512590797,705,14100
+4665,CircularWalking,RTMPose (no selection),per_frame,reference,42.29007689379039,84.41254944809292,37.15144868718254,1000,20000
+4665,CircularWalking,RTMPose (no selection),per_trial,reference,54.45537810956123,108.24314329505977,49.91542889790232,1000,20000
+4665,CircularWalking,RTMPose (no selection),per_frame,humancalib_same_walk,40.49990329601559,81.1701413840737,35.6257055375752,1000,20000
+4665,CircularWalking,RTMPose (no selection),per_trial,humancalib_same_walk,49.831227413315055,101.04227353963704,43.17071973677203,1000,20000
+4665,CircularWalking,RTMPose (no selection),per_frame,humancalib_other_walk,40.69107005350258,82.08231749699347,35.72233246753993,1000,20000
+4665,CircularWalking,RTMPose (no selection),per_trial,humancalib_other_walk,51.59062915301149,107.96045766085489,44.20301174696666,1000,20000
+4665,StraightWalking,MeTRAbs,per_frame,reference,60.90095062923434,104.7176106800097,60.9827978249962,80,1600
+4665,StraightWalking,MeTRAbs,per_trial,reference,71.10494175180668,137.09755966075326,67.77176780406708,80,1600
+4665,StraightWalking,MeTRAbs,per_frame,humancalib_same_walk,56.182350826628266,92.46360478480976,60.26217813853272,80,1600
+4665,StraightWalking,MeTRAbs,per_trial,humancalib_same_walk,64.50136200884428,105.33606085105852,67.54368294623394,80,1600
+4665,StraightWalking,MeTRAbs,per_frame,humancalib_other_walk,55.70423084387181,93.15721798412532,60.20433840017149,80,1600
+4665,StraightWalking,MeTRAbs,per_trial,humancalib_other_walk,63.13610608919587,107.60908322078826,64.44411638415669,80,1600
+4665,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,reference,54.106564505695154,109.70749505796478,48.1287273661561,50,1000
+4665,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,reference,63.45413137018039,127.40860533396298,57.94110250079085,50,1000
+4665,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_same_walk,48.74893716652883,98.97612096911146,43.71390990129092,50,1000
+4665,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_same_walk,54.22337389223711,117.81175610775728,51.32011131020234,50,1000
+4665,StraightWalking,RTMPose (HumanCalib-R selection),per_frame,humancalib_other_walk,48.26497391288383,97.9466963445802,42.065858396887926,50,1000
+4665,StraightWalking,RTMPose (HumanCalib-R selection),per_trial,humancalib_other_walk,52.90579258670209,115.3667320783124,47.15207967865375,50,1000
+4665,StraightWalking,RTMPose (no selection),per_frame,reference,47.519018744270646,103.0394756978139,39.91611418750208,273,4558
+4665,StraightWalking,RTMPose (no selection),per_trial,reference,61.87816911414186,130.2629942259304,52.028839606004254,273,4558
+4665,StraightWalking,RTMPose (no selection),per_frame,humancalib_same_walk,40.38099551427796,91.31193595795192,34.737365545022435,273,4558
+4665,StraightWalking,RTMPose (no selection),per_trial,humancalib_same_walk,54.736191423277965,112.29464611930372,48.01439752939355,273,4558
+4665,StraightWalking,RTMPose (no selection),per_frame,humancalib_other_walk,41.31118361316247,94.61478033885132,35.55828185741544,273,4558
+4665,StraightWalking,RTMPose (no selection),per_trial,humancalib_other_walk,52.51825225933253,113.11698415562458,43.751590441683405,273,4558

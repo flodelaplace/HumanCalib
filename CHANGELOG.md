@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.2 — 2026-10-09
+
+**Added**
+- `paper/results/`: the per-trial results of the article (9 CSV files and a README; derived metrics
+  only, CC BY 4.0), so that each archived release carries them under the same DOI.
+
+**Fixed**
+- 0.5.1's entry counted 2 failed RTMPose calibrations: the second one, BioCV P18_WALK_02 (bystanders
+  in two cameras), had not finished; its bundle adjustment converged after about 3 h (0.54°).
+  Failures drop from 7 to 1 (COMFI 4665_StraightWalking). No code change.
+
 ## 0.5.1 — 2026-10-09
 
 RTMPose backend: the cameras are now initialised like MeTRAbs', camera by camera. Failed
