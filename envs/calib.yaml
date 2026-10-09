@@ -47,7 +47,7 @@ dependencies:
   # matplotlib writes the .mp4 animations through an ffmpeg executable on PATH.
   # imageio-ffmpeg bundles its own static binary, so this could be dropped by
   # pointing matplotlib's animation.ffmpeg_path at it -- worth doing if image
-  # size matters (see docs/REFACTOR_PLAN.md, Docker phase).
+  # size matters.
   - ffmpeg
 
   - pip:
@@ -63,8 +63,8 @@ dependencies:
       # numpy-base 1.25.2 pulled in by an unrelated package overwrote pip's
       # files while both dist-info records survived, bypassing the resolver.
       # pip refuses that combination outright, so it was never reproducible by
-      # declaration. Confirm with the golden-run test (docs/REFACTOR_PLAN.md
-      # T5.2) that the published MRE figures are unchanged at 1.23.5.
+      # declaration. Confirm with the golden-run test (tests/test_golden_run.py)
+      # that the published MRE figures are unchanged at 1.23.5.
       - numpy==1.23.5
       - scipy==1.15.3
       - matplotlib==3.10.8

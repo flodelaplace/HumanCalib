@@ -39,7 +39,7 @@ from .filtering import joints2orientations, joints2projections
 # nvgpu at module level, which would force every consumer of ``core`` -- the
 # whole calibration, bundle-adjustment, evaluation and visualisation chain -- to
 # depend on PyTorch. Only the VideoPose3D lifting step needs it, so it imports
-# ``core.gpu`` directly. See docs/REFACTOR_PLAN.md T1.4.
+# ``core.gpu`` directly.
 
 # Explicit public API. Without this, every re-export below reads as an unused
 # import to static analysers.

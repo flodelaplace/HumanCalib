@@ -83,7 +83,7 @@ LEGS = {
 # its hip keypoints sit about 85 mm in front of the joint centre, which lengthens the thigh
 # and shortens the trunk by opposite amounts. Legs alone overestimated RTMPose scale by +5 %
 # on BioCV, legs + trunk -1.8 %; MeTRAbs, whose hips are joint centres, keeps legs alone
-# (+1 to +2 %, where legs + trunk gives -2 to -3 %). docs/EVALUATION_PROTOCOL.md, journal.
+# (+1 to +2 %, where legs + trunk gives -2 to -3 %).
 TRUNK = {"halpe26": (19, 18)}
 
 # Top-down stature (scale_method "stature"), bml_movi_87 only: the mid-point of the four virtual head
@@ -91,8 +91,7 @@ TRUNK = {"halpe26": (19, 18)}
 # markers (heels, toes, 1st/4th/5th metatarsals). Measured over the walk, the 95th centile of that
 # height is HEAD_BAND_RATIO x stature: the head band sits below the vertex, and the head dips during
 # gait. The ratio was set once, on the BioCV development set only (median of 18 calibrations, sd
-# 0.009), then applied unchanged to OpenCap, IMOVE, LBMC and COMFI (docs/article/03_RESULTATS.md
-# §20). It replaces 0.491 x stature for the legs, whose between-subject spread (2.4 % of stature)
+# 0.009), then applied unchanged to OpenCap, IMOVE, LBMC and COMFI. It replaces 0.491 x stature for the legs, whose between-subject spread (2.4 % of stature)
 # went straight into the scale. RTMPose keeps the segments: its head keypoint gave no gain.
 HEAD_BAND = {"bml_movi_87": (5, 36, 6, 37)}
 SOLE = {"bml_movi_87": (21, 52, 23, 54, 22, 53, 32, 63, 33, 64)}

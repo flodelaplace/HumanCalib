@@ -102,7 +102,7 @@ def main(argv=None):
     # The frame indices are 0-based, matching the pose files. They used to
     # start at 1, and load_eldersim intersects the two index lists
     # (humancalib/core/poses_io.py), so frame 0 was discarded from every calibration
-    # without a word. See B7 in docs/REFACTOR_PLAN.md for the measured effect.
+    # without a word.
     skel_path = os.path.join(args.output_dir, f"skeleton_w_G{args.gid:03d}.json")
     if os.path.exists(skel_path):
         log.info(f"Kept:  {skel_path} (already written by the pose step)")

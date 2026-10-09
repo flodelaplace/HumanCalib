@@ -39,8 +39,7 @@ from pathlib import Path
 from humancalib.core.log import get_logger, setup_logging
 log = get_logger(__name__)
 
-# Vestigial dataset identifiers: they only shape artefact file names. See
-# docs/REFACTOR_PLAN.md (T4.4).
+# Vestigial dataset identifiers: they only shape artefact file names.
 AID = PID = GID = 1
 SUBSET = "noise_1_0"
 DATASET = "MyDataset"

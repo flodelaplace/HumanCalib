@@ -12,7 +12,7 @@ Usage:
         --dataset  MyDataset \
         --output   ./data/A001_P001_G001/results/camera/visu_3d.gif
 
-    # Pour un MP4 au lieu d'un GIF :
+    # For an MP4 instead of a GIF:
         --output   ./data/A001_P001_G001/results/camera/visu_3d.mp4
 """
 
@@ -122,7 +122,7 @@ def draw_camera(ax, R_w2c, t_w2c, color, label, scale=0.15, K=None):
                             [0.0, -h, f], [0.0, -1.5 * h, f]]) * scale   # last two: image-up tick
     corners_world = (R_w2c.T @ corners_cam.T).T + C
 
-    # Mapping pour l'affichage Matplotlib : (X_cv, Y_cv, Z_cv) -> (X, Z, -Y)
+    # Axes for the Matplotlib display: (X_cv, Y_cv, Z_cv) -> (X, Z, -Y)
     C_plot = [C[0], C[2], -C[1]]
     corners_plot = np.empty_like(corners_world)
     corners_plot[:, 0] = corners_world[:, 0]
@@ -193,7 +193,7 @@ def make_animation(X3d_world, R_w2c, t_w2c, output_path, fps=15, step=1,
 
     valid = X3d_world[~np.isnan(X3d_world).any(axis=-1)].reshape(-1, 3)
 
-    # Bounding box pour le squelette (robuste au bruit via les percentiles)
+    # Skeleton bounding box (percentiles, robust to noise)
     if len(valid) > 0:
         valid_plot = np.copy(valid)
         valid_plot[:, 0] = valid[:, 0]

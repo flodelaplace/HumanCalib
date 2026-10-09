@@ -9,7 +9,7 @@
 # All logic lives in Python now, where the test suite can reach it. Before, the
 # pose-cache check, the frame mapping, the MRE comparison and the camera naming
 # were shell or Python heredocs that no test could exercise -- and two of them
-# were wrong (see B8 and the misleading final summary in docs/REFACTOR_PLAN.md).
+# were wrong (a pose-cache check that passed on a partial cache, and a misleading final summary).
 set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${REPO_ROOT}"

@@ -9,7 +9,7 @@ on.
 The skeleton coordinates are nulls: nothing downstream reads them
 (load_eldersim returns them as p3d_w, which the calibration discards). Only
 ``frame_indices`` matters, and it must use the same absolute numbering as the
-pose files -- see B7 in docs/REFACTOR_PLAN.md for what a mismatch costs.
+pose files: with any other numbering, frames are silently dropped from the calibration.
 """
 import glob
 import json

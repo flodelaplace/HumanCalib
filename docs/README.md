@@ -11,14 +11,9 @@
 | [../CONTRIBUTING.md](../CONTRIBUTING.md) | Development setup, tests, conventions |
 | [RELEASING.md](RELEASING.md) | Publishing a version on PyPI (Trusted Publishing from GitHub Actions) |
 
-## Research notes (in French)
-
-Working documents kept for traceability. They record decisions as they were
-made, including the ones later revised; the user documentation above always
-describes the current behaviour.
+## Evaluation
 
 | | |
 |---|---|
-| [EVALUATION_PROTOCOL.md](EVALUATION_PROTOCOL.md) | Evaluation protocol against laboratory calibrations: questions, metrics, datasets, dated journal of every change and result |
-| [article/](article/README.md) | Material for the paper: method as evaluated, datasets, full results, decisions, references |
-| [REFACTOR_PLAN.md](REFACTOR_PLAN.md) | The reproducibility refactor (packaging, tests, CI, Docker): decisions and findings |
+| [EVALUATION_PROTOCOL.md](EVALUATION_PROTOCOL.md) | How HumanCalib is evaluated against laboratory calibrations: questions, datasets, metrics, statistics |
+| [../paper/results/](../paper/results/README.md) | Per-trial results of the article (CC BY 4.0) |
