@@ -3,7 +3,7 @@
 ## 0.5.1 — 2026-10-09
 
 RTMPose backend: the cameras are now initialised like MeTRAbs', camera by camera. Failed
-calibrations on the 77 evaluation trials drop from 7 to 2 (30 in 0.4); the calibrations that
+calibrations on the 77 evaluation trials drop from 7 to 1 (30 in 0.4); the calibrations that
 succeeded with both initialisations are unchanged (median 1.37°, at most 0.13° apart).
 
 **Changed**

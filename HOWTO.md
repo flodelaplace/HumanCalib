@@ -207,7 +207,7 @@ Python environment (e.g. to keep TensorFlow out of the caller's), set
 
 The original two-step backend (2D keypoints with RTMPose, then temporal lifting to 3D with
 VideoPose3D), kept for comparison and for environments that already have RTMPose, such as
-Pose2Sim's; MeTRAbs is recommended (0 failed calibrations out of 77, against 2 for this
+Pose2Sim's; MeTRAbs is recommended (0 failed calibrations out of 77, against 1 for this
 backend since 0.5.1, 30 in 0.4). Both steps run on onnxruntime: no PyTorch. Its weights carry non-commercial licences.
 
 ```bash

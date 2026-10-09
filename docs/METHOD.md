@@ -47,10 +47,10 @@ networks run on onnxruntime (`pip install "humancalib[rtmpose]"`): rtmlib's RTMP
 and VideoPose3D converted to ONNX from its official weights (`pose/lifting.py`; same 3D poses as
 the PyTorch original to 2e-4, same calibrations on the trials checked).
 
-Across five datasets (77 paired trials), RTMPose produces an unusable calibration in 2 trials
-since 0.5.1 (7 with 0.5.0, 30 with 0.4), MeTRAbs in none. On the 75 trials both calibrate, the
-median relative rotation error is 1.28° with RTMPose and 0.96° with MeTRAbs (no detectable
-difference, paired Wilcoxon p = 0.43); MeTRAbs stays more reliable and more accurate in scale
+Across five datasets (77 paired trials), RTMPose produces an unusable calibration in 1 trial
+since 0.5.1 (7 with 0.5.0, 30 with 0.4), MeTRAbs in none. On the 76 trials both calibrate, the
+median relative rotation error is 1.27° with RTMPose and 0.95° with MeTRAbs (no detectable
+difference, paired Wilcoxon p = 0.51); MeTRAbs stays more reliable and more accurate in scale
 (0.95 % against 1.5 %). See [Validation](../README.md#validation).
 
 ### MeTRAbs quality filters
@@ -115,8 +115,10 @@ Three modes (`--person_selection`):
   reference. The previous initialisation (bone orientation constraints from the
   2D projections, as in Lee et al. 2022; `HUMANCALIB_RTMPOSE_INIT=linear`) needs
   every bone seen by every camera at once, which rigs of many cameras along a
-  corridor rarely give: on the 77 trials, failures 7 → 2, the calibrations that
-  succeeded both ways unchanged (median 1.37°, at most 0.13° apart).
+  corridor rarely give: on the 77 trials, failures 7 → 1, the calibrations that
+  succeeded both ways unchanged (median 1.37°, at most 0.13° apart). With
+  bystanders in view, bundle adjustment can take much longer to converge from it
+  (BioCV P18_WALK_02: about 3 h, then 0.54°).
 - **Chunks.** The sequence is cut into chunks of 120 s (at least 1000 frames),
   each calibrated on the frames seen by at least two thirds of the cameras; the
   chunk with the lowest MRE is kept. An ordinary walk fits one chunk. Chunks used
