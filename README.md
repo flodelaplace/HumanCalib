@@ -64,7 +64,7 @@ degree to one degree, below the 2° margin usually accepted in clinical gait
 analysis, and roughly ten times less than the 4–11° that separates such a chain
 from optical motion capture on the same trials.
 
-- No failed calibration out of 77 (with RTMPose + VideoPose3D instead of MeTRAbs: 7 since 0.5.0, 30 before).
+- No failed calibration out of 77 (with RTMPose + VideoPose3D instead of MeTRAbs: 2 since 0.5.1, 30 in 0.4).
 - Metric scale within 1.1 % (median, on the four datasets not used to set it).
 
 The two remaining datasets are reported in the paper: LBMC, whose two treadmill
@@ -105,11 +105,11 @@ pip install "humancalib[gpu]"
 ### Check the install
 
 The demo videos are in the repository: download and unzip the
-[source archive](https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.5.0.zip)
+[source archive](https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.5.1.zip)
 (or `git clone` the repository), then
 
 ```bash
-humancalib run HumanCalib-0.5.0/demo HumanCalib-0.5.0/demo/Calib_scene.toml output/demo --height 1.78
+humancalib run HumanCalib-0.5.1/demo HumanCalib-0.5.1/demo/Calib_scene.toml output/demo --height 1.78
 ```
 
 It worked if the log shows `Compute device: GPU` and ends with an MRE summary

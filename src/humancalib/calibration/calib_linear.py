@@ -251,7 +251,8 @@ def calib_procrustes(p3d_CxNxJx3, s3d_CxNxJ, K_all, p2d_CxNxJx2, s2d_CxNxJ,
     for f in range(N):
         for j in range(J):
             pts2d = p2d_CxNxJx2[:, f, j, :]
-            vis = joint_mask_2d[:, f, j]
+            # RTMPose's derived joints (neck, mid-hip) can be NaN with a confident score
+            vis = joint_mask_2d[:, f, j] & np.isfinite(pts2d).all(axis=1)
             if vis.sum() >= 2:
                 x3d = pycalib.calib.triangulate(pts2d[vis], np.array(P_list)[vis])[:3]
             else:
@@ -289,6 +290,46 @@ def metric_upgrade_pnp(R_list, t_list, X, y, K):
             out_R.append(R0)
             out_t.append(t0.reshape(3, 1))
     return np.array(out_R), np.array(out_t)
+
+
+def place_in_camera(p3d_CxNxJx3, s3d_CxNxJ, p2d_CxNxJx2, s2d_CxNxJ, K_all, conf_threshold=0.5):
+    """Root-relative camera-frame 3D poses (VideoPose3D) placed in each camera's space.
+
+    The lifter gives every joint relative to the pelvis, in the camera's orientation, but not
+    where the person stands. Per camera and frame, the pelvis position T is the one that makes
+    the pose reproject onto its own 2D keypoints: x_n (Z_j + Tz) = X_j + Tx and likewise for y,
+    linear in T, solved by least squares over the confident joints. With every camera's skeleton
+    in its own metric space, the cameras can be aligned pairwise to a reference (calib_procrustes),
+    as MeTRAbs' are -- which needs a camera to share frames with the reference only, not every
+    bone seen by every camera at once like the orientation-based linear solve.
+
+    Returns the placed poses and their validity as scores (0 where not placed).
+    """
+    C, N, J, _ = p3d_CxNxJx3.shape
+    out = np.full_like(p3d_CxNxJx3, np.nan, dtype=np.float64)
+    score = np.zeros((C, N, J))
+    for c in range(C):
+        Kinv = np.linalg.inv(K_all[c])
+        for f in range(N):
+            X = p3d_CxNxJx3[c, f]
+            u = p2d_CxNxJx2[c, f]
+            ok = (s2d_CxNxJ[c, f] > conf_threshold) & (s3d_CxNxJ[c, f] > 0) \
+                & np.isfinite(X).all(axis=1) & np.isfinite(u).all(axis=1)
+            if ok.sum() < 4:
+                continue
+            xn = (np.c_[u[ok], np.ones(ok.sum())] @ Kinv.T)[:, :2]
+            A = np.zeros((2 * ok.sum(), 3))
+            A[0::2, 0], A[0::2, 2] = 1.0, -xn[:, 0]
+            A[1::2, 1], A[1::2, 2] = 1.0, -xn[:, 1]
+            b = np.empty(2 * ok.sum())
+            b[0::2] = xn[:, 0] * X[ok, 2] - X[ok, 0]
+            b[1::2] = xn[:, 1] * X[ok, 2] - X[ok, 1]
+            T = np.linalg.lstsq(A, b, rcond=None)[0]
+            if T[2] <= 0:                       # behind the camera: the fit failed
+                continue
+            out[c, f] = X + T
+            score[c, f] = ok.astype(float)
+    return out, score
 
 
 def main_linear(
@@ -377,6 +418,15 @@ def main_linear(
     # Try Procrustes first if we have good 3D data (MeTRAbs: 26- or 87-joint skeletons)
     n_joints = p3d.shape[2]
     use_procrustes = (n_joints in (26, 87) and np.any(s3d > 0))
+    if not use_procrustes and np.any(s3d > 0) and \
+            os.environ.get("HUMANCALIB_RTMPOSE_INIT", "procrustes") == "procrustes":
+        # RTMPose: lifted poses placed in each camera's space, then aligned like MeTRAbs'.
+        # The orientation-based solve below (HUMANCALIB_RTMPOSE_INIT=linear, before 0.5.1) wants
+        # every bone seen by every camera at once, which 10-camera rigs rarely give: 77 trials,
+        # RTMPose failures 7 -> 1, the calibrations that succeeded both ways unchanged.
+        log.info("  Placing the lifted 3D poses in each camera's space (RTMPose)")
+        p3d, s3d = place_in_camera(p3d, s3d, p2d, s2d, K, conf_threshold)
+        use_procrustes = np.any(s3d > 0)
 
     if use_procrustes:
         log.info("  Using Procrustes initialization (MeTRAbs 3D available)")
@@ -410,7 +460,8 @@ def main_linear(
         for c in range(len(K)):
             for f in range(N_after):
                 for j in range(n_joints):
-                    if s2d[c, f, j] > conf_threshold and not np.isnan(X_w[f, j]).any():
+                    if s2d[c, f, j] > conf_threshold and not np.isnan(X_w[f, j]).any() \
+                            and np.isfinite(p2d[c, f, j]).all():
                         pt3d = X_w[f, j]
                         proj = K[c] @ (R_w2c_est[c] @ pt3d + t_w2c_est[c].flatten())
                         proj = proj[:2] / proj[2]

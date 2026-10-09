@@ -7,7 +7,7 @@ type: software
 authors:
   - family-names: Delaplace
     given-names: Florian
-version: 0.5.0
+version: 0.5.1
 doi: 10.5281/zenodo.23143081
 date-released: "2026-10-09"
 license: MIT

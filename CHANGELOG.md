@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.5.1 — 2026-10-09
+
+RTMPose backend: the cameras are now initialised like MeTRAbs', camera by camera. Failed
+calibrations on the 77 evaluation trials drop from 7 to 2 (30 in 0.4); the calibrations that
+succeeded with both initialisations are unchanged (median 1.37°, at most 0.13° apart).
+
+**Changed**
+- Linear initialisation, RTMPose backend (`calib_linear.place_in_camera`): each lifted,
+  root-relative VideoPose3D pose is placed in its camera's space -- per frame, the pelvis
+  position that makes it reproject onto its own 2D keypoints, a linear least squares -- and
+  every camera is then aligned to a reference camera by Procrustes, the MeTRAbs path. A camera
+  only needs frames in common with the reference, where the orientation-based solve wanted
+  every bone seen by every camera at once, which 10-camera rigs rarely give.
+  `HUMANCALIB_RTMPOSE_INIT=linear` restores the previous initialisation.
+
+**Fixed**
+- RTMPose's derived joints (neck, mid-hip) can be NaN with a confident score; the linear stage
+  now skips them when triangulating and when computing its reprojection error (MeTRAbs
+  unchanged).
+
 ## 0.5.0 — 2026-10-09
 
 The RTMPose backend finds the walking person much more reliably: failed calibrations on the 77

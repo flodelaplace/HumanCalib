@@ -88,3 +88,22 @@ def test_linear_poses_are_upgraded_to_real_rotations_without_moving_projections(
     assert R_out[0] @ R_out[0].T == pytest.approx(np.eye(3), abs=1e-9)
     assert R_out[0] == pytest.approx(R, abs=1e-6)
     assert t_out[0] == pytest.approx(t, abs=1e-6)
+
+
+def test_lifted_poses_are_placed_where_they_reproject():
+    """place_in_camera recovers each frame's pelvis position from a root-relative pose and its
+    2D keypoints: the RTMPose path's 3D then sits in camera space, as MeTRAbs' does."""
+    from humancalib.calibration.calib_linear import place_in_camera
+    rng = np.random.default_rng(0)
+    K = np.array([[1000.0, 0, 960], [0, 1000.0, 540], [0, 0, 1]])
+    C, N, J = 2, 5, 17
+    rel = rng.uniform(-0.4, 0.4, (C, N, J, 3)) * [1, 2, 0.5]
+    rel -= rel[:, :, :1]                                    # root-relative, joint 0 = pelvis
+    T = np.stack([rng.uniform([-1, -0.5, 3], [1, 0.5, 6], (N, 3)) for _ in range(C)])
+    X = rel + T[:, :, None]
+    uvw = X @ K.T
+    p2d = uvw[..., :2] / uvw[..., 2:]
+    ones = np.ones((C, N, J))
+    placed, score = place_in_camera(rel, ones, p2d, ones, np.array([K, K]), 0.5)
+    np.testing.assert_allclose(placed, X, atol=1e-6)
+    assert (score == 1).all()
