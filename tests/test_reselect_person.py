@@ -259,3 +259,67 @@ def test_motion_selection_keeps_a_camera_the_subject_walks_straight_at(tmp_path)
     assert (adaptive[0] >= 0).mean() > 0.7               # rescued by the other cameras'
     for c in range(1, 4):                                # cameras that see the swing: untouched
         assert (adaptive[c] == gated[c]).all()
+
+
+def _walker_and_passerby(tmp_path, F=200):
+    """One camera: the subject walking straight at it (box centred, legs barely move in the
+    image) and a passer-by crossing the view whose legs swing widely in the image."""
+    from humancalib.pipeline import motion_selection as M
+    fps = 50.0
+    dets = []
+    for f in range(F):
+        s = np.sin(2 * np.pi * f / fps)
+        poses, boxes = [], []
+        for x0, amp in ((900.0, 5.0), (200.0 + 6 * f, 150.0)):           # subject, passer-by
+            pose = np.zeros((J, 2))
+            for side, (hip, knee, ankle) in enumerate(M.LEGS_2D_HALPE26):
+                sgn = 1 if side == 0 else -1
+                pose[hip] = [x0 + 20 * sgn, 400.0]
+                pose[knee] = [x0 + 20 * sgn + amp * sgn * s / 2, 600.0]
+                pose[ankle] = [x0 + 20 * sgn + amp * sgn * s, 800.0]
+            poses.append(pose)
+            boxes.append([x0 - 100, 300.0, x0 + 100, 850.0])
+        dets.append({"box": np.array(boxes), "pose2d": np.array(poses), "score2d": np.ones((2, J))})
+    path = str(tmp_path / "cam.npz")
+    cand.save_candidates(path, range(F), [0] * F, dets, (1080, 1920))
+    return cand.load_candidates(path), fps
+
+
+def test_tracks_follow_each_person_separately(tmp_path):
+    from humancalib.pipeline import motion_selection as M
+    c, _ = _walker_and_passerby(tmp_path)
+    trs = M.tracks(c)
+    assert len(trs) == 2
+    for tr in trs:                                      # one detection per frame, never swapped
+        assert len(tr) == len(c["frames"])
+        x = np.asarray(c["box"])[tr, 0]
+        assert np.ptp(x) < 10 or np.all(np.diff(x) > 0)
+
+
+def test_lifted_swing_picks_the_walker_seen_head_on(tmp_path, monkeypatch):
+    """In the image the passer-by out-swings the subject walking at the camera; lifted to 3D,
+    the subject's ankles swing along the depth axis and the subject is kept."""
+    from humancalib.pipeline import motion_selection as M
+    from humancalib.pose import lifting
+    c, fps = _walker_and_passerby(tmp_path)
+
+    def fake_lift(x2d, width, height, session):
+        T = len(x2d)
+        head_on = np.ptp(x2d[:, 15, 0]) < 50               # the subject's ankle barely moves in x
+        X = np.zeros((T, 17, 3))
+        t = np.arange(T) / fps
+        for hip, knee, ankle in M.LEGS_3D_H36M:
+            X[:, knee] = X[:, hip] + [0, 0.45, 0]
+            X[:, ankle] = X[:, hip] + [0, 0.9, 0]
+            if head_on:                                     # walking: ankles swing in depth
+                X[:, ankle, 2] = 0.3 * np.sin(2 * np.pi * t) * (1 if hip == 1 else -1)
+        return X
+
+    monkeypatch.setattr(lifting, "lift", fake_lift)
+    speeds = M.lifted_leg_speeds(c, fps, K, np.zeros(5), session=None)
+    sel_2d = M.select([c], fps, "rtmpose")[0]
+    sel_3d = M.select([c], fps, "rtmpose", speeds=[speeds])[0]
+    walking = sel_3d >= 0
+    assert walking.mean() > 0.8
+    assert (sel_3d[walking] == 0).all()                 # the subject (first detection)
+    assert (sel_2d[sel_2d >= 0] == 1).mean() > 0.8      # the 2D swing picked the passer-by

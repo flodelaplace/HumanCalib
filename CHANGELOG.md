@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.5.0 — 2026-10-09
+
+The RTMPose backend finds the walking person much more reliably: failed calibrations on the 77
+evaluation trials drop from 30 to 7, with the same accuracy where both versions succeed (1.78°
+median relative rotation before, 1.64° now). MeTRAbs is unchanged.
+
+**Changed**
+- Person selection, RTMPose backend: the leg swing that tells the walker from everyone else is
+  now measured in 3D, as for MeTRAbs. Each person's track is lifted by VideoPose3D (the
+  backend's own lifter) before selection (`motion_selection.tracks`, `lifted_leg_speeds`). The
+  3D swing decides *who* walks -- in the image, a passer-by crossing the view out-swings a
+  subject walking straight at the camera; a frame counts as walking when either the 2D or the
+  3D swing says so, so a camera keeps at least the frames it had. Against the gold-oracle
+  selection on 59 trials, wrong person 9.3 % -> 4.0 % of kept frames, and no camera is left
+  empty any more (10 COMFI straight walks had one, which is why they gave no calibration).
+  Same thresholds as before: nothing was tuned. Falls back to the 2D swing, with a warning,
+  when onnxruntime or the VideoPose3D model is unavailable.
+
+**Added**
+- `humancalib run --no_visualize`: skips the evaluation images and 3D animations (the
+  reprojection errors are still computed); rendering dominated batch runs on slow disks.
+- `reselect_person --device`: where VideoPose3D lifts the tracks for the selection.
+
 ## 0.4.0 — 2026-10-05
 
 Ready for Pose2Sim's `extrinsics_method = 'keypoints'`: installs in recent Pose2Sim environments

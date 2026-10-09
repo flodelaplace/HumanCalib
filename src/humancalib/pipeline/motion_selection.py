@@ -13,8 +13,9 @@ camera, while the ankles keep swinging about the hips. So, per camera:
 1. each detection is followed for +-WINDOW_S by nearest box centre -- short
    enough that identities cannot mix -- and its leg swing speed is measured
    (ankle relative to hip, in leg lengths per second; 3D for MeTRAbs, whose
-   camera-frame skeleton makes it independent of the walking direction, 2D for
-   RTMPose);
+   camera-frame skeleton makes it independent of the walking direction; for
+   RTMPose, 3D too since v0.5, each person's track lifted by VideoPose3D
+   (lifted_leg_speeds), and 2D only if the lifter is not available);
 2. a frame is "walking" for that camera when some detection swings faster than
    SPEED_THR; the flag is then smoothed by a majority vote over +-SEGMENT_S, so
    a stance phase or a turn does not break a passage, and a stray frame does
@@ -44,6 +45,9 @@ MOVING_REL = 0.4     # ... and still seeing someone move this fraction of SPEED_
 # (hip, knee, ankle) left and right
 LEGS_3D_BML87 = ((73, 75, 71), (81, 83, 79))
 LEGS_2D_HALPE26 = ((11, 13, 15), (12, 14, 16))
+LEGS_3D_H36M = ((1, 2, 3), (4, 5, 6))      # VideoPose3D output (Human3.6M order)
+TRACK_GAP = 3        # frames a track may miss before it ends
+TRACK_MIN = 10       # shorter tracks are not lifted (VideoPose3D needs some context)
 
 
 def leg_speeds(c, fps, engine):
@@ -87,7 +91,75 @@ def leg_speeds(c, fps, engine):
     return speed
 
 
-def select(cands, fps, engine, speed_thr=SPEED_THR, segment_s=SEGMENT_S, gate="adaptive"):
+def tracks(c):
+    """Detections chained over time by nearest box centre (within half a box height), a track
+    surviving up to TRACK_GAP missing frames. Lists of detection indices, frame order, tracks of
+    at least TRACK_MIN detections only."""
+    box = np.asarray(c["box"], float)
+    ctr = np.c_[(box[:, 0] + box[:, 2]) / 2, (box[:, 1] + box[:, 3]) / 2]
+    hgt = box[:, 3] - box[:, 1]
+    live, done = [], []                      # [detections, last row]
+    for r in range(len(c["frames"])):
+        free = list(range(c["start"][r], c["start"][r + 1]))
+        kept = []
+        for tr in live:
+            if r - tr[1] > TRACK_GAP + 1:
+                done.append(tr[0])
+                continue
+            last = tr[0][-1]
+            if free:
+                d = [np.linalg.norm(ctr[i] - ctr[last]) for i in free]
+                j = int(np.argmin(d))
+                if d[j] < 0.5 * max(hgt[last], 1e-6):
+                    tr[0].append(free.pop(j))
+                    tr[1] = r
+            kept.append(tr)
+        live = kept + [[[i], r] for i in free]
+    done += [tr[0] for tr in live]
+    return [t for t in done if len(t) >= TRACK_MIN]
+
+
+def lifted_leg_speeds(c, fps, K, dist, session):
+    """(P,) leg swing speed of every RTMPose detection measured in 3D, leg lengths per second.
+
+    The 2D swing vanishes for a subject walking at the camera, and a passer-by crossing the
+    view can out-swing them. Lifting each person's track to 3D with VideoPose3D -- the lifter
+    the RTMPose path uses anyway -- measures the swing as the MeTRAbs path does, whatever the
+    viewpoint. Undistorted with the camera's intrinsics first, as the pipeline does. NaN for
+    detections outside any liftable track.
+
+    Against the gold-oracle selection on 59 trials (BioCV, I-MOVE-23, COMFI, LBMC), wrong person
+    9.3 % of kept frames with the 2D swing, 1.8 % with this; no camera left empty (10 COMFI
+    trials had one). Same thresholds as the MeTRAbs path: nothing was tuned."""
+    from humancalib.pose import lifting
+    from humancalib.pose.metrabs_outputs import undistort_points
+
+    w, h = int(c["imshape"][1]), int(c["imshape"][0])
+    k = max(1, int(round(WINDOW_S * fps)))
+    speed = np.full(len(c["box"]), np.nan)
+    for tr in tracks(c):
+        idx = np.asarray(tr)
+        p2 = undistort_points(np.asarray(c["pose2d"][idx, :17], np.float64).reshape(-1, 2), K, dist)
+        X = lifting.lift(p2.reshape(len(idx), 17, 2), w, h, session)        # COCO-17 in, H36M out
+        swing = np.concatenate([X[:, a] - X[:, hp] for hp, _, a in LEGS_3D_H36M], axis=1)
+        leg = np.mean([np.linalg.norm(X[:, hp] - X[:, kn], axis=1) + np.linalg.norm(X[:, kn] - X[:, a], axis=1)
+                       for hp, kn, a in LEGS_3D_H36M], axis=0)
+        at = {int(r): t for t, r in enumerate(c["owner"][idx])}
+        for t, i in enumerate(idx):
+            r = int(c["owner"][i])
+            a, b = at.get(r - k), at.get(r + k)
+            if a is not None and b is not None:
+                dv, dt = swing[b] - swing[a], 2 * k / fps
+            elif a is not None or b is not None:
+                dv, dt = (swing[t] - swing[a]) if a is not None else (swing[b] - swing[t]), k / fps
+            else:
+                continue
+            per_leg = [np.linalg.norm(dv[n * 3:(n + 1) * 3]) for n in range(len(LEGS_3D_H36M))]
+            speed[i] = np.mean(per_leg) / dt / max(leg[t], 1e-6)
+    return speed
+
+
+def select(cands, fps, engine, speed_thr=SPEED_THR, segment_s=SEGMENT_S, gate="adaptive", speeds=None):
     """Per camera, the detection index kept on each of its frames (-1 for none).
 
     A camera normally keeps a frame only if it flagged walking itself (gate
@@ -103,13 +175,22 @@ def select(cands, fps, engine, speed_thr=SPEED_THR, segment_s=SEGMENT_S, gate="a
     rate follow the cross-camera window instead. Where no camera is an outlier
     that way -- every MeTRAbs trial measured, the swing being 3D there -- this
     is exactly the "camera" gate. Gate "none" drops the per-camera test
-    altogether; it costs 6-7 points of correct frames on MeTRAbs."""
+    altogether; it costs 6-7 points of correct frames on MeTRAbs.
+
+    speeds: per camera, the (P,) swing speeds to use instead of leg_speeds -- the
+    lifted ones of the RTMPose path (lifted_leg_speeds)."""
     C = len(cands)
     half = max(1, int(round(segment_s * fps)))
     walking, fastest, tops = [], [], []
-    for c in cands:
+    for ci, c in enumerate(cands):
         F = len(c["frames"])
         speed = leg_speeds(c, fps, engine)
+        # Lifted speeds (RTMPose): they decide WHO walks -- a passer-by out-swings a subject
+        # seen head-on in the image, not in 3D. WHETHER someone walks takes either swing, so
+        # a camera keeps at least the frames the 2D swing gave it: the lifted swing, smoothed
+        # by VideoPose3D, clears the threshold less often (one I-MOVE-23 camera kept 150
+        # frames of 1681, and the linear stage, which wants every camera, had nothing left).
+        lifted = speeds[ci] if speeds is not None else None
         flag, best, top = np.zeros(F, bool), np.full(F, -1), np.full(F, np.nan)
         for r in range(F):
             s, e = c["start"][r], c["start"][r + 1]
@@ -117,8 +198,14 @@ def select(cands, fps, engine, speed_thr=SPEED_THR, segment_s=SEGMENT_S, gate="a
                 continue
             ok = cand.plausible(engine, c["box"][s:e], c["pose2d"][s:e], c["imshape"])
             sp = np.where(ok, np.nan_to_num(speed[s:e], nan=-1.0), -1.0)
+            pick = sp
+            if lifted is not None:
+                lf = np.where(ok, np.nan_to_num(lifted[s:e], nan=-1.0), -1.0)
+                sp = np.maximum(sp, lf)
+                if lf.max() >= 0:
+                    pick = lf
             if sp.max() >= 0:
-                best[r] = int(np.argmax(sp))
+                best[r] = int(np.argmax(pick))
                 top[r] = sp.max()
             flag[r] = sp.max() >= speed_thr
         csum = np.concatenate([[0], np.cumsum(flag)])

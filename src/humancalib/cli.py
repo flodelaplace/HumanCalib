@@ -107,6 +107,9 @@ def build_run_parser():
                         "whole. 6-8x faster on 200 Hz video, same accuracy on BioCV")
     p.add_argument("--conf_threshold", type=float, default=0.5)
     p.add_argument("--save_video", action="store_true", help="RTMPose overlay video")
+    p.add_argument("--no_visualize", dest="visualize", action="store_false", default=True,
+                   help="skip the evaluation images and 3D animations (the reprojection errors are "
+                        "still computed); for batches, where rendering dominates the run time")
     p.add_argument("--auto_outlier_drop", dest="auto_outlier_drop", action="store_true", default=True)
     p.add_argument("--no_auto_outlier_drop", dest="auto_outlier_drop", action="store_false")
     p.add_argument("--outlier_abs_px", type=float, default=50.0)
@@ -530,7 +533,7 @@ def run_pipeline(cfg):
         import cv2
         from humancalib.core.videos import list_videos
         cap = cv2.VideoCapture(list_videos(vd)[0])
-        fps_args = ["--initial", "motion", "--fps", str(cap.get(cv2.CAP_PROP_FPS))]
+        fps_args = ["--initial", "motion", "--fps", str(cap.get(cv2.CAP_PROP_FPS)), "--device", cfg.device]
         cap.release()
     if (cfg.person_selection == "geometric" and cfg.pose_engine == "metrabs" and cached) or \
             cfg.person_selection == "motion":
@@ -650,11 +653,13 @@ def run_pipeline(cfg):
         if not os.path.isfile(os.path.join(out, "results", f"{calib}.json")):
             continue
         mre = run_step("evaluate", evaluate_calibration.main, [
-            "--prefix", out, "--calib", calib, "--video_dir", vd, "--visualize",
+            "--prefix", out, "--calib", calib, "--video_dir", vd, *(["--visualize"] if cfg.visualize else []),
             "--conf_threshold", str(cfg.conf_threshold),
             *(["--start_frame", str(cfg.start_frame)] if cfg.start_frame is not None else [])])
         if mre is not None:
             scores[calib] = float(mre)
+        if not cfg.visualize:
+            continue
         log.info(f"  → 3D Visualization for {calib}...")
         if run_process("visualize", [
                 sys.executable, "-m", "humancalib.postprocessing.visualize_results",

@@ -276,6 +276,8 @@ def main(argv=None):
                    help="initial selection: extraction's largest box, or the walking person "
                         "(pipeline/motion_selection.py; needs --fps)")
     p.add_argument("--fps", type=float, default=None, help="video frame rate, for --initial motion")
+    p.add_argument("--device", default="cuda",
+                   help="for --initial motion with RTMPose: where VideoPose3D lifts each person's track")
     args = p.parse_args(argv)
 
     CAMID, K, _, _, dist = load_eldersim_camera(os.path.join(args.prefix, args.subset, f"cameras_G{args.gid:03d}.json"))
@@ -292,7 +294,18 @@ def main(argv=None):
         if not args.fps:
             raise SystemExit("--initial motion needs --fps")
         from humancalib.pipeline import motion_selection
-        current = motion_selection.select(cands, args.fps, args.engine)
+        speeds = None
+        if args.engine == "rtmpose":
+            # Leg swing measured in 3D, as for MeTRAbs: each person's track lifted by VideoPose3D.
+            try:
+                from humancalib.pose import lifting
+                session = lifting.session(device=args.device)
+                speeds = [motion_selection.lifted_leg_speeds(c, args.fps, K[ci], dist[ci], session)
+                          for ci, c in enumerate(cands)]
+            except (ImportError, RuntimeError, OSError) as e:
+                log.warning(f"VideoPose3D unavailable ({e}): walking judged on the 2D leg swing, "
+                            "less reliable for a camera the subject walks straight at")
+        current = motion_selection.select(cands, args.fps, args.engine, speeds=speeds)
     else:
         # Largest-box selection, exactly as extraction made it, on every frame of every camera.
         current = []
