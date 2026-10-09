@@ -128,9 +128,10 @@ def lifted_leg_speeds(c, fps, K, dist, session):
     viewpoint. Undistorted with the camera's intrinsics first, as the pipeline does. NaN for
     detections outside any liftable track.
 
-    Against the gold-oracle selection on 59 trials (BioCV, I-MOVE-23, COMFI, LBMC), wrong person
-    9.3 % of kept frames with the 2D swing, 1.8 % with this; no camera left empty (10 COMFI
-    trials had one). Same thresholds as the MeTRAbs path: nothing was tuned."""
+    Used by select() to decide who walks (see there). Against the gold-oracle selection on 59
+    trials (BioCV, I-MOVE-23, COMFI, LBMC), wrong person 9.3 % of kept frames with the 2D swing,
+    4.0 % with the lifted one; no camera left empty (10 COMFI trials had one). Same thresholds
+    as the MeTRAbs path: nothing was tuned."""
     from humancalib.pose import lifting
     from humancalib.pose.metrabs_outputs import undistort_points
 
