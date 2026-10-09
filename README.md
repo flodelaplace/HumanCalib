@@ -64,8 +64,21 @@ degree to one degree, below the 2° margin usually accepted in clinical gait
 analysis, and roughly ten times less than the 4–11° that separates such a chain
 from optical motion capture on the same trials.
 
-- No failed calibration out of 77 (with RTMPose + VideoPose3D instead of MeTRAbs: 2 since 0.5.1, 30 in 0.4).
+- No failed calibration out of 77.
 - Metric scale within 1.1 % (median, on the four datasets not used to set it).
+
+**With RTMPose + VideoPose3D** instead of MeTRAbs (the backend Pose2Sim already installs),
+2 calibrations out of 77 fail (30 before 0.5: the walking person is now told apart in 3D and the
+cameras initialised camera by camera, see [METHOD.md](https://github.com/flodelaplace/HumanCalib/blob/main/docs/METHOD.md)). On the 75 trials both
+engines calibrate, median relative rotation error:
+
+| | IMOVE-23 | BioCV | OpenCap | All five datasets |
+|---|---|---|---|---|
+| MeTRAbs | 0.40° | 0.42° | 1.89° | 0.96° |
+| RTMPose + VideoPose3D | 0.33° | 0.49° | 1.95° | 1.28° |
+
+No difference is detectable in rotation (paired Wilcoxon, p = 0.43); MeTRAbs remains more
+reliable (no failure) and more accurate in scale (0.95 % against 1.5 %).
 
 The two remaining datasets are reported in the paper: LBMC, whose two treadmill
 trials are too few to summarise, and COMFI, where HumanCalib proved closer to

@@ -28,8 +28,9 @@ camera in a metric, gravity-aligned frame, in Pose2Sim format.
 | Architecture | one network, image → 2D + metric 3D | two networks, image → 2D → temporal 3D lifting |
 | Skeleton | `bml_movi_87` (87 points: 26 joints + virtual surface markers) | Halpe26 2D, OpenPose-25 for calibration |
 | 3D scale | metric (mm), per camera | relative |
-| Linear initialisation | Procrustes between per-camera 3D skeletons | bone collinearity constraints from 2D |
-| Demo: MRE after linear / after BA | 8.1 / **4.0 px** | 178.3 / 8.5 px |
+| Person selection: leg swing | 3D (camera-frame skeleton) | 3D since 0.5.0 (each person's track lifted by VideoPose3D), 2D before |
+| Linear initialisation | Procrustes between per-camera 3D skeletons | Procrustes too since 0.5.1, after placing the lifted poses in each camera's space; bone collinearity before |
+| Demo: MRE after linear / after BA | 8.1 / **4.0 px** | 79.9 / 8.5 px (0.4: 178.3 / 8.5) |
 
 **MeTRAbs** ([Sárándi et al., 2021](https://github.com/isarandi/metrabs), model
 `metrabs_l`) is used through TensorFlow Hub, unmodified. Of its 87 points, 26 are
@@ -40,13 +41,17 @@ on a 27-bone skeleton built from the 26 joints only (`core/skeletons.py`,
 system rank-deficient. The surface markers are used where they carry
 information, e.g. the head band and soles for scaling (below).
 
-**RTMPose + VideoPose3D** is the original two-step path, kept for comparison. Both
+**RTMPose + VideoPose3D** is the original two-step path, kept for environments that already have
+RTMPose, such as Pose2Sim's. Both
 networks run on onnxruntime (`pip install "humancalib[rtmpose]"`): rtmlib's RTMPose models,
 and VideoPose3D converted to ONNX from its official weights (`pose/lifting.py`; same 3D poses as
 the PyTorch original to 2e-4, same calibrations on the trials checked).
 
-Across five datasets (77 paired trials), RTMPose produced an unusable calibration
-in 30 trials, MeTRAbs in none: see [Validation](../README.md#validation).
+Across five datasets (77 paired trials), RTMPose produces an unusable calibration in 2 trials
+since 0.5.1 (7 with 0.5.0, 30 with 0.4), MeTRAbs in none. On the 75 trials both calibrate, the
+median relative rotation error is 1.28° with RTMPose and 0.96° with MeTRAbs (no detectable
+difference, paired Wilcoxon p = 0.43); MeTRAbs stays more reliable and more accurate in scale
+(0.95 % against 1.5 %). See [Validation](../README.md#validation).
 
 ### MeTRAbs quality filters
 
@@ -71,15 +76,21 @@ Three modes (`--person_selection`):
 
 - **`motion`** *(default, evaluated method)* — the subject is the person
   **walking**. In each camera, every detection is tracked over ±0.2 s and its leg
-  swing (ankle relative to hip, in leg lengths per second; in 3D with MeTRAbs, in
-  the image with RTMPose) is measured. A frame is kept only while at least half
+  swing (ankle relative to hip, in leg lengths per second) is measured in 3D: from
+  MeTRAbs' camera-frame skeleton, or, with RTMPose (since 0.5.0), after lifting each
+  person's track to 3D with VideoPose3D. A frame is kept only while at least half
   the cameras see someone walking, and each camera keeps its fastest-swinging
-  detection. A camera the subject walks straight at sees a foreshortened 2D
-  swing and flags walking far less often than the others; such a camera follows
-  the other cameras' decision instead of its own (adaptive gate — it only
-  triggers with RTMPose, MeTRAbs' swing being 3D). Then geometric re-selection
-  (next item) runs. On six BioCV walks: wrong person in 2–5 % of kept frames,
-  against 8–20 % for the largest box (`pipeline/motion_selection.py`).
+  detection. In the image, a subject walking straight at a camera hardly seems to
+  swing their legs while a passer-by crossing the view does: measured in 3D, the
+  swing no longer depends on the viewpoint. With RTMPose the lifted swing decides
+  *who* walks, and a frame counts as walking when either the 2D or the 3D swing
+  says so (the lifted swing, smoothed by VideoPose3D, clears the threshold less
+  often; taking either keeps every camera's frames). A camera that still flags
+  walking far less often than the others follows the other cameras' decision
+  (adaptive gate). Then geometric re-selection (next item) runs. Wrong person,
+  against a gold-oracle selection: MeTRAbs 2–5 % of kept frames on six BioCV walks
+  (largest box: 8–20 %); RTMPose 4.0 % on 59 trials of four datasets (2D swing:
+  9.3 %, and 10 COMFI walks left a camera empty) (`pipeline/motion_selection.py`).
 - **`geometric`** — starts from the largest detection. After a first
   calibration, the subject is triangulated from the cameras that agree, and each
   camera re-selects the detection closest to its reprojection; the rig is then
@@ -95,8 +106,17 @@ Three modes (`--person_selection`):
   camera's pose relative to the reference. The reference is chosen
   automatically: the camera whose alignments to all others have the lowest mean
   residual. `--ref_cam` forces one.
-- **RTMPose — collinearity.** Bone orientation constraints from the 2D
-  projections, as in Lee et al. (2022).
+- **RTMPose — Procrustes too** (since 0.5.1). VideoPose3D gives each joint
+  relative to the pelvis, in the camera's orientation, but not where the person
+  stands. Per frame, the pelvis position is the one that makes the lifted pose
+  reproject onto its own 2D keypoints — linear least squares in three unknowns
+  (`place_in_camera`) — and the placed skeletons are then aligned to the
+  reference camera as MeTRAbs' are. A camera only needs frames in common with the
+  reference. The previous initialisation (bone orientation constraints from the
+  2D projections, as in Lee et al. 2022; `HUMANCALIB_RTMPOSE_INIT=linear`) needs
+  every bone seen by every camera at once, which rigs of many cameras along a
+  corridor rarely give: on the 77 trials, failures 7 → 2, the calibrations that
+  succeeded both ways unchanged (median 1.37°, at most 0.13° apart).
 - **Chunks.** The sequence is cut into chunks of 120 s (at least 1000 frames),
   each calibrated on the frames seen by at least two thirds of the cameras; the
   chunk with the lowest MRE is kept. An ordinary walk fits one chunk. Chunks used
