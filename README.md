@@ -7,17 +7,25 @@ axis from the subject's height. The output is a
 [Pose2Sim](https://github.com/perfanalytics/pose2sim)-format calibration, ready
 for markerless motion capture.
 
-![Overview](https://raw.githubusercontent.com/flodelaplace/HumanCalib/main/img/graphical_abstract.png)
+![HumanCalib pipeline](https://raw.githubusercontent.com/flodelaplace/HumanCalib/main/img/pipeline.png)
 
 ## How it works
 
-1. **Pose estimation** in every view with [MeTRAbs](https://github.com/isarandi/metrabs),
-   which predicts a metric 3D skeleton per camera.
-2. **Person selection**: the walking subject is kept in every camera, bystanders
-   are discarded.
-3. **Linear initialisation** by aligning the per-camera 3D skeletons (Procrustes).
-4. **Bundle adjustment** of all cameras on the 2D keypoints.
-5. **Metric scale and vertical** from the subject's height and walk.
+1. **Inputs**: synchronised videos from N fixed cameras, their known intrinsics and the
+   participant's stature. No calibration target.
+2. **Pose estimation** in every view, with one of two engines: **HumanCalib-M**
+   ([MeTRAbs](https://github.com/isarandi/metrabs), 2D and metric 3D from one network, the
+   default) or **HumanCalib-R** (RTMPose 2D lifted to 3D by VideoPose3D).
+3. **Person selection**: the person walking is kept in every camera (leg swing about the hip,
+   agreement between cameras, geometric check); bystanders are discarded.
+4. **Extrinsic calibration**: camera poses initialised by superposing the per-camera 3D
+   skeletons (Procrustes), badly reprojected frames dropped, then bundle adjustment of all
+   cameras and 3D joints on the 2D keypoints.
+5. **Metric world frame** from the body itself: the vertical is the median head-to-feet axis
+   over the walk, the scale comes from the stature.
+6. **Check and export**: a calibration is accepted when its worst camera reprojects within
+   15 mrad, with no reference needed, and is written in the Pose2Sim format (gravity-aligned,
+   metric).
 
 Details, design choices and what was measured to justify them:
 [docs/METHOD.md](https://github.com/flodelaplace/HumanCalib/blob/main/docs/METHOD.md).
@@ -38,6 +46,13 @@ which needs no reference. Median over trials [min–max]:
 | IMOVE-23 | 10 | 11 | 0.40° [0.30–0.96] | 3.30 px [2.95–3.83] |
 | BioCV | 9 | 18 | 0.43° [0.25–0.95] | 2.77 px [2.35–4.07] |
 | OpenCap | 5 | 18 | 1.89° [0.56–2.31] | 1.69 px [1.38–2.16] |
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/flodelaplace/HumanCalib/main/img/rigs.png" width="720"
+       alt="Camera rigs estimated by HumanCalib-M (red) over the reference calibrations (green)">
+  <br><em>HumanCalib-M cameras (red) over each dataset's reference calibration (green), for the trial
+  closest to the dataset median; the angle is the median relative rotation error.</em>
+</p>
 
 Pixels are not comparable between rigs of different focal lengths; in angular
 terms the same errors are 2.4, 2.1 and 1.8 mrad. A low reprojection error means
