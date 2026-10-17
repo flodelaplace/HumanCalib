@@ -1,0 +1,9 @@
+stature_given,scale_error_abs_median_pct,scale_error_abs_p95_pct,share_below_1pct,share_below_2pct
+exact,1.02,3.12,49.5,80.0
++1 cm,1.15,3.28,47.4,72.6
+-1 cm,1.0,3.03,50.5,81.1
++2 cm,1.54,3.91,28.4,63.2
+-2 cm,1.07,3.39,46.3,76.8
++3 cm,2.1,4.54,17.9,47.4
+-3 cm,1.45,3.98,33.7,68.4
+shoes (+2.5 cm),1.84,4.22,25.3,55.8

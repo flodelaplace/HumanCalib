@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.5.3 — 2026-10-17
+
+No code change.
+
+**Added**
+- `paper/results/`: the article's evaluation grows from 77 to 97 trials. The 20 new trials come
+  from participants never opened during development (I-MOVE-23 subjects 14-25; BioCV P19, P24, P26
+  and P27) and are flagged by an `out_of_sample` column. The rows of the 77 original trials are
+  unchanged.
+- `paper/results/`: joint-angle RMSD for the HumanCalib-R chain (new `engine` column), kinematics
+  against motion capture, stride length, speed and cadence, walking coverage, and scale inside the
+  walking volume.
+- `paper/results/`: sensitivity to camera count, synchronisation, intrinsics and stature, and the
+  reference-free criterion perturbed on the 20 new trials.
+- `paper/results/`: a simulated pathological gait (OpenCap trunk-sway walks, 27 trials), and the
+  list of the trials used during development.
+
 ## 0.5.2 — 2026-10-09
 
 **Added**

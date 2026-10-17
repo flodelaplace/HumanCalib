@@ -101,6 +101,18 @@ the laboratory's own motion capture than that dataset's own calibration, which
 makes any comparison against that reference a measure of the reference rather
 than of HumanCalib.
 
+**Out of sample.** 20 further trials of participants never opened during development (I-MOVE-23
+subjects 14-25, BioCV P19, P24, P26 and P27): no failed calibration with either engine, median
+relative rotation error 0.52° (MeTRAbs) and 0.44° (RTMPose + VideoPose3D), and 39 of the 40
+calibrations accepted by the reference-free criterion.
+
+**Sensitivity.** Calibrations redone from the same detections still succeed with 2 cameras, the
+median relative rotation error growing from about 0.4° with all cameras to about 0.9° with 2. One
+camera out of sync by up to 10 ms changes nothing; by 80 ms, the error grows from 0.44° to 0.52°.
+The intrinsics must be right: a focal length 5 % off passes almost unchanged into the scale, and a
+principal point 30 px off brings the error to about 2°. Each centimetre of error in the stature
+given moves the scale by about 0.6 %.
+
 A paper is in preparation; its per-trial results are in
 [paper/results/](https://github.com/flodelaplace/HumanCalib/tree/main/paper/results) (CC BY 4.0).
 The evaluation protocol is in
@@ -135,11 +147,11 @@ pip install "humancalib[gpu]"
 ### Check the install
 
 The demo videos are in the repository: download and unzip the
-[source archive](https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.5.2.zip)
+[source archive](https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.5.3.zip)
 (or `git clone` the repository), then
 
 ```bash
-humancalib run HumanCalib-0.5.2/demo HumanCalib-0.5.2/demo/Calib_scene.toml output/demo --height 1.78
+humancalib run HumanCalib-0.5.3/demo HumanCalib-0.5.3/demo/Calib_scene.toml output/demo --height 1.78
 ```
 
 It worked if the log shows `Compute device: GPU` and ends with an MRE summary
