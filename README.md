@@ -150,11 +150,11 @@ pip install "humancalib[gpu]"
 ### Check the install
 
 The demo videos are in the repository: download and unzip the
-[source archive](https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.5.3.zip)
+[source archive](https://github.com/flodelaplace/HumanCalib/archive/refs/tags/v0.5.4.zip)
 (or `git clone` the repository), then
 
 ```bash
-humancalib run HumanCalib-0.5.3/demo HumanCalib-0.5.3/demo/Calib_scene.toml output/demo --height 1.78
+humancalib run HumanCalib-0.5.4/demo HumanCalib-0.5.4/demo/Calib_scene.toml output/demo --height 1.78
 ```
 
 It worked if the log shows `Compute device: GPU` and ends with an MRE summary

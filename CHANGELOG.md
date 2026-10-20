@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.4 — 2026-10-20
+
+No code or data change.
+
+**Changed**
+- README, Validation: camera geometry, kinematics and the RTMPose comparison now cover the 97
+  trials of `paper/results/` (0.5.3 still showed the 77 trials of the first submission). The
+  kinematics table reports each chain in its own frame, the article's primary analysis, with
+  participant-level equivalence. `docs/METHOD.md`: the RTMPose summary moves to 97 trials.
+
 ## 0.5.3 — 2026-10-20
 
 No code change.
