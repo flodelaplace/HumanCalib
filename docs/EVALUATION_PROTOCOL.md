@@ -4,6 +4,13 @@ This protocol fixes, **before** looking at the
 results, what is measured, how, and with which parameters, so that no setting is
 tuned after the fact on the validation data.
 
+> **Status.** The protocol is kept as written before the results. The evaluation it led to covers
+> 97 walking trials from five datasets (77 in the first submission, then 20 trials of
+> participants never opened during development), with both engines; the per-trial results,
+> including the reliability and sensitivity analyses of section 8 and the camera-subset and
+> duration analyses it listed as optional, are in [paper/results/](../paper/results/README.md).
+> The experimental plan of section 10 is the initial one.
+
 Code: `src/humancalib/evaluation/` (reference calibration readers, metrics,
 per-dataset drivers), tests: `tests/test_eval_*.py`. Results: one folder per
 dataset and trial in the datasets' local copy (outside the repository).

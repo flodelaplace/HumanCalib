@@ -43,7 +43,7 @@ which needs no reference. Median over trials [min–max]:
 
 | Dataset | Cameras | Trials | Relative rotation error | Reprojection error (MRE) |
 |---|---|---|---|---|
-| IMOVE-23 | 10 | 23 | 0.51° [0.29–1.06] | 3.34 px [2.93–5.47] |
+| I-MOVE-23 | 10 | 23 | 0.51° [0.29–1.06] | 3.34 px [2.93–5.47] |
 | BioCV | 9 | 26 | 0.47° [0.25–0.95] | 2.75 px [2.35–4.07] |
 | OpenCap | 5 | 18 | 1.89° [0.56–2.31] | 1.69 px [1.38–2.16] |
 
@@ -51,7 +51,8 @@ which needs no reference. Median over trials [min–max]:
   <img src="https://raw.githubusercontent.com/flodelaplace/HumanCalib/main/img/rigs.png" width="720"
        alt="Camera rigs estimated by HumanCalib-M (red) over the reference calibrations (green)">
   <br><em>HumanCalib-M cameras (red) over each dataset's reference calibration (green), for the trial
-  closest to the dataset median; the angle is the median relative rotation error.</em>
+  closest to the dataset median among the first 77 trials; the angle is that trial's median relative
+  rotation error.</em>
 </p>
 
 Pixels are not comparable between rigs of different focal lengths; in angular
@@ -72,7 +73,7 @@ for each of the 9 degrees of freedom (pelvis, hip, knee, ankle, subtalar):
 |---|---|---|---|---|
 | BioCV | 26 | 0.34° [0.18–2.50] | 0.83° | 9 / 9 |
 | OpenCap | 18 | 0.48° [0.31–0.93] | 0.85° | 9 / 9 |
-| IMOVE-23 | 23 | 0.82° [0.46–1.89] | 1.43° | 8 / 9 |
+| I-MOVE-23 | 23 | 0.82° [0.46–1.89] | 1.43° | 8 / 9 |
 
 Changing the calibration therefore moves the reported angles by about half a
 degree to one degree, below the 2° margin usually accepted in clinical gait
@@ -88,15 +89,15 @@ calibrations are tied (median RMSD within 0.02° on each dataset).
 cameras initialised camera by camera, see [METHOD.md](https://github.com/flodelaplace/HumanCalib/blob/main/docs/METHOD.md)). On the 96 trials both
 engines calibrate, median relative rotation error:
 
-| | IMOVE-23 | BioCV | OpenCap | All five datasets |
+| | I-MOVE-23 | BioCV | OpenCap | All five datasets |
 |---|---|---|---|---|
 | MeTRAbs | 0.51° | 0.47° | 1.89° | 0.84° |
 | RTMPose + VideoPose3D | 0.34° | 0.49° | 1.95° | 0.66° |
 
 No difference is detectable in rotation (paired Wilcoxon, p = 0.77); MeTRAbs remains more
 reliable (no failure) and more accurate in scale (1.1 % against 1.7 %). The joint angles
-are unchanged by the choice of engine: with RTMPose calibrations, all 27 degrees of
-freedom are equivalent within 2°.
+are unchanged by the choice of engine: with RTMPose calibrations, all 9 degrees of
+freedom are equivalent within 2° on each of the three datasets.
 
 The two remaining datasets are reported in the paper: LBMC, whose two treadmill
 trials are too few to summarise, and COMFI, where HumanCalib proved closer to

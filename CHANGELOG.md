@@ -9,6 +9,11 @@ No code or data change.
   trials of `paper/results/` (0.5.3 still showed the 77 trials of the first submission). The
   kinematics table reports each chain in its own frame, the article's primary analysis, with
   participant-level equivalence. `docs/METHOD.md`: the RTMPose summary moves to 97 trials.
+- Documentation brought in line with the 97-trial evaluation: the dataset is named I-MOVE-23
+  throughout, as in `paper/results/`; `HOWTO.md` (MeTRAbs: 0 failures out of 97); `docs/METHOD.md`
+  (vertical error 0.6°, stature measured barefoot, about 0.6 % of scale per centimetre);
+  `docs/EVALUATION_PROTOCOL.md` gains a status note: the protocol stays as written before the
+  results, and points to the final evaluation.
 
 ## 0.5.3 — 2026-10-20
 

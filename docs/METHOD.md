@@ -198,7 +198,7 @@ walk rather than on one frame.
 (head → mid-ankles) over the walk, with its component along the walking
 direction removed; the walking direction comes from the stance-phase foot
 keypoints. Removing it cancels the forward trunk lean. Median error against lab
-calibrations: about 0.7°, against about 3° from a single frame.
+calibrations: about 0.6° over the 97 evaluation trials, against about 3° from a single frame.
 
 **Scale** (`--scale_method stature`, default). With MeTRAbs, the body is measured
 top to bottom: the height of the head-band markers (mid-point of the four virtual
@@ -206,7 +206,8 @@ head markers) above the floor (lowest sole marker: heels, toes, metatarsals),
 95th centile over the walk, is set to **0.9255 × `--height`**. That ratio covers
 the head band → vertex distance and the head's dip during gait; it was fixed
 once on the BioCV development set and applied unchanged to the four other
-datasets, where the median absolute scale error is **1.1 %**.
+datasets, where the median absolute scale error is **1.1 %**. Each centimetre of error in
+`--height` moves the scale by about 0.6 %: measure the stature barefoot (shoes add about 2.5 cm).
 
 The previous rule (`--scale_method segments`: thigh + shank = 0.491 ×
 `--height`, Drillis & Contini) lets each person's leg proportions into the scale
