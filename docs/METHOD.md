@@ -47,11 +47,11 @@ networks run on onnxruntime (`pip install "humancalib[rtmpose]"`): rtmlib's RTMP
 and VideoPose3D converted to ONNX from its official weights (`pose/lifting.py`; same 3D poses as
 the PyTorch original to 2e-4, same calibrations on the trials checked).
 
-Across five datasets (77 paired trials), RTMPose produces an unusable calibration in 1 trial
-since 0.5.1 (7 with 0.5.0, 30 with 0.4), MeTRAbs in none. On the 76 trials both calibrate, the
-median relative rotation error is 1.27° with RTMPose and 0.95° with MeTRAbs (no detectable
-difference, paired Wilcoxon p = 0.51); MeTRAbs stays more reliable and more accurate in scale
-(0.95 % against 1.5 %). See [Validation](../README.md#validation).
+Across five datasets (97 paired trials), RTMPose produces an unusable calibration in 1 trial
+since 0.5.1 (on the first 77 trials: 7 with 0.5.0, 30 with 0.4), MeTRAbs in none. On the 96
+trials both calibrate, the median relative rotation error is 0.66° with RTMPose and 0.84° with
+MeTRAbs (no detectable difference, paired Wilcoxon p = 0.77); MeTRAbs stays more reliable and
+more accurate in scale (1.1 % against 1.7 %). See [Validation](../README.md#validation).
 
 ### MeTRAbs quality filters
 

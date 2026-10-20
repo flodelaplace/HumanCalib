@@ -34,7 +34,7 @@ Details, design choices and what was measured to justify them:
 
 ## Validation
 
-Five public datasets, 77 trials, default settings. The three reported here each
+Five public datasets, 97 trials, default settings. The three reported here each
 provide a laboratory-grade reference calibration and enough trials to summarise.
 
 **Camera geometry.** Relative rotation between camera pairs, against the
@@ -43,8 +43,8 @@ which needs no reference. Median over trials [min–max]:
 
 | Dataset | Cameras | Trials | Relative rotation error | Reprojection error (MRE) |
 |---|---|---|---|---|
-| IMOVE-23 | 10 | 11 | 0.40° [0.30–0.96] | 3.30 px [2.95–3.83] |
-| BioCV | 9 | 18 | 0.43° [0.25–0.95] | 2.77 px [2.35–4.07] |
+| IMOVE-23 | 10 | 23 | 0.51° [0.29–1.06] | 3.34 px [2.93–5.47] |
+| BioCV | 9 | 26 | 0.47° [0.25–0.95] | 2.75 px [2.35–4.07] |
 | OpenCap | 5 | 18 | 1.89° [0.56–2.31] | 1.69 px [1.38–2.16] |
 
 <p align="center">
@@ -55,7 +55,7 @@ which needs no reference. Median over trials [min–max]:
 </p>
 
 Pixels are not comparable between rigs of different focal lengths; in angular
-terms the same errors are 2.4, 2.1 and 1.8 mrad. A low reprojection error means
+terms the same errors are 2.5, 2.1 and 1.8 mrad. A low reprojection error means
 the calibration is not broken, not that it is accurate: on OpenCap, five
 smartphones on a tight arc and a walk of about two seconds cap the accuracy
 while leaving the residual low.
@@ -63,37 +63,40 @@ while leaving the residual low.
 **What it changes for the biomechanist.** The same
 [Pose2Sim](https://github.com/perfanalytics/pose2sim) chain was run twice per
 trial on the same 2D detections, with the laboratory calibration and with
-HumanCalib's, changing nothing else. The table compares the joint angles the two
-runs produce. Equivalence is declared when the upper bound of the 95 %
-confidence interval stays below the margin, for each of the 9 degrees of freedom
-(pelvis, hip, knee, ankle, subtalar):
+HumanCalib's, changing nothing else, each run in its own frame. The table compares
+the joint angles the two runs produce. Equivalence is declared when the upper bound of the 95 %
+confidence interval (participant level, Bonferroni-corrected) stays below the margin,
+for each of the 9 degrees of freedom (pelvis, hip, knee, ankle, subtalar):
 
 | Dataset | Trials | RMSD between the two chains, median [min–max] | Worst degree of freedom | Equivalent within 2° |
 |---|---|---|---|---|
-| BioCV | 18 | 0.40° [0.20–2.45] | 0.94° | 9 / 9 |
-| OpenCap | 18 | 0.58° [0.35–1.13] | 0.98° | 9 / 9 |
-| IMOVE-23 | 11 | 0.82° [0.46–1.67] | 1.38° | 8 / 9 |
+| BioCV | 26 | 0.34° [0.18–2.50] | 0.83° | 9 / 9 |
+| OpenCap | 18 | 0.48° [0.31–0.93] | 0.85° | 9 / 9 |
+| IMOVE-23 | 23 | 0.82° [0.46–1.89] | 1.43° | 8 / 9 |
 
 Changing the calibration therefore moves the reported angles by about half a
 degree to one degree, below the 2° margin usually accepted in clinical gait
-analysis, and roughly ten times less than the 4–11° that separates such a chain
-from optical motion capture on the same trials.
+analysis, and roughly ten times less than the 4–12° that separates such a chain
+from optical motion capture on the same trials. Against motion capture, the two
+calibrations are tied (median RMSD within 0.02° on each dataset).
 
-- No failed calibration out of 77.
+- No failed calibration out of 97.
 - Metric scale within 1.1 % (median, on the four datasets not used to set it).
 
 **With RTMPose + VideoPose3D** instead of MeTRAbs (the backend Pose2Sim already installs),
-1 calibration out of 77 fails (30 before 0.5: the walking person is now told apart in 3D and the
-cameras initialised camera by camera, see [METHOD.md](https://github.com/flodelaplace/HumanCalib/blob/main/docs/METHOD.md)). On the 76 trials both
+1 calibration out of 97 fails (30 out of 77 before 0.5: the walking person is now told apart in 3D and the
+cameras initialised camera by camera, see [METHOD.md](https://github.com/flodelaplace/HumanCalib/blob/main/docs/METHOD.md)). On the 96 trials both
 engines calibrate, median relative rotation error:
 
 | | IMOVE-23 | BioCV | OpenCap | All five datasets |
 |---|---|---|---|---|
-| MeTRAbs | 0.40° | 0.43° | 1.89° | 0.95° |
-| RTMPose + VideoPose3D | 0.33° | 0.49° | 1.95° | 1.27° |
+| MeTRAbs | 0.51° | 0.47° | 1.89° | 0.84° |
+| RTMPose + VideoPose3D | 0.34° | 0.49° | 1.95° | 0.66° |
 
-No difference is detectable in rotation (paired Wilcoxon, p = 0.51); MeTRAbs remains more
-reliable (no failure) and more accurate in scale (0.95 % against 1.5 %).
+No difference is detectable in rotation (paired Wilcoxon, p = 0.77); MeTRAbs remains more
+reliable (no failure) and more accurate in scale (1.1 % against 1.7 %). The joint angles
+are unchanged by the choice of engine: with RTMPose calibrations, all 27 degrees of
+freedom are equivalent within 2°.
 
 The two remaining datasets are reported in the paper: LBMC, whose two treadmill
 trials are too few to summarise, and COMFI, where HumanCalib proved closer to
@@ -101,8 +104,8 @@ the laboratory's own motion capture than that dataset's own calibration, which
 makes any comparison against that reference a measure of the reference rather
 than of HumanCalib.
 
-**Out of sample.** 20 further trials of participants never opened during development (I-MOVE-23
-subjects 14-25, BioCV P19, P24, P26 and P27): no failed calibration with either engine, median
+**Out of sample.** 20 of the 97 trials come from participants never opened during development
+(I-MOVE-23 subjects 14-25, BioCV P19, P24, P26 and P27): no failed calibration with either engine, median
 relative rotation error 0.52° (MeTRAbs) and 0.44° (RTMPose + VideoPose3D), and 39 of the 40
 calibrations accepted by the reference-free criterion.
 
