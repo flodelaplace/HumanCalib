@@ -14,6 +14,8 @@ No code or data change.
   (vertical error 0.6°, stature measured barefoot, about 0.6 % of scale per centimetre);
   `docs/EVALUATION_PROTOCOL.md` gains a status note: the protocol stays as written before the
   results, and points to the final evaluation.
+- README: references of the five evaluation datasets (BioCV, I-MOVE-23, OpenCap, LBMC, COMFI),
+  of the optional backend (RTMPose, VideoPose3D) and of Pose2Sim and OpenSim.
 
 ## 0.5.3 — 2026-10-20
 

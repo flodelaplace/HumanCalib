@@ -55,7 +55,8 @@ natural walks of the same participants (`gait` = trunk_sway or natural).
 
 These files contain derived metrics only: no video, no 2D or 3D keypoints, no motion-capture
 markers and no element of the datasets' reference calibrations. The datasets themselves are
-distributed by their authors under their own terms.
+distributed by their authors under their own terms; their references are listed in the
+[main README](../../README.md#datasets-of-the-evaluation).
 
 ## Licence
 

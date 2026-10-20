@@ -318,3 +318,32 @@ also cite the method HumanCalib builds on and the pose estimator:
 - I. Sárándi, T. Linder, K. O. Arras, B. Leibe. *MeTRAbs: Metric-Scale
   Truncation-Robust Heatmaps for Absolute 3D Human Pose Estimation.* IEEE T-BIOM,
   2021.
+- With the optional backend: T. Jiang et al. *RTMPose: Real-Time Multi-Person Pose
+  Estimation based on MMPose.* arXiv:2303.07399, 2023; and D. Pavllo, C. Feichtenhofer,
+  D. Grangier, M. Auli. *3D human pose estimation in video with temporal convolutions and
+  semi-supervised training.* CVPR, 2019.
+
+### Datasets of the evaluation
+
+The validation above uses five public datasets, distributed by their authors under their own
+terms. We thank them for making their recordings and calibrations available.
+
+- **BioCV**: M. Evans et al. *Synchronised video, motion capture and force plate dataset for
+  validating markerless human movement analysis.* Scientific Data 11, 1300, 2024; and
+  L. Needham et al. *The development and evaluation of a fully automated markerless motion
+  capture workflow.* Journal of Biomechanics 144, 111338, 2022.
+- **I-MOVE-23**: Z. Li, S. Shin, V. Phan, E. Meinders, E. Halilaj. *Impact of multi-view fusion
+  and biomechanical modeling on markerless motion tracking.* IEEE Transactions on Biomedical
+  Engineering 73, 2054–2062, 2026.
+- **OpenCap**: S. D. Uhlrich et al. *OpenCap: Human movement dynamics from smartphone videos.*
+  PLoS Computational Biology 19, e1011462, 2023.
+- **LBMC**: A. Muller, A. Naaïm, R. Dumas, T. Robert. *Benchmarking raw datasets and
+  collaboratively-evolving processed data for markerless motion capture analysis.* Data in Brief
+  62, 112044, 2025; data: [doi:10.57745/LQI2MJ](https://doi.org/10.57745/LQI2MJ).
+- **COMFI**: K. Chalabi et al. *COMFI: a multimodal industrial human motion dataset for
+  markerless motion capture and collaborative robotics.* International Journal of Robotics
+  Research, 2026. [doi:10.1177/02783649261468361](https://doi.org/10.1177/02783649261468361)
+
+The joint angles were computed with [Pose2Sim](https://github.com/perfanalytics/pose2sim)
+(D. Pagnon, M. Domalain, L. Reveret, Sensors 21, 6530, 2021 and 22, 2712, 2022) and
+OpenSim (A. Seth et al., PLoS Computational Biology 14, e1006223, 2018).
