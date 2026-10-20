@@ -108,7 +108,7 @@ calibrations accepted by the reference-free criterion.
 
 **Sensitivity.** Calibrations redone from the same detections still succeed with 2 cameras, the
 median relative rotation error growing from about 0.4° with all cameras to about 0.9° with 2. One
-camera out of sync by up to 10 ms changes nothing; by 80 ms, the error grows from 0.44° to 0.52°.
+camera out of sync by up to 20 ms changes nothing; by 80 ms, the error grows from 0.44° to 0.52°.
 The intrinsics must be right: a focal length 5 % off passes almost unchanged into the scale, and a
 principal point 30 px off brings the error to about 2°. Each centimetre of error in the stature
 given moves the scale by about 0.6 %.
