@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+**Added**
+- `paper/results/`: the analyses still at 77 trials now include the 20 out-of-sample trials: the
+  walking-duration sweep, the re-optimisation after perturbation, the scale-rule grid
+  (`scale_rule_grid.csv`) and the rig size change during bundle adjustment
+  (`rig_size_change_during_adjustment.csv`). The rows of the first submission are unchanged.
+
 ## 0.5.3 — 2026-10-17
 
 No code change.

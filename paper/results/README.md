@@ -32,9 +32,11 @@ degrees and lengths in millimetres unless stated. Engines: HumanCalib-M (MeTRAbs
 
 | File | Content |
 |---|---|
-| `walking_duration_sweep.csv` | calibration error for windows of 0.5 s to the full trial (Supplementary Table S3). |
-| `criterion_perturbation.csv` | one camera rotated by 1-30 deg; acceptance decision without (readjusted = no) and with (yes) a new bundle adjustment (Fig. 5b, Supplementary Table S2). The 20 out-of-sample trials are perturbed without re-adjustment only. |
+| `walking_duration_sweep.csv` | calibration error for windows of 0.5 s to the full trial (Supplementary Table S3): the 10 trials of the first submission and the 20 out-of-sample trials. Short trials repeat no window: a trial shorter than the window is calibrated once, on its full length. Compute times of the out-of-sample trials were measured while another computation ran and are indicative only. |
+| `criterion_perturbation.csv` | one camera rotated by 1-30 deg; acceptance decision without (readjusted = no) and with (yes) a new bundle adjustment (Fig. 5b, Supplementary Table S2). With re-adjustment, one camera per participant is perturbed (45 participants of the first submission, 16 out-of-sample participants). |
 | `sensitivity_rig_conditions.csv` | HumanCalib-M calibration redone from the article's detections, with no new pose estimation, under degraded conditions. `camera_count`: random subsets of 2 to 8 cameras, 3 draws each (BioCV WALK_01, 9 trials; I-MOVE-23, 11 trials). `synchronisation`: one camera shifted by 1-16 frames at 200 Hz (BioCV). `intrinsics`: focal length scaled by 0.95-1.05 or principal point shifted by 10 or 30 px for all cameras (BioCV). Scored against the reference on the same cameras. With 2 cameras, the single pair is scored directly; `worst_pair_deg` is then the larger of its rotation and baseline-direction errors, and scale is undefined. The 7-DoF rig shape is left out with 3 cameras or fewer: it places each camera from a fit on the others, and with 2 remaining cameras the rotation about their baseline is free. |
+| `scale_rule_grid.csv` | scale error of the head-to-floor rule for 36 settings (head and floor percentiles, number of frames), the constant refitted each time on the 18 original BioCV trials; evaluated on the 59 out-of-sample trials of the first submission and on 79 trials (59 + 20 new). |
+| `rig_size_change_during_adjustment.csv` | change of the mean distance between cameras from the linear stage to the end of bundle adjustment, per HumanCalib-M calibration. |
 | `stature_sensitivity.csv` | scale error of the 97 HumanCalib-M calibrations when the stature given is off by -3 to +3 cm, or measured with shoes (+2.5 cm). |
 
 ## Simulated pathological gait (OpenCap trunk sway)

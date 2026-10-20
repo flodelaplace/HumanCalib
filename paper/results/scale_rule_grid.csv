@@ -1,0 +1,73 @@
+head_percentile,floor_percentile,n_frames,constant,evaluated_on,n_trials,scale_error_abs_median_pct,scale_bias_median_pct
+90.0,1,200,0.9237,59 out-of-sample trials of the first submission,59,0.99,0.63
+90.0,1,200,0.9237,79 trials (59 + 20 new),79,1.06,0.52
+90.0,1,400,0.9237,59 out-of-sample trials of the first submission,59,0.98,0.51
+90.0,1,400,0.9237,79 trials (59 + 20 new),79,1.07,0.51
+90.0,1,800,0.9237,59 out-of-sample trials of the first submission,59,0.96,0.4
+90.0,1,800,0.9237,79 trials (59 + 20 new),79,1.07,0.46
+90.0,2,200,0.9233,59 out-of-sample trials of the first submission,59,0.99,0.61
+90.0,2,200,0.9233,79 trials (59 + 20 new),79,1.16,0.57
+90.0,2,400,0.9232,59 out-of-sample trials of the first submission,59,0.98,0.6
+90.0,2,400,0.9232,79 trials (59 + 20 new),79,1.15,0.58
+90.0,2,800,0.9232,59 out-of-sample trials of the first submission,59,0.98,0.6
+90.0,2,800,0.9232,79 trials (59 + 20 new),79,1.15,0.56
+90.0,5,200,0.9224,59 out-of-sample trials of the first submission,59,1.07,0.56
+90.0,5,200,0.9224,79 trials (59 + 20 new),79,1.12,0.56
+90.0,5,400,0.9224,59 out-of-sample trials of the first submission,59,1.07,0.56
+90.0,5,400,0.9224,79 trials (59 + 20 new),79,1.16,0.56
+90.0,5,800,0.9224,59 out-of-sample trials of the first submission,59,1.03,0.56
+90.0,5,800,0.9224,79 trials (59 + 20 new),79,1.16,0.56
+95.0,1,200,0.9264,59 out-of-sample trials of the first submission,59,1.05,0.64
+95.0,1,200,0.9264,79 trials (59 + 20 new),79,1.17,0.63
+95.0,1,400,0.9263,59 out-of-sample trials of the first submission,59,1.04,0.63
+95.0,1,400,0.9263,79 trials (59 + 20 new),79,1.15,0.58
+95.0,1,800,0.9263,59 out-of-sample trials of the first submission,59,1.05,0.52
+95.0,1,800,0.9263,79 trials (59 + 20 new),79,1.16,0.55
+95.0,2,200,0.9259,59 out-of-sample trials of the first submission,59,1.08,0.65
+95.0,2,200,0.9259,79 trials (59 + 20 new),79,1.14,0.6
+95.0,2,400,0.9259,59 out-of-sample trials of the first submission,59,1.09,0.65
+95.0,2,400,0.9259,79 trials (59 + 20 new),79,1.14,0.6
+95.0,2,800,0.926,59 out-of-sample trials of the first submission,59,1.1,0.66
+95.0,2,800,0.926,79 trials (59 + 20 new),79,1.15,0.57
+95.0,5,200,0.9251,59 out-of-sample trials of the first submission,59,1.05,0.68
+95.0,5,200,0.9251,79 trials (59 + 20 new),79,1.17,0.63
+95.0,5,400,0.9251,59 out-of-sample trials of the first submission,59,1.05,0.68
+95.0,5,400,0.9251,79 trials (59 + 20 new),79,1.17,0.66
+95.0,5,800,0.9251,59 out-of-sample trials of the first submission,59,1.07,0.69
+95.0,5,800,0.9251,79 trials (59 + 20 new),79,1.18,0.64
+97.5,1,200,0.9281,59 out-of-sample trials of the first submission,59,1.1,0.68
+97.5,1,200,0.9281,79 trials (59 + 20 new),79,1.2,0.65
+97.5,1,400,0.9282,59 out-of-sample trials of the first submission,59,1.05,0.69
+97.5,1,400,0.9282,79 trials (59 + 20 new),79,1.19,0.64
+97.5,1,800,0.9283,59 out-of-sample trials of the first submission,59,1.06,0.63
+97.5,1,800,0.9283,79 trials (59 + 20 new),79,1.19,0.63
+97.5,2,200,0.9276,59 out-of-sample trials of the first submission,59,1.1,0.67
+97.5,2,200,0.9276,79 trials (59 + 20 new),79,1.21,0.62
+97.5,2,400,0.9276,59 out-of-sample trials of the first submission,59,1.07,0.67
+97.5,2,400,0.9276,79 trials (59 + 20 new),79,1.23,0.6
+97.5,2,800,0.9278,59 out-of-sample trials of the first submission,59,1.07,0.69
+97.5,2,800,0.9278,79 trials (59 + 20 new),79,1.22,0.64
+97.5,5,200,0.926,59 out-of-sample trials of the first submission,59,1.1,0.66
+97.5,5,200,0.926,79 trials (59 + 20 new),79,1.15,0.65
+97.5,5,400,0.9262,59 out-of-sample trials of the first submission,59,1.11,0.68
+97.5,5,400,0.9262,79 trials (59 + 20 new),79,1.17,0.67
+97.5,5,800,0.9262,59 out-of-sample trials of the first submission,59,1.12,0.68
+97.5,5,800,0.9262,79 trials (59 + 20 new),79,1.18,0.67
+99.0,1,200,0.9292,59 out-of-sample trials of the first submission,59,1.12,0.72
+99.0,1,200,0.9292,79 trials (59 + 20 new),79,1.21,0.72
+99.0,1,400,0.9295,59 out-of-sample trials of the first submission,59,1.08,0.75
+99.0,1,400,0.9295,79 trials (59 + 20 new),79,1.21,0.71
+99.0,1,800,0.9297,59 out-of-sample trials of the first submission,59,1.08,0.76
+99.0,1,800,0.9297,79 trials (59 + 20 new),79,1.21,0.73
+99.0,2,200,0.9288,59 out-of-sample trials of the first submission,59,1.06,0.73
+99.0,2,200,0.9288,79 trials (59 + 20 new),79,1.22,0.7
+99.0,2,400,0.929,59 out-of-sample trials of the first submission,59,1.09,0.73
+99.0,2,400,0.929,79 trials (59 + 20 new),79,1.2,0.72
+99.0,2,800,0.9291,59 out-of-sample trials of the first submission,59,1.1,0.73
+99.0,2,800,0.9291,79 trials (59 + 20 new),79,1.21,0.73
+99.0,5,200,0.9274,59 out-of-sample trials of the first submission,59,1.06,0.73
+99.0,5,200,0.9274,79 trials (59 + 20 new),79,1.21,0.73
+99.0,5,400,0.9276,59 out-of-sample trials of the first submission,59,1.04,0.76
+99.0,5,400,0.9276,79 trials (59 + 20 new),79,1.22,0.69
+99.0,5,800,0.9277,59 out-of-sample trials of the first submission,59,1.02,0.77
+99.0,5,800,0.9277,79 trials (59 + 20 new),79,1.22,0.7
