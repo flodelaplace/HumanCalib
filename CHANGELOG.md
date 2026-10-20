@@ -1,14 +1,6 @@
 # Changelog
 
-## Unreleased
-
-**Added**
-- `paper/results/`: the analyses still at 77 trials now include the 20 out-of-sample trials: the
-  walking-duration sweep, the re-optimisation after perturbation, the scale-rule grid
-  (`scale_rule_grid.csv`) and the rig size change during bundle adjustment
-  (`rig_size_change_during_adjustment.csv`). The rows of the first submission are unchanged.
-
-## 0.5.3 — 2026-10-17
+## 0.5.3 — 2026-10-20
 
 No code change.
 
@@ -24,6 +16,10 @@ No code change.
   reference-free criterion perturbed on the 20 new trials.
 - `paper/results/`: a simulated pathological gait (OpenCap trunk-sway walks, 27 trials), and the
   list of the trials used during development.
+- `paper/results/`: the analyses still at 77 trials now include the 20 out-of-sample trials: the
+  walking-duration sweep, the re-optimisation after perturbation, the scale-rule grid
+  (`scale_rule_grid.csv`) and the rig size change during bundle adjustment
+  (`rig_size_change_during_adjustment.csv`). The rows of the first submission are unchanged.
 
 ## 0.5.2 — 2026-10-09
 
