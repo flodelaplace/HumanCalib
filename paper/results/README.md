@@ -1,7 +1,7 @@
 # Per-trial results of the article
 
 **Calibrating markerless multi-camera motion capture from a single walk: accuracy against five
-reference calibrations and effect on joint angles** (in preparation).
+reference calibrations and effect on joint angles** ([preprint on HAL](https://hal.science/hal-05855397v1), under review).
 
 Results produced with HumanCalib v0.5 on 97 walking trials from five public datasets (BioCV,
 I-MOVE-23, OpenCap, LBMC, COMFI): the 77 evaluation trials of the first submission, plus 20 trials of

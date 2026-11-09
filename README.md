@@ -1,5 +1,8 @@
 # HumanCalib
 
+[![Preprint on HAL](https://img.shields.io/badge/preprint-HAL-B03532)](https://hal.science/hal-05855397v1)
+[![PyPI](https://img.shields.io/pypi/v/humancalib)](https://pypi.org/project/humancalib/)
+
 **Extrinsic calibration of a multi-camera rig from a person walking through it.**
 No checkerboard, no wand: HumanCalib estimates the pose of every camera from the
 human pose seen by all of them, then gives the rig a metric scale and a vertical
@@ -117,7 +120,7 @@ The intrinsics must be right: a focal length 5 % off passes almost unchanged int
 principal point 30 px off brings the error to about 2°. Each centimetre of error in the stature
 given moves the scale by about 0.6 %.
 
-A paper is in preparation; its per-trial results are in
+The [preprint](https://hal.science/hal-05855397v1) is on HAL and the paper is under review; its per-trial results are in
 [paper/results/](https://github.com/flodelaplace/HumanCalib/tree/main/paper/results) (CC BY 4.0).
 The evaluation protocol is in
 [docs/EVALUATION_PROTOCOL.md](https://github.com/flodelaplace/HumanCalib/blob/main/docs/EVALUATION_PROTOCOL.md).
